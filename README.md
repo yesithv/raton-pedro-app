@@ -28,7 +28,13 @@ compositor offline, antes de escribir la primera línea de Kotlin.
 | `.github/workflows/ci.yml` | `flutter analyze` + tests; **construye el APK** (lo único que valida AGP, AndroidX y la API real de ARCore); recorre el asistente web sobre una cámara falsa y sube las capturas |
 | `.github/workflows/pages.yml` | Publica el prototipo web con HTTPS, que es lo que exige `getUserMedia` |
 
-El APK queda como artefacto descargable de cada ejecución.
+El APK queda como artefacto descargable de cada ejecución, instalable en un teléfono sin
+montar ningún toolchain.
+
+**Pages necesita un paso manual, una sola vez:** *Settings → Pages → Source: "GitHub
+Actions"*. No se puede automatizar — crear el sitio por API exige permiso de
+administración del repositorio, que `GITHUB_TOKEN` no tiene. Hasta entonces ese workflow
+falla con `Get Pages site failed … Not Found`.
 
 ## Prototipo web
 
