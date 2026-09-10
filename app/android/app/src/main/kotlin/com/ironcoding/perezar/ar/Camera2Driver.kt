@@ -39,6 +39,12 @@ class Camera2Driver(
     private var requestBuilder: CaptureRequest.Builder? = null
     private var session: android.hardware.camera2.CameraCaptureSession? = null
 
+    private var cameraTextureId = 0
+    private var facing = CameraCharacteristics.LENS_FACING_BACK
+
+    /** true si la orientacion activa es la frontal (selfie): entonces se espeja la UV. */
+    val isFrontFacing get() = facing == CameraCharacteristics.LENS_FACING_FRONT
+
     private val xform = FloatArray(16)
     private var frameAvailable = false
     private var viewportW = 1
@@ -55,9 +61,24 @@ class Camera2Driver(
     var audioClockOffsetNs = 0L; private set
 
     override fun start(cameraTextureId: Int, viewportWidth: Int, viewportHeight: Int) {
+        this.cameraTextureId = cameraTextureId
         viewportW = viewportWidth
         viewportH = viewportHeight
+        openSession()
+    }
 
+    /**
+     * Cierra la sesion activa y reabre con la orientacion pedida, sin recrear el driver
+     * ni la textura GL. Lo usa el modo selfie para saltar entre frontal y trasera.
+     */
+    fun setFacing(newFacing: Int) {
+        if (newFacing == facing && device != null) return
+        facing = newFacing
+        closeSession()
+        openSession()
+    }
+
+    private fun openSession() {
         thread = HandlerThread("perezar-camera").apply { start() }
         handler = Handler(thread!!.looper)
 
@@ -69,11 +90,23 @@ class Camera2Driver(
         val manager = context.getSystemService(Context.CAMERA_SERVICE) as CameraManager
         val id = manager.cameraIdList.firstOrNull {
             manager.getCameraCharacteristics(it)
-                .get(CameraCharacteristics.LENS_FACING) == CameraCharacteristics.LENS_FACING_BACK
+                .get(CameraCharacteristics.LENS_FACING) == facing
         } ?: manager.cameraIdList.first()
 
         measureClockOffset(manager, id)
         openCamera(manager, id)
+    }
+
+    private fun closeSession() {
+        session?.runCatching { close() }
+        device?.runCatching { close() }
+        surfaceTexture?.release()
+        thread?.quitSafely()
+        session = null
+        device = null
+        surfaceTexture = null
+        thread = null
+        frameAvailable = false
     }
 
     private fun measureClockOffset(manager: CameraManager, id: String) {
@@ -137,14 +170,33 @@ class Camera2Driver(
         texture.updateTexImage()
         texture.getTransformMatrix(xform)
 
-        val fit = com.ironcoding.perezar.gl.Compositor.coverFit(
-            previewWidth, previewHeight, viewportW, viewportH,
-        )
+        // La matriz cruda de SurfaceTexture para la webcam de este AVD no es estable:
+        // segun la sesion llega identidad o ya rotada 90 (mismo sensorOrientation en
+        // ambos casos, asi que ese valor no sirve para decidir). Se detecta mirando la
+        // matriz real: si el eje u ya no mapea a u (xform[0] ~ 0) esta rotada, y el
+        // recorte "cover" debe calcularse con el sensor invertido, si no el recorte usa
+        // ~1/4 del buffer y se ve como zoom excesivo. Solo aplica a la selfie: la
+        // trasera (virtualscene) no lo necesita.
+        val xformRotated = isFrontFacing && kotlin.math.abs(xform[0]) < 0.5f
+        val fit = if (xformRotated) {
+            com.ironcoding.perezar.gl.Compositor.coverFit(
+                previewHeight, previewWidth, viewportW, viewportH,
+            )
+        } else {
+            com.ironcoding.perezar.gl.Compositor.coverFit(
+                previewWidth, previewHeight, viewportW, viewportH,
+            )
+        }
+        // La frontal se espeja en horizontal: es lo que un usuario espera de una camara
+        // selfie, tanto en la vista previa como en la foto que se guarda.
+        val scaleX = if (isFrontFacing) -fit[0] else fit[0]
+        val offsetX = if (isFrontFacing) fit[2] + fit[0] else fit[2]
+
         return FrameUpdate(
             timestampNs = texture.timestamp,
             camXform = xform.copyOf(),
-            camUvScale = floatArrayOf(fit[0], fit[1]),
-            camUvOffset = floatArrayOf(fit[2], fit[3]),
+            camUvScale = floatArrayOf(scaleX, fit[1]),
+            camUvOffset = floatArrayOf(offsetX, fit[3]),
             anchor = null,                       // sin planos: coloca Dart
             light = analyzer.latest(),
         )
@@ -163,16 +215,10 @@ class Camera2Driver(
     }
 
     override fun stop() {
-        session?.runCatching { close() }
-        device?.runCatching { close() }
-        surfaceTexture?.release()
-        thread?.quitSafely()
-        session = null
-        device = null
-        surfaceTexture = null
-        thread = null
-        handler = null
+        closeSession()
     }
 
-    private companion object { const val TAG = "Camera2Driver" }
+    private companion object {
+        const val TAG = "Camera2Driver"
+    }
 }

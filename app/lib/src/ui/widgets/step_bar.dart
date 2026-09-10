@@ -97,6 +97,22 @@ class StepBar extends StatelessWidget {
                   ),
                 ],
               ),
+            WizardStep.selfie => Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  IconButton(
+                    onPressed: onPrevEffect,
+                    icon: const Icon(Icons.chevron_left, color: Colors.white),
+                  ),
+                  const SizedBox(width: 8),
+                  _CaptureButton(onTap: onPhoto),
+                  const SizedBox(width: 8),
+                  IconButton(
+                    onPressed: onNextEffect,
+                    icon: const Icon(Icons.chevron_right, color: Colors.white),
+                  ),
+                ],
+              ),
           },
         ),
       ),
@@ -115,6 +131,31 @@ class StepBar extends StatelessWidget {
           style: const TextStyle(fontWeight: FontWeight.w700, letterSpacing: 0.6),
         ),
       );
+}
+
+/// Botón de captura del paso SELFIE: solo foto, sin la animación de grabación del
+/// [_Shutter].
+class _CaptureButton extends StatelessWidget {
+  final VoidCallback onTap;
+
+  const _CaptureButton({required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: 68,
+        height: 68,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          color: Colors.white24,
+          border: Border.all(color: Colors.white70, width: 4),
+        ),
+        child: const Icon(Icons.photo_camera, color: Colors.white, size: 30),
+      ),
+    );
+  }
 }
 
 class _Shutter extends StatelessWidget {

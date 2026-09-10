@@ -21,7 +21,7 @@ name: Pages
 
 on:
   push:
-    branches: ["**"]
+    branches: ["main"]
     paths:
       - "web/**"
       - "shaders/**"

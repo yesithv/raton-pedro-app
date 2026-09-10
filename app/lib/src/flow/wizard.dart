@@ -2,11 +2,14 @@ import 'dart:ui' show Size;
 
 /// Definición del asistente. Puerto de web/js/flow.js. El flujo sigue el de la app de
 /// referencia (docs/plan-de-trabajo.md, hallazgo 5); los textos son propios.
-enum WizardStep { inicio, escanear, superficie, tamano, editar, grabar }
+enum WizardStep { inicio, escanear, superficie, tamano, editar, grabar, selfie }
 
 /// Qué gesto está activo en cada paso. En la referencia el ajuste está acotado por paso:
 /// no se puede mover y escalar a la vez, y a partir de EDITAR el transform queda fijo.
-enum StepGesture { none, move, moveY, scale }
+///
+/// `moveAndScale` es la excepción: la usa el paso SELFIE, que no tiene asistente propio y
+/// deja mover y escalar al ratón en el mismo gesto.
+enum StepGesture { none, move, moveY, scale, moveAndScale }
 
 class StepSpec {
   final String title;
@@ -91,6 +94,15 @@ const Map<WizardStep, StepSpec> kSteps = {
     loop: true,
     gesture: StepGesture.none,
     back: WizardStep.editar,
+  ),
+  WizardStep.selfie: StepSpec(
+    title: 'SELFIE',
+    hint: 'Arrastra al ratón y pellizca para el tamaño.\n'
+        'Toca la cámara para la foto.',
+    overlayVisible: true,
+    reticle: false,
+    loop: true,
+    gesture: StepGesture.moveAndScale,
   ),
 };
 

@@ -24,10 +24,12 @@ class _CameraScreenState extends State<CameraScreen> with WidgetsBindingObserver
 
   List<Effect> _catalog = const [];
   int _effectIndex = 0;
+  int _preSelfieEffectIndex = 0;
   WizardStep _step = WizardStep.inicio;
 
   bool _ready = false;
   bool _recording = false;
+  bool _frontCamera = false;
   ArRecordingDone? _lastRecording;
   int _thermalLevel = 0;
   String? _error;
@@ -132,6 +134,42 @@ class _CameraScreenState extends State<CameraScreen> with WidgetsBindingObserver
     await _ar.play(loop: true);
   }
 
+  // --- Selfie ---------------------------------------------------------------------
+
+  /// Alterna entre la cámara trasera (asistente AR normal) y la frontal (selfie).
+  ///
+  /// En selfie no hay escaneo de superficie: el ratón sale ya colocado en una esquina
+  /// fija y el usuario lo arrastra y escala directamente, como piden las capturas de
+  /// referencia.
+  Future<void> _toggleCamera() async {
+    if (_recording) return;
+    final goingFront = !_frontCamera;
+    await _ar.switchCamera(goingFront);
+    if (!mounted) return;
+    setState(() => _frontCamera = goingFront);
+    if (goingFront) {
+      final selfieIndex = _catalog.indexWhere((e) => e.id == 'selfie_raton');
+      if (selfieIndex != -1) {
+        _preSelfieEffectIndex = _effectIndex;
+        setState(() => _effectIndex = selfieIndex);
+        await _ar.loadEffect(_effect!);
+      }
+      _placement
+        ..x = 0.24
+        ..y = 0.78
+        ..scaleFactor = _effect?.defaultScaleFactor ?? 0.3
+        ..anchored = false;
+      await _goTo(WizardStep.selfie);
+      if (mounted) _pushTransform(MediaQuery.sizeOf(context));
+    } else {
+      if (_effectIndex != _preSelfieEffectIndex) {
+        setState(() => _effectIndex = _preSelfieEffectIndex);
+        await _ar.loadEffect(_effect!);
+      }
+      await _goTo(WizardStep.inicio);
+    }
+  }
+
   // --- Grabación ----------------------------------------------------------------
 
   Future<void> _toggleRecording() async {
@@ -192,6 +230,10 @@ class _CameraScreenState extends State<CameraScreen> with WidgetsBindingObserver
         _placement.y = (d.localFocalPoint.dy / screen.height).clamp(0.0, 1.0);
       case StepGesture.scale:
         _placement.scaleFactor = (_pinchStartScale * d.scale).clamp(0.06, 0.9);
+      case StepGesture.moveAndScale:
+        _placement.x = (d.localFocalPoint.dx / screen.width).clamp(0.0, 1.0);
+        _placement.y = (d.localFocalPoint.dy / screen.height).clamp(0.0, 1.0);
+        _placement.scaleFactor = (_pinchStartScale * d.scale).clamp(0.06, 0.9);
       case StepGesture.none:
         return;
     }
@@ -241,9 +283,22 @@ class _CameraScreenState extends State<CameraScreen> with WidgetsBindingObserver
                       ? null
                       : (_ar.supportsPlanes ? _spec.hint : (_spec.hintNoPlanes ?? _spec.hint)),
                   showBack: _spec.back != null,
-                  onHome: () => _goTo(WizardStep.inicio),
-                  onBack: () => _goTo(_spec.back ?? WizardStep.inicio),
+                  onHome: () =>
+                      _step == WizardStep.selfie ? _toggleCamera() : _goTo(WizardStep.inicio),
+                  onBack: () => _step == WizardStep.selfie
+                      ? _toggleCamera()
+                      : _goTo(_spec.back ?? WizardStep.inicio),
                 ),
+                if (_step == WizardStep.inicio)
+                  Positioned(
+                    top: MediaQuery.paddingOf(context).top + 6,
+                    right: 6,
+                    child: IconButton(
+                      onPressed: _toggleCamera,
+                      icon: const Icon(Icons.camera_front, color: Colors.white),
+                      tooltip: 'Selfie con el ratón',
+                    ),
+                  ),
                 StepBar(
                   step: _step,
                   recording: _recording,

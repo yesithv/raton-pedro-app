@@ -3,20 +3,26 @@
     {
       "id": "entra_y_es_descubierto",
       "title": "Rat\u00f3n P\u00e9rez entra y es descubierto",
-      "base": "assets/entra_y_es_descubierto",
+      "base": "entra_y_es_descubierto",
       "durationMs": 5000
     },
     {
       "id": "es_descubierto_y_se_esconde",
       "title": "Rat\u00f3n P\u00e9rez es descubierto y se esconde",
-      "base": "assets/es_descubierto_y_se_esconde",
+      "base": "es_descubierto_y_se_esconde",
       "durationMs": 5000
     },
     {
       "id": "saluda_y_se_va",
       "title": "Rat\u00f3n P\u00e9rez saluda y se va",
-      "base": "assets/saluda_y_se_va",
+      "base": "saluda_y_se_va",
       "durationMs": 5000
+    },
+    {
+      "id": "selfie_raton",
+      "title": "Rat\u00f3n P\u00e9rez selfie",
+      "base": "selfie_raton",
+      "durationMs": 1000
     }
   ]
 }

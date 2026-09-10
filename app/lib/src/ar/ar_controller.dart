@@ -70,6 +70,19 @@ class ArController {
   Future<bool> placeAt(double x, double y) async =>
       await _control.invokeMethod<bool>('placeAt', {'x': x, 'y': y}) ?? false;
 
+  /// Cambia entre cámara frontal (selfie) y trasera.
+  ///
+  /// La frontal siempre se sirve sin ARCore -no detecta planos-, así que
+  /// [supportsPlanes] pasa a false al entrar en modo selfie y se recalcula al volver a
+  /// la trasera, por si el dispositivo sí soporta ARCore.
+  Future<void> switchCamera(bool front) async {
+    final result = await _control.invokeMapMethod<String, Object?>(
+      'switchCamera',
+      {'front': front},
+    );
+    supportsPlanes = result?['supportsPlanes'] as bool? ?? false;
+  }
+
   Future<void> play({bool loop = false}) =>
       _control.invokeMethod('play', {'loop': loop});
 
