@@ -12,7 +12,8 @@ uniform vec2  uOverlayOrigin;       // esquina sup-izq del overlay, coords norma
 uniform vec2  uOverlayScale;        // tamaño del overlay en coords normalizadas
 uniform vec2  uGyroOffset;          // contra-desplazamiento por giroscopio (0,0 en MVP)
 
-uniform float uExposureMatch;       // de SceneAnalyzer, típico 0.35 - 1.2
+uniform vec3  uExposureMatch;       // de SceneAnalyzer. Ganancia POR CANAL, no escalar:
+                                    // ver nota de balance de blancos al final
 uniform float uGrainAmount;         // de SceneAnalyzer, típico 0.02 - 0.09
 uniform float uSoftness;            // blur en píxeles de textura, típico 0.5 - 1.0
 uniform float uTime;                // segundos, para animar el grano
@@ -73,8 +74,9 @@ void main() {
         a = clamp((a - 0.0627) * 1.1644, 0.0, 1.0);
     }
 
-    // --- Igualación de exposición ---
-    // rgbP está premultiplicado: escalarlo por un factor es seguro y correcto.
+    // --- Igualación de exposición y de dominante de color ---
+    // rgbP está premultiplicado: escalarlo por un factor es seguro y correcto, y lo
+    // sigue siendo canal a canal.
     rgbP *= uExposureMatch;
 
     // --- Inyección de grano, solo sobre el personaje ---
@@ -87,6 +89,28 @@ void main() {
     fragColor = vec4(rgbP + cam * (1.0 - a), 1.0);
 }
 
+// ---------------------------------------------------------------------------
+// NOTA SOBRE BALANCE DE BLANCOS
+//
+// uExposureMatch es un vec3 y no un float porque un escalar no puede igualar una
+// dominante de color. Los cuartos infantiles reales rara vez tienen luz neutra: una
+// lamparita ámbar, una tira LED RGB en magenta, la luz azulada de un pasillo. Un
+// personaje renderizado con luz neutra sobre cualquiera de esos se delata igual que uno
+// sin grano, y subir o bajar su brillo de forma uniforme no lo arregla.
+//
+// SceneAnalyzer lo descompone en dos partes (ver tools/compose.py):
+//
+//   g = luma_escena * key / luma_referencia            <- ganancia global, escalar
+//   c = (rgb_escena/luma_escena) / (rgb_ref/luma_ref)  <- dominante, neutra en luma
+//   uExposureMatch = g * mix(vec3(1.0), c, fuerza)
+//
+// La separación importa: 'fuerza' en 0 reproduce exactamente el comportamiento escalar
+// anterior, y en 1 el personaje adopta por completo la dominante del cuarto. El valor
+// util está en medio. Adoptarla del todo es un error: el personaje pierde su color
+// propio y se convierte en una silueta del color de la pared, que se ve tan falso como
+// no igualar nada. Dónde cae exactamente ese número lo decide el test de percepción,
+// igual que el piso de exposición.
+//
 // ---------------------------------------------------------------------------
 // NOTA SOBRE PRECISIÓN
 //

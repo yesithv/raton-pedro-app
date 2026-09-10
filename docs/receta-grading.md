@@ -14,14 +14,18 @@ transcriben aquí, con la condición de luz del clip y el veredicto del test.
 
 ## Valores por condición de luz
 
-| Condición | Clip | uExposureMatch | uGrainAmount | uSoftness | ¿Lo compartiría? |
-|---|---|---|---|---|---|
-| Oscuridad total | | | | | |
-| Lamparita tenue | | | | | |
-| Lamparita cálida cerca | | | | | |
-| Luz de pasillo por la puerta | | | | | |
-| Ventana con luz de calle | | | | | |
-| Gama baja, ISO alto | | | | | |
+| Condición | Clip | ganancia | dominante (wb) | uGrainAmount | uSoftness | ¿Lo compartiría? |
+|---|---|---|---|---|---|---|
+| Tira LED de color (magenta/azul) | | | | | | |
+| Lamparita cálida cerca | | | | | | |
+| Lamparita tenue | | | | | | |
+| Luz de pasillo por la puerta | | | | | | |
+| Ventana con luz de calle | | | | | | |
+| Oscuridad total | | | | | | |
+| Gama baja, ISO alto | | | | | | |
+
+La tira LED de color va primero porque es la condición de la app de referencia, y porque
+es la que más castiga un `uExposureMatch` escalar.
 
 ## Rangos de clamp
 
@@ -38,8 +42,22 @@ al test y dejar que el resultado decida.
 
 | Parámetro | Piso | Techo | Justificación |
 |---|---|---|---|
-| `uExposureMatch` | | | |
+| ganancia global | | | |
 | `uGrainAmount` | | | |
+| dominante por canal | | | |
+
+**Fuerza de balance de blancos (`--wb`, 0..1).** Es la segunda decisión de arte, y tiene
+el mismo carácter que el piso de exposición: en 0 el personaje conserva su color propio y
+se ve pegado sobre un cuarto de otro color; en 1 adopta la dominante del cuarto por
+completo y se convierte en una silueta del color de la pared, que se ve tan falso como no
+igualar nada. El valor útil está en medio y lo decide el A/B, no el código.
+
+| Fuerza probada | Veredicto |
+|---|---|
+| 0.00 | |
+| 0.35 | |
+| 0.50 | |
+| 0.75 | |
 
 ## Sombra de contacto
 

@@ -369,6 +369,13 @@ asignaciones por frame.
 
 ### Audio: simplificar
 
+> **Corrección (ver `plan-de-trabajo.md`, hallazgos de la app de referencia).** Lo que
+> sigue en esta subsección **ya no aplica**. Se apoyaba en que el micrófono solo captaría
+> ruido de fondo; la app de referencia demuestra que la premisa es falsa: el padre habla
+> en vivo durante la grabación, y eso es funcionalidad destacada, no un accidente.
+> El micrófono vuelve al MVP. Se deja el texto original por trazabilidad.
+
+
 El asset del efecto ya trae su propia pista de audio (sonidos mágicos, el portal). El
 micrófono en un cuarto oscuro solo captura ruido de fondo y la respiración del niño.
 

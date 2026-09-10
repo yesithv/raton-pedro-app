@@ -158,6 +158,65 @@ como partida propia.
 
 ---
 
+## Hallazgos de la app de referencia
+
+Material: capturas de un video tutorial de una app de Ratón Pérez ya publicada
+(`@ratonperez1939`, ~5 años). Es material observado, no un spec: donde la lectura es
+incierta, se marca.
+
+### 1. El micrófono vuelve al MVP. La recomendación anterior estaba mal
+
+La sección 4 de la arquitectura decía no grabar micrófono, con este argumento: *"el
+micrófono en un cuarto oscuro solo captura ruido de fondo y la respiración del niño"*.
+La premisa es falsa. La app de referencia hace de la narración del padre una función
+destacada:
+
+> "Al permitir grabar audio puedes agregar tu voz con comentarios de sorpresa para
+> hacerlo aun mas realista y sorprender a tus hijos."
+
+El padre **habla en vivo** durante la grabación. Eso no es ruido: probablemente sea la
+mitad de por qué el video se comparte después. Vuelven al MVP el permiso de micrófono, el
+encoder AAC, el mixer y —lo caro— la sincronización audio/vídeo, con el problema de
+`SENSOR_INFO_TIMESTAMP_SOURCE` en Android que ya está documentado en la sección 4.
+
+### 2. El cuarto no está oscuro: tiene luz de color
+
+Toda la demo transcurre en un cuarto con luz magenta intensa (aparenta ser tira LED RGB,
+hoy habitual en cuartos infantiles). Buena noticia para el ruido: hay luz de sobra. Mala
+para el shader: `uExposureMatch` era un escalar, y un escalar no puede igualar una
+dominante de color.
+
+Ya está corregido: `uExposureMatch` es un `vec3`. Ver la nota de balance de blancos en
+`shaders/composite.frag` y el nuevo parámetro `--wb` de `compose.py`.
+
+No es un caso exótico. La propia arquitectura describe *"balance de blancos cálido de una
+lamparita"*, que es el mismo problema en ámbar.
+
+### 3. La salida primaria es video, no foto
+
+"El video se grabará en tu galería". Sin hoja de compartir ni paso de edición: grabar y
+guardar. Eso confirma que `MediaCodec` / `AVAssetWriter` están en el MVP, y que el módulo
+de post-grabación (guardado en galería y permisos de fotos) es partida propia, como ya
+estaba anotado en la corrección #8.
+
+### 4. El personaje es estilizado, y ocupa mucho menos pantalla del previsto
+
+Caricatura con ropa amarilla, no foto-realista — nítido en el avatar del canal, menos en
+el metraje. Si esa es la dirección, buena parte del riesgo de la sección 1 se reduce.
+
+Y en el metraje el ratón ocupa **~10% del alto de pantalla**, no el 35% que hay hoy como
+`defaultScaleFactor`. Un personaje pequeño perdona mucho más: menos píxeles donde detectar
+que el grano, la nitidez o la dominante no cuadran. Conviene revisar ese valor por
+defecto.
+
+### 5. UI observada
+
+Casa (arriba izq), volver (arriba der), linterna (abajo izq), botón de grabar (abajo
+centro; cuadrado rojo mientras graba). Toast "Video Saved to Gallery" al terminar. La
+linterna coincide con el `setTorch` que ya está en el contrato de canales.
+
+---
+
 ## Prototipo web
 
 `web/` es una app funcional: cámara en vivo, composición del ratón y captura de foto, en

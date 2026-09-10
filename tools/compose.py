@@ -91,7 +91,10 @@ def hash13(px, py, pz):
 # --------------------------------------------------------------------------
 
 def estimate_scene(cam, rect, weights):
-    """Estima (luminancia media, sigma del ruido) del feed bajo el personaje.
+    """Estima (color medio, sigma del ruido) del feed bajo el personaje.
+
+    El color medio es un vec3, no una luminancia: hace falta para igualar la dominante
+    del cuarto (lamparita ambar, tira LED, luz de pasillo). Ver composite.frag.
 
     La luminancia se puede medir barata sobre un mip reducido, como dice la
     arquitectura. El RUIDO NO: un mip es un filtro paso-bajo y promedia justo la
@@ -105,7 +108,10 @@ def estimate_scene(cam, rect, weights):
 
     luma = crop @ LUMA
     w = weights
-    scene_luma = float((luma * w).sum() / max(w.sum(), 1e-6)) if w.sum() > 0 else float(luma.mean())
+    if w.sum() > 0:
+        scene_rgb = (crop * w[..., None]).sum(axis=(0, 1)) / w.sum()
+    else:
+        scene_rgb = crop.mean(axis=(0, 1))
 
     # Paso-alto 3x3 y MAD en vez de desviacion estandar: la MAD es robusta contra
     # los bordes reales de la escena, que si no se cuentan como ruido.
@@ -113,7 +119,7 @@ def estimate_scene(cam, rect, weights):
                  + shift(luma[..., None], 0, -1) + shift(luma[..., None], 0, 1))[..., 0]
     hp = luma - lo
     sigma = float(np.median(np.abs(hp - np.median(hp))) * 1.4826)
-    return scene_luma, sigma
+    return scene_rgb.astype(np.float32), sigma
 
 
 # --------------------------------------------------------------------------
@@ -141,6 +147,13 @@ def main():
     g.add_argument("--softness", type=float, default=0.8, help="uSoftness. Default 0.8")
     g.add_argument("--key", type=float, default=1.15,
                    help="Cuanto mas brillante que el ambiente lee el personaje. Default 1.15")
+    g.add_argument("--wb", type=float, default=0.5,
+                   help="Fuerza de igualacion de la dominante de color, 0..1. "
+                        "0 = solo ganancia global (comportamiento escalar anterior); "
+                        "1 = el personaje adopta del todo la dominante del cuarto y "
+                        "pierde su color propio. Default 0.5")
+    g.add_argument("--cast-range", default="0.6,1.7",
+                   help="Limites por canal de la correccion de dominante")
     g.add_argument("--exposure-range", default="0.35,1.2")
     g.add_argument("--grain-range", default="0.02,0.09")
     g.add_argument("--analyze-every", type=int, default=10,
@@ -196,11 +209,16 @@ def main():
     uv_x = ((xs + 0.5) / W * 1024.0).astype(np.float32)
     uv_y = ((ys + 0.5) / H * 1024.0).astype(np.float32)
 
-    ref_luma = meta.get("referenceLuma")
-    if ref_luma is None:
-        print("aviso: el JSON no trae referenceLuma (asset construido con una version "
-              "vieja de build_effect.py). Se estima por frame, que es menos estable.",
-              file=sys.stderr)
+    ref_color = meta.get("referenceColor")
+    if ref_color is None:
+        lum = meta.get("referenceLuma", 0.5)
+        ref_color = [lum, lum, lum]
+        print("aviso: el JSON no trae referenceColor (asset construido con una version "
+              "vieja de build_effect.py). Sin el no se puede igualar la dominante de "
+              "color del cuarto; se usa referenceLuma como gris neutro.", file=sys.stderr)
+    ref_color = np.asarray(ref_color, dtype=np.float32)
+    ref_luma = float(ref_color @ LUMA)
+    cast_lo, cast_hi = (float(v) for v in args.cast_range.split(","))
 
     resolved, raw_exposure = [], []
     exposure = grain = None
@@ -233,29 +251,33 @@ def main():
             a3 = a[..., None]
 
             if args.naive:
-                exposure, grain = 1.0, 0.0
+                exposure, grain = np.ones(3, dtype=np.float32), 0.0
             else:
                 # SceneAnalyzer con la misma cadencia que el dispositivo, no cada frame.
                 if exposure is None or fx_index % args.analyze_every == 0:
-                    scene_luma, sigma = estimate_scene(cam, (vx0, vy0, vx1, vy1), a)
+                    scene_rgb, sigma = estimate_scene(cam, (vx0, vy0, vx1, vy1), a)
+                    scene_luma = float(scene_rgb @ LUMA)
 
-                    char_luma = ref_luma
-                    if char_luma is None:
-                        solid = a > 0.5
-                        char_luma = (float(((rgb_p[solid] / a3[solid]) @ LUMA).mean())
-                                     if solid.any() else 0.5)
+                    # Ganancia global: cuanto mas brillante o mas oscuro va el personaje.
+                    raw = scene_luma * args.key / max(ref_luma, 1e-3)
+                    raw_exposure.append(raw)
+                    gain = np.clip(raw, exp_lo, exp_hi)
 
-                    tgt_e = float(np.clip(scene_luma * args.key / max(char_luma, 1e-3),
-                                          exp_lo, exp_hi))
+                    # Dominante de color, normalizada para ser neutra en luma: solo
+                    # aporta el TINTE, nunca brillo. Asi el clamp de exposicion sigue
+                    # controlando el brillo por si solo.
+                    cast = ((scene_rgb / max(scene_luma, 1e-3))
+                            / np.maximum(ref_color / max(ref_luma, 1e-3), 1e-3))
+                    cast = np.clip(cast, cast_lo, cast_hi)
+                    tgt_e = gain * (1.0 - args.wb + args.wb * cast)
                     tgt_g = float(np.clip(sigma, grain_lo, grain_hi))
-                    raw_exposure.append(scene_luma * args.key / max(char_luma, 1e-3))
 
                     # EMA. Sin esto los uniforms saltan en escalon cada 10 frames y el
                     # personaje parpadea de brillo: mas delator que no igualar nada.
                     k = args.smoothing
                     exposure = tgt_e if exposure is None else exposure + k * (tgt_e - exposure)
                     grain = tgt_g if grain is None else grain + k * (tgt_g - grain)
-                resolved.append((exposure, grain))
+                resolved.append((np.asarray(exposure, dtype=np.float32), grain))
 
             rgb_p = rgb_p * exposure
 
@@ -271,13 +293,19 @@ def main():
     print()
 
     if resolved:
-        e = np.array([r[0] for r in resolved])
+        e = np.stack([r[0] for r in resolved])
         g = np.array([r[1] for r in resolved])
         raw = np.array(raw_exposure)
+        m = e.mean(axis=0)
         print("\nUniforms resueltos (esto es lo que va a docs/receta-grading.md):")
-        print(f"  uExposureMatch  {e.mean():.3f}  (min {e.min():.3f}  max {e.max():.3f})")
+        print(f"  uExposureMatch  [{m[0]:.3f}, {m[1]:.3f}, {m[2]:.3f}]  "
+              f"(luma {float(m @ LUMA):.3f}, wb {args.wb:.2f})")
         print(f"  uGrainAmount    {g.mean():.4f}  (min {g.min():.4f}  max {g.max():.4f})")
         print(f"  uSoftness       {args.softness:.2f}")
+        spread = float(m.max() / max(m.min(), 1e-3))
+        if spread > 1.08:
+            print(f"  -> dominante de color corregida {spread:.2f}x entre canales. Con "
+                  f"--wb 0 (escalar) esta correccion no existe.")
 
         clamped = int(((raw < exp_lo) | (raw > exp_hi)).sum())
         if clamped:

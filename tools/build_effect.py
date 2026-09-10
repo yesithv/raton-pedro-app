@@ -132,6 +132,7 @@ def main():
     frame = np.zeros((th, packed_w, 3), dtype=np.uint8)
     worst_clip = 0.0
     lum_sum, lum_n = 0.0, 0
+    rgb_sum = np.zeros(3, dtype=np.float64)
 
     writers = [ffio.VideoWriter(args.output, packed_w, th, fps=args.fps, crf=args.crf,
                                 gop=args.gop, audio_from=args.audio, codec="h264")]
@@ -153,7 +154,9 @@ def main():
             # brillante) disparen el estimador de exposicion.
             solid = a > SOLID
             if solid.any():
-                lum_sum += float(((rgb[solid] / a[solid][:, None]) @ LUMA).sum())
+                straight = rgb[solid] / a[solid][:, None]
+                lum_sum += float((straight @ LUMA).sum())
+                rgb_sum += straight.sum(axis=0)
                 lum_n += int(solid.sum())
 
             frame[:, :tw] = (rgb * 255.0 + 0.5).astype(np.uint8)
@@ -187,6 +190,10 @@ def main():
         "anchorPoint": anchor,
         "defaultScaleFactor": args.scale_factor,
         "referenceLuma": round(lum_sum / lum_n, 4) if lum_n else 0.5,
+        # Color medio del personaje sin premultiplicar. Es lo que permite igualar la
+        # dominante de color del cuarto, que un escalar no puede. Ver composite.frag.
+        "referenceColor": ([round(v, 4) for v in (rgb_sum / lum_n)] if lum_n
+                           else [0.5, 0.5, 0.5]),
         "hasAudio": bool(args.audio),
         "limitedRange": False,
         "glowFrames": [],

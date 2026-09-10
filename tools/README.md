@@ -79,7 +79,22 @@ Están acotadas a propósito, pero conviene saberlas al comparar contra el spike
   (ver `shaders/composite.frag`); si alguien lo quita, el shader se separa de esta
   referencia justo en el borde derecho del overlay.
 
-## Tres cosas que salieron de construir esto, y afectan a la app
+## El balance de blancos es un parámetro de arte, no técnico
+
+`uExposureMatch` es un `vec3`, no un escalar: un escalar no puede igualar la dominante de
+color de un cuarto. `compose.py --wb` controla cuánto se iguala:
+
+```bash
+for w in 0 0.35 0.5 0.75; do
+  python3 tools/compose.py clip.mp4 assets/raton_v0.mp4 -o "out/wb_${w}.mp4" --wb "$w"
+done
+```
+
+En 0 el personaje conserva su color y se ve pegado encima; en 1 adopta la dominante entera
+y se vuelve una silueta del color de la pared. El valor útil está en medio y lo decide el
+A/B con padres. `compose.py` reporta cuánta corrección de dominante aplicó.
+
+## Cuatro cosas que salieron de construir esto, y afectan a la app
 
 **1. El ruido no se puede medir sobre un mip de 128x128.** La arquitectura dice que
 `SceneAnalyzer` corre sobre un mip reducido. Para la *luminancia* está bien y es barato.
@@ -89,14 +104,18 @@ estimar. Hay que medir sigma sobre un recorte a resolución nativa (basta una ve
 desviación estándar: la desviación estándar cuenta los bordes reales de la escena como si
 fueran ruido y sobreestima.
 
-**2. La luma del personaje es constante de build time, no de runtime.** Estimarla por
+**2. El color del personaje es constante de build time, no de runtime.** Estimarla por
 frame en el dispositivo parece natural y está mal: en los frames donde solo se ve el
 portal —que es emisivo y muy brillante— el estimador cree que el personaje es brillante y
-baja la exposición. `build_effect.py` la calcula una vez y la escribe como
-`referenceLuma` en el JSON. En el dispositivo es una lectura de metadata, gratis y
-estable.
+baja la exposición. `build_effect.py` lo calcula una vez y lo escribe como
+`referenceColor` (y `referenceLuma`) en el JSON. En el dispositivo es una lectura de
+metadata, gratis y estable.
 
-**3. Los uniforms necesitan suavizado temporal.** `SceneAnalyzer` corre cada 10 frames;
+**3. El ruido hay que medirlo a resolución nativa, la luz no.** Ya está arriba; la
+misma medida entrega ahora el color medio del cuarto, no solo su luminancia, que es lo
+que alimenta la corrección de dominante.
+
+**4. Los uniforms necesitan suavizado temporal.** `SceneAnalyzer` corre cada 10 frames;
 sin un EMA, la exposición salta en escalón tres veces por segundo y el personaje parpadea
 de brillo. Eso delata más que no igualar nada. `compose.py` implementa el EMA con
 `--smoothing` y corre el análisis con `--analyze-every 10` para replicar la cadencia real

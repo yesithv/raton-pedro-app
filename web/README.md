@@ -42,10 +42,16 @@ python3 -m http.server 8000     # desde la raíz del repo
 | Reproducir la animación | Botón *Reproducir* |
 | Capturar | Botón *Foto* → Guardar o Compartir |
 | Ver y ajustar los uniforms | Botón *Ajustes* |
+| Igualar la dominante de color del cuarto | Deslizador *Balance color* en *Ajustes* |
 
 El HUD de arriba muestra en vivo lo que resuelve el `SceneAnalyzer`. **Esos números son
 el entregable real de este prototipo**: van a `docs/receta-grading.md` y son los que el
 nativo tiene que reproducir en la semana 2.
+
+El deslizador *Balance color* es el segundo parámetro de arte: en 0 el ratón conserva
+su color propio y se ve pegado sobre un cuarto de otro color (una tira LED magenta, una
+lamparita ámbar); en 1 adopta la dominante entera y se vuelve una silueta del color de la
+pared. Pruébalo en el cuarto real y anota el valor.
 
 Si aparece el aviso naranja, la exposición está tocando el borde del rango: el valor
 correcto para esa luz queda fuera. Mueve el piso en *Ajustes* y compara — esa es la

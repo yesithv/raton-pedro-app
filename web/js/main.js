@@ -17,6 +17,7 @@ const state = {
     // Para oscuridad total hay que bajar el piso y aceptar la discusion de realismo
     // contra legibilidad. Ver docs/receta-grading.md.
     key: 1.15,
+    whiteBalance: 0.5,   // 0 = solo ganancia global; 1 = adopta la dominante entera
     exposureMin: 0.5, exposureMax: 1.4,
     grainMin: 0.015, grainMax: 0.09,
     softness: 0.8,
@@ -154,11 +155,15 @@ function loop(now) {
 
   if (state.frame % ANALYZE_EVERY === 0) {
     const measured = analyzer.measure(cameraVideo, toCameraRect(ov, cameraVideo, w, h));
-    solver.update(measured, state.meta.referenceLuma ?? 0.5);
+    const ref = state.meta.referenceColor ??
+      [state.meta.referenceLuma ?? 0.5, state.meta.referenceLuma ?? 0.5,
+       state.meta.referenceLuma ?? 0.5];
+    solver.update(measured, ref);
   }
 
   const params = state.cfg.manual
-    ? { exposure: state.cfg.manualExposure, grain: state.cfg.manualGrain }
+    ? { exposure: [state.cfg.manualExposure, state.cfg.manualExposure,
+                   state.cfg.manualExposure], grain: state.cfg.manualGrain }
     : { exposure: solver.exposure, grain: solver.grain };
 
   compositor.render({
@@ -180,15 +185,19 @@ function loop(now) {
 }
 
 function updateHud(params) {
+  const e = params.exposure;
+  const rgb = analyzer.last.sceneRgb ?? [0, 0, 0];
+  const spread = Math.max(...e) / Math.max(Math.min(...e), 1e-3);
   el("dbg").textContent =
     `fps ${state.fps.toFixed(0)}\n` +
-    `uExposureMatch ${params.exposure.toFixed(3)}` +
-    (state.cfg.manual ? " (manual)" : ` (crudo ${solver.rawExposure.toFixed(3)})`) + "\n" +
+    `uExposureMatch ${e.map((v) => v.toFixed(3)).join(" ")}` +
+    (state.cfg.manual ? " (manual)" : "") + "\n" +
+    `  ganancia     ${solver.rawExposure.toFixed(3)} crudo\n` +
+    `  dominante    ${spread.toFixed(2)}x  (wb ${state.cfg.whiteBalance.toFixed(2)})\n` +
     `uGrainAmount   ${params.grain.toFixed(4)}\n` +
     `uSoftness      ${state.cfg.softness.toFixed(2)}\n` +
-    `escena luma    ${analyzer.last.sceneLuma.toFixed(3)}\n` +
+    `escena RGB     ${rgb.map((v) => v.toFixed(3)).join(" ")}\n` +
     `escena sigma   ${analyzer.last.sigma.toFixed(4)}\n` +
-    `referenceLuma  ${(state.meta.referenceLuma ?? 0).toFixed(4)}\n` +
     `escala         ${state.transform.scaleFactor.toFixed(2)}`;
 
   const clamping = !state.cfg.manual &&
@@ -279,6 +288,7 @@ function setupControls() {
     ["s-exp-min", "exposureMin", (v) => v.toFixed(2)],
     ["s-exp-max", "exposureMax", (v) => v.toFixed(2)],
     ["s-key", "key", (v) => v.toFixed(2)],
+    ["s-wb", "whiteBalance", (v) => v.toFixed(2)],
     ["s-softness", "softness", (v) => v.toFixed(2)],
     ["s-grain-max", "grainMax", (v) => v.toFixed(3)],
   ]) {

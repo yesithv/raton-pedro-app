@@ -152,7 +152,7 @@ export class Compositor {
 
     gl.uniform2f(this.u.uOverlayOrigin, transform.originX, transform.originY);
     gl.uniform2f(this.u.uOverlayScale, transform.scaleX, transform.scaleY);
-    gl.uniform1f(this.u.uExposureMatch, params.exposure);
+    gl.uniform3fv(this.u.uExposureMatch, params.exposure);
     gl.uniform1f(this.u.uGrainAmount, params.grain);
     gl.uniform1f(this.u.uSoftness, params.softness);
     gl.uniform1f(this.u.uTime, timeSec);
