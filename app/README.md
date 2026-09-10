@@ -1,9 +1,39 @@
 # app/ — Flutter + capa nativa Android
 
-**Estado: SIN COMPILAR.** Escrito pero nunca construido ni ejecutado. Este entorno no
-tiene Flutter SDK ni Android SDK. Da por hecho que habrá errores de compilación,
-imports que faltan y detalles de API que ajustar; lo que está pensado es la arquitectura
-y los puntos donde el pipeline se rompe, no la sintaxis.
+## Estado de verificación
+
+| | Estado |
+|---|---|
+| `flutter analyze` sobre todo el Dart | ✅ sin incidencias |
+| `flutter test` (10 pruebas de flujo, catálogo y eventos) | ✅ pasan |
+| Kotlin: 9 archivos contra el `android.jar` **real** y el jar **real** del embedding de Flutter | ✅ sin errores ni avisos |
+| Superficie de API de ARCore | ⚠️ contra un stub, no contra el artefacto real |
+| `MainActivity.kt` | ⚠️ sin comprobar |
+| `flutter build apk` | ❌ imposible en este entorno |
+
+**Nunca se ha ejecutado en un dispositivo.** Que compile no dice nada sobre si el
+pipeline GL funciona, si los timestamps cuadran o si el mp4 sale bien.
+
+### Por qué falta lo que falta
+
+Google Maven (`dl.google.com` / `maven.google.com`) está bloqueado en el entorno donde se
+escribió esto, y ahí viven **el Android Gradle Plugin, AndroidX y ARCore**. Sin AGP no hay
+APK; sin AndroidX no se comprueba `MainActivity` (hereda de `FlutterActivity`, cuyo
+supertipo `LifecycleOwner` es de AndroidX); sin el aar de ARCore, `ArCoreDriver` se
+compila contra `tools/kotlin-check/arcore_stub.kt`.
+
+Ese stub **prueba que `PerezArPlugin` y `ArCoreDriver` son consistentes entre sí y con el
+resto del módulo. No prueba que la API real de ARCore tenga esas firmas.** Está escrito de
+memoria; espera ajustes ahí.
+
+Para reproducir la comprobación que sí se puede hacer:
+
+```bash
+./tools/verify_native.sh
+```
+
+Si lo corres en una máquina con salida a Google Maven, el script detecta el aar real de
+ARCore y lo usa en lugar del stub.
 
 Implementa la **opción B** de [`../docs/decision-arquitectura.md`](../docs/decision-arquitectura.md):
 video alfa pre-renderizado anclado a un plano de ARCore, con degradación automática a
@@ -11,19 +41,17 @@ colocación por toque cuando el dispositivo no está certificado.
 
 ## Puesta en marcha
 
-Este directorio **no es un proyecto Flutter completo**: falta lo que genera
-`flutter create` (gradle wrapper, recursos, `ic_launcher`, iOS). Para montarlo:
+El andamiaje de `flutter create` ya está aplicado, con el Gradle ajustado
+(`minSdk` 24 por ARCore, dependencia de ARCore, y el task que copia el shader desde
+`shaders/` en cada build). Basta con:
 
 ```bash
 cd app
-flutter create --org com.ironcoding --platforms=android --project-name perezar .
+flutter pub get
+flutter run          # requiere un Android físico; el emulador no sirve para cámara ni GL
 ```
 
-`flutter create` respeta los archivos que ya existen. Después:
-
-1. Fusionar `android/app/build.gradle.snippet` en el `build.gradle` generado.
-2. Añadir `apply from: "copy_shaders.gradle"` a ese mismo `build.gradle`.
-3. `flutter pub get && flutter run`
+Falta iOS: `flutter create --platforms=ios .` cuando llegue el turno.
 
 ## Estructura
 
@@ -88,3 +116,6 @@ corrupto, y aquí el momento es irrepetible: el niño solo pierde ese diente una
 - **El personaje real.** Los tres efectos son placeholders sintéticos.
 - **Medir.** Frames caídos, tiempo de export, temperatura a los 60 s y tamaño del archivo
   en tres dispositivos de gama baja. Nada de esto está verificado.
+- **Compilar de verdad.** `flutter build apk` en una máquina con el SDK de Android, que
+  es lo único que valida Gradle, el manifest merger, el empaquetado y la API real de
+  ARCore.

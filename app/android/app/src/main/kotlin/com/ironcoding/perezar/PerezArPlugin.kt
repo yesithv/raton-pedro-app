@@ -193,18 +193,16 @@ class PerezArPlugin : FlutterPlugin, ActivityAware, MethodChannel.MethodCallHand
      * codigo no distingue.
      */
     private fun createDriver(): ArDriver {
-        val act = activity
-        val available = act != null &&
-            ArCoreApk.getInstance().checkAvailability(context).isSupported
-        return if (available) {
-            runCatching { ArCoreDriver(act!!) as ArDriver }
-                .getOrElse {
-                    Log.w(TAG, "ARCore no arranco, se cae a Camera2", it)
-                    Camera2Driver(context, analyzer)
-                }
-        } else {
+        val fallback = { Camera2Driver(context, analyzer) }
+        val act = activity ?: return fallback()
+
+        if (!ArCoreApk.getInstance().checkAvailability(context).isSupported) {
             Log.i(TAG, "Dispositivo sin ARCore: colocacion por toque")
-            Camera2Driver(context, analyzer)
+            return fallback()
+        }
+        return runCatching { ArCoreDriver(act) as ArDriver }.getOrElse {
+            Log.w(TAG, "ARCore no arranco, se cae a Camera2", it)
+            fallback()
         }
     }
 

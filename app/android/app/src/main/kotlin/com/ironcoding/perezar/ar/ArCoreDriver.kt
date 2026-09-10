@@ -66,11 +66,19 @@ class ArCoreDriver(private val activity: Activity) : ArDriver {
                 focusMode = Config.FocusMode.AUTO
             })
             setCameraTextureName(cameraTextureId)
-            setDisplayGeometry(activity.windowManager.defaultDisplay.rotation,
-                viewportWidth, viewportHeight)
+            setDisplayGeometry(displayRotation(), viewportWidth, viewportHeight)
             resume()
         }
     }
+
+    /** Activity.display existe desde API 30; por debajo hay que usar el metodo obsoleto. */
+    private fun displayRotation(): Int =
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R) {
+            activity.display?.rotation ?: 0
+        } else {
+            @Suppress("DEPRECATION")
+            activity.windowManager.defaultDisplay.rotation
+        }
 
     override fun update(): FrameUpdate? {
         val session = this.session ?: return null

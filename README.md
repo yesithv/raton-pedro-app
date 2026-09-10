@@ -30,8 +30,10 @@ Ver [`web/README.md`](web/README.md) para abrirlo con GitHub Pages.
 
 ## App nativa
 
-`app/` — Flutter + capa nativa Android. **Sin compilar todavía**: escrita pero nunca
-construida ni ejecutada. Implementa la opción B de
+`app/` — Flutter + capa nativa Android. El Dart pasa `flutter analyze` y sus pruebas; el
+Kotlin comprueba tipos contra el `android.jar` real (`./tools/verify_native.sh`). **El APK
+no se ha construido nunca** ni se ha ejecutado en un dispositivo: Google Maven está
+bloqueado en este entorno, y ahí viven el Android Gradle Plugin, AndroidX y ARCore. Implementa la opción B de
 [`docs/decision-arquitectura.md`](docs/decision-arquitectura.md): video alfa
 pre-renderizado anclado a un plano de ARCore, con degradación a colocación por toque
 cuando el dispositivo no está certificado. Ver [`app/README.md`](app/README.md).
