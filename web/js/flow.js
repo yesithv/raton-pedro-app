@@ -1,5 +1,7 @@
-// Definicion del asistente. Sigue paso por paso el flujo de la app de referencia
-// documentado en docs/plan-de-trabajo.md, hallazgo 5.
+// Definicion del asistente. El flujo sigue el de la app de referencia (hallazgo 5 de
+// docs/plan-de-trabajo.md), pero los textos son propios: replicar el producto es
+// legitimo, copiar su redaccion palabra por palabra no aporta nada y ademas se puede
+// escribir mas claro.
 //
 // Todos los pasos que muestran al personaje lo reproducen en BUCLE. Es lo que hace la
 // referencia -el raton esta animado mientras lo colocas- y ademas elimina una
@@ -23,17 +25,17 @@ export const STEPS = {
   },
   escanear: {
     title: "ESCANEAR",
-    hint: "Mueve tu teléfono para encontrar la superficie donde colocar al Ratón Pérez.\n" +
-          "Arrastra el retículo hasta el punto donde quieres que aparezca.",
+    hint: "Apunta al suelo o a la cama y mueve el teléfono despacio.\n" +
+          "Cuando el círculo se quede quieto, tócalo para dejar ahí al ratón.",
     overlay: false,
     reticle: true,
     gesture: "move",
     back: "inicio",
   },
   superficie: {
-    title: "SUPERFICIE",
-    hint: "La superficie ha sido detectada. Puedes ajustar la posición del Ratón Pérez " +
-          "moviéndolo hacia arriba o hacia abajo.",
+    title: "POSICIÓN",
+    hint: "Ya tengo la superficie. Arrastra hacia arriba o hacia abajo para acercar o " +
+          "alejar al ratón.",
     overlay: true,
     reticle: false,
     gesture: "moveY",
@@ -42,7 +44,7 @@ export const STEPS = {
   },
   tamano: {
     title: "TAMAÑO",
-    hint: "Cambia el tamaño del Ratón Pérez. Puedes hacerlo más grande o más pequeño.",
+    hint: "Pellizca para ajustar el tamaño. Cuanto más pequeño, más creíble.",
     overlay: true,
     reticle: false,
     gesture: "scale",
@@ -51,7 +53,7 @@ export const STEPS = {
   },
   editar: {
     title: "EDITAR",
-    hint: "Escoge la animación que más te guste.",
+    hint: "Elige qué hace el ratón.",
     overlay: true,
     reticle: false,
     gesture: "none",
@@ -60,7 +62,8 @@ export const STEPS = {
   },
   grabar: {
     title: "GRABAR",
-    hint: "Toca el botón rojo. El video se detiene solo al terminar la animación.",
+    hint: "Pulsa el botón rojo. Se detiene solo al acabar la animación.\n" +
+          "Puedes hablar mientras grabas: tu voz entra en el video.",
     overlay: true,
     reticle: false,
     gesture: "none",

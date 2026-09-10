@@ -1,6 +1,8 @@
 package com.ironcoding.perezar.gl
 
 import android.content.Context
+import android.graphics.Bitmap
+import android.graphics.Matrix
 import android.opengl.GLES11Ext
 import android.opengl.GLES30
 import java.nio.ByteBuffer
@@ -139,6 +141,7 @@ class Compositor(private val context: Context) {
         params: GradingParams,
         timeSec: Float,
         visible: Boolean,
+        gyroOffset: FloatArray = ZERO2,
     ) {
         GLES30.glBindFramebuffer(GLES30.GL_FRAMEBUFFER, fbo)
         GLES30.glViewport(0, 0, fboW, fboH)
@@ -170,7 +173,7 @@ class Compositor(private val context: Context) {
         val oy = if (visible) rect.originY else 10f
         GLES30.glUniform2f(uniforms["uOverlayOrigin"]!!, ox, oy)
         GLES30.glUniform2f(uniforms["uOverlayScale"]!!, rect.scaleX, rect.scaleY)
-        GLES30.glUniform2f(uniforms["uGyroOffset"]!!, 0f, 0f)  // seccion 0.4, aun sin usar
+        GLES30.glUniform2f(uniforms["uGyroOffset"]!!, gyroOffset[0], gyroOffset[1])
 
         GLES30.glUniform3fv(uniforms["uExposureMatch"]!!, 1, params.exposure, 0)
         GLES30.glUniform1f(uniforms["uGrainAmount"]!!, params.grain)
@@ -190,6 +193,29 @@ class Compositor(private val context: Context) {
         GLES30.glBindTexture(GLES30.GL_TEXTURE_2D, fboTexture)
         GLES30.glUniform1i(blitTexUniform, 0)
         drawQuad(blitProgram)
+    }
+
+    /**
+     * Lee el FBO ya compuesto a un Bitmap. Para el modo foto.
+     *
+     * glReadPixels bloquea el pipeline, asi que solo se llama a peticion del usuario, no
+     * por frame. Y devuelve las filas de abajo arriba -el origen de GL esta abajo a la
+     * izquierda-, de ahi el volteo vertical.
+     */
+    fun capture(): Bitmap {
+        val buffer = ByteBuffer.allocateDirect(fboW * fboH * 4).order(ByteOrder.nativeOrder())
+        GLES30.glBindFramebuffer(GLES30.GL_FRAMEBUFFER, fbo)
+        GLES30.glReadPixels(0, 0, fboW, fboH, GLES30.GL_RGBA, GLES30.GL_UNSIGNED_BYTE, buffer)
+        GLES30.glBindFramebuffer(GLES30.GL_FRAMEBUFFER, 0)
+
+        buffer.rewind()
+        val raw = Bitmap.createBitmap(fboW, fboH, Bitmap.Config.ARGB_8888)
+        raw.copyPixelsFromBuffer(buffer)
+
+        val flip = Matrix().apply { postScale(1f, -1f, fboW / 2f, fboH / 2f) }
+        val out = Bitmap.createBitmap(raw, 0, 0, fboW, fboH, flip, false)
+        if (out !== raw) raw.recycle()
+        return out
     }
 
     private fun drawQuad(prog: Int) {
@@ -254,6 +280,8 @@ class Compositor(private val context: Context) {
     }
 
     companion object {
+        private val ZERO2 = floatArrayOf(0f, 0f)
+
         private val UNIFORM_NAMES = listOf(
             "uCamera", "uOverlay", "uCamXform", "uOverlayXform", "uOverlayTexel",
             "uCamUVScale", "uCamUVOffset", "uOverlayOrigin", "uOverlayScale", "uGyroOffset",

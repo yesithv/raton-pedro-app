@@ -76,6 +76,40 @@ void main() {
     });
   });
 
+  group('ArRecordingDone', () {
+    ArRecordingDone build({int submitted = 150, int dropped = 0, String? uri = 'content://x'}) =>
+        ArRecordingDone.fromMap({
+          'path': '/tmp/a.mp4',
+          'uri': uri,
+          'sizeBytes': 4200000,
+          'durationMs': 5000,
+          'framesSubmitted': submitted,
+          'framesDropped': dropped,
+          'exportMs': 800,
+        });
+
+    test('savedToGallery distingue el guardado fallido', () {
+      expect(build().savedToGallery, isTrue);
+      expect(build(uri: null).savedToGallery, isFalse);
+    });
+
+    test('dropRate se calcula sobre el total esperado, no sobre los enviados', () {
+      // 15 caídos de 150 esperados es 10%, no 15/135.
+      expect(build(submitted: 135, dropped: 15).dropRate, closeTo(0.10, 1e-9));
+    });
+
+    test('dropRate no divide por cero cuando no hubo frames', () {
+      expect(build(submitted: 0, dropped: 0).dropRate, 0);
+    });
+
+    test('tolera un mapa vacío, que es lo que llega si nativo falla al parar', () {
+      final r = ArRecordingDone.fromMap(const {});
+      expect(r.path, '');
+      expect(r.savedToGallery, isFalse);
+      expect(r.dropRate, 0);
+    });
+  });
+
   group('ArEvent', () {
     test('mapea cada tipo que emite nativo', () {
       expect(ArEvent.fromMap({'type': 'ready', 'supportsPlanes': true}),
@@ -85,6 +119,8 @@ void main() {
       expect(ArEvent.fromMap({'type': 'playbackDone'}), isA<ArPlaybackDone>());
       expect(ArEvent.fromMap({'type': 'recordingDone', 'path': '/a.mp4', 'sizeBytes': 42}),
           isA<ArRecordingDone>().having((e) => e.path, 'path', '/a.mp4'));
+      expect(ArEvent.fromMap({'type': 'thermalWarning', 'level': 3}),
+          isA<ArThermalWarning>().having((e) => e.level, 'level', 3));
     });
 
     test('un tipo desconocido se convierte en error, no revienta', () {

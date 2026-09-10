@@ -75,7 +75,7 @@ await shot('1_escanear');
 
 await page.click('#place');
 const superficie = await page.textContent('#step-title');
-check('paso SUPERFICIE', () => assert.equal(superficie, 'SUPERFICIE'));
+check('paso POSICIÓN', () => assert.equal(superficie, 'POSICIÓN'));
 await shot('2_superficie');
 
 await page.click('#next-superficie');

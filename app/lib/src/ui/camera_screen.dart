@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:path_provider/path_provider.dart';
@@ -8,6 +7,7 @@ import '../ar/ar_controller.dart';
 import '../ar/ar_events.dart';
 import '../catalog/effect.dart';
 import '../flow/wizard.dart';
+import 'widgets/result_sheet.dart';
 import 'widgets/reticle.dart';
 import 'widgets/step_bar.dart';
 
@@ -28,6 +28,8 @@ class _CameraScreenState extends State<CameraScreen> with WidgetsBindingObserver
 
   bool _ready = false;
   bool _recording = false;
+  ArRecordingDone? _lastRecording;
+  int _thermalLevel = 0;
   String? _error;
   StreamSubscription<ArEvent>? _subscription;
 
@@ -58,11 +60,18 @@ class _CameraScreenState extends State<CameraScreen> with WidgetsBindingObserver
 
   void _onEvent(ArEvent event) {
     switch (event) {
-      case ArRecordingDone(:final path):
-        // Puede llegar sin que lo hayamos pedido: nativo cierra el muxer si la app pasa
-        // a segundo plano durante una grabación, para no dejar un mp4 sin moov.
-        setState(() => _recording = false);
-        _showResult(path);
+      case final ArRecordingDone done:
+        // Puede llegar sin que lo hayamos pedido: nativo cierra el muxer y guarda si la
+        // app pasa a segundo plano durante una grabación, para no dejar un mp4 sin moov
+        // ni un archivo inalcanzable.
+        setState(() {
+          _recording = false;
+          _lastRecording = done;
+        });
+      case ArThermalWarning(:final level):
+        // El throttling es lo que hace caer los fps a los 60 segundos en gama baja.
+        // Sin avisar, parece un bug del render.
+        setState(() => _thermalLevel = level);
       case ArError(:final message):
         setState(() => _error = message);
       default:
@@ -122,8 +131,10 @@ class _CameraScreenState extends State<CameraScreen> with WidgetsBindingObserver
   Future<void> _toggleRecording() async {
     if (_recording) {
       final result = await _ar.stopRecording();
-      setState(() => _recording = false);
-      _showResult(result.path);
+      setState(() {
+        _recording = false;
+        _lastRecording = result;
+      });
       return;
     }
     final dir = await getTemporaryDirectory();
@@ -132,10 +143,21 @@ class _CameraScreenState extends State<CameraScreen> with WidgetsBindingObserver
     setState(() => _recording = true);
   }
 
-  void _showResult(String path) {
-    if (!mounted || path.isEmpty || !File(path).existsSync()) return;
+  Future<void> _capturePhoto() async {
+    final photo = await _ar.capturePhoto();
+    if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Video guardado: ${path.split('/').last}')),
+      SnackBar(
+        content: Text(photo.savedToGallery
+            ? 'Foto guardada en tu galería'
+            : 'No pude guardar la foto en la galería'),
+        action: photo.savedToGallery
+            ? SnackBarAction(
+                label: 'Ver',
+                onPressed: () => _ar.openInGallery(photo.uri!, mimeType: 'image/png'),
+              )
+            : null,
+      ),
     );
   }
 
@@ -231,11 +253,54 @@ class _CameraScreenState extends State<CameraScreen> with WidgetsBindingObserver
                   onNextEffect: () => _cycleEffect(1),
                   onRecord: _toggleRecording,
                   onTorch: () => _ar.setTorch(true),
+                  onPhoto: _capturePhoto,
                 ),
+                if (_thermalLevel > 0 && !_recording) _ThermalBanner(level: _thermalLevel),
+                if (_lastRecording != null)
+                  RecordingSheet(
+                    result: _lastRecording!,
+                    onClose: () => setState(() => _lastRecording = null),
+                    onShare: () => _ar.share(_lastRecording!.uri!,
+                        title: 'Compartir el video del Ratón Pérez'),
+                    onOpen: () => _ar.openInGallery(_lastRecording!.uri!),
+                  ),
               ],
             ),
           );
         },
+      ),
+    );
+  }
+}
+
+/// Aviso de throttling térmico.
+///
+/// Se muestra porque en gama baja los fps caen a los 60 segundos por temperatura, y sin
+/// explicación el usuario lo lee como que la app va mal. Es además una de las métricas
+/// de salida que pide la sección 1 de la arquitectura.
+class _ThermalBanner extends StatelessWidget {
+  final int level;
+  const _ThermalBanner({required this.level});
+
+  @override
+  Widget build(BuildContext context) {
+    return Positioned(
+      left: 14,
+      right: 14,
+      bottom: 120,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 10),
+        decoration: BoxDecoration(
+          color: const Color(0xE6301C08),
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: Colors.orange.withValues(alpha: 0.5)),
+        ),
+        child: Text(
+          level >= 4
+              ? 'El teléfono está muy caliente. Déjalo descansar antes de grabar otra vez.'
+              : 'El teléfono se está calentando. La grabación puede perder fluidez.',
+          style: const TextStyle(color: Colors.orange, fontSize: 12),
+        ),
       ),
     );
   }

@@ -106,17 +106,26 @@ ancla vuelve a ser un número que el usuario ajusta a ojo.
 **El transform se escribe en Dart y se lee en nativo; el reloj de reproducción al revés.**
 Nunca los dos lados escribiendo lo mismo, o aparecen carreras en el ciclo de vida.
 
-**`onPause` durante una grabación cierra el muxer.** Un mp4 sin átomo `moov` es un archivo
-corrupto, y aquí el momento es irrepetible: el niño solo pierde ese diente una vez.
+**`onPause` durante una grabación cierra el muxer Y guarda.** Un mp4 sin átomo `moov` es
+un archivo corrupto, y aquí el momento es irrepetible: el niño solo pierde ese diente una
+vez. El guardado en galería va en nativo por lo mismo — no puede depender de que Dart siga
+vivo para completarse.
+
+**El giroscopio solo actúa sin ARCore.** Con ancla el mundo ya manda; aplicar ambos
+duplicaría la corrección y el personaje se movería al doble de rápido que el encuadre.
+
+**Las métricas del spike son visibles en la UI**, no solo en el log: frames caídos, tiempo
+de export y aviso térmico. Al probar en tres dispositivos de gama baja hay que poder
+anotarlas sin conectar un depurador.
 
 ## Lo que falta
 
-- **iOS.** AVFoundation + Metal + ARKit. El shader se traduce casi directo.
-- **Guardado en la galería** y hoja de compartir. Los permisos de fotos difieren bastante
-  entre Android 10, 11 y 13+, y suele comerse más QA del que parece.
-- **Pantalla de resultado** con previsualización del clip; hoy solo sale un SnackBar.
-- **Modo foto** (selfie con el niño dormido). Módulo aparte, mucho más simple.
+- **iOS.** AVFoundation + Metal + ARKit. El shader se traduce casi directo. Es lo más
+  grande que queda.
 - **El personaje real.** Los tres efectos son placeholders sintéticos.
+- **Encuadre de selfie** para el modo foto: hoy la captura compone el frame actual, con
+  el ratón pequeño en el suelo. La app de referencia lo usa con el ratón grande junto al
+  niño dormido, que es otra escala y otro encuadre.
 - **Medir.** Frames caídos, tiempo de export, temperatura a los 60 s y tamaño del archivo
   en tres dispositivos de gama baja. Nada de esto está verificado.
 - **Compilar de verdad.** `flutter build apk` en una máquina con el SDK de Android, que

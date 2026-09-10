@@ -70,13 +70,35 @@ class ArController {
         'audio': audio,
       });
 
+  /// Detiene, cierra el muxer y **guarda en la galería del sistema**.
+  ///
+  /// El guardado va en nativo y no aquí a propósito: si la app pasa a segundo plano a
+  /// mitad de grabación, nativo cierra el muxer y guarda por su cuenta, sin depender de
+  /// que Dart siga vivo para hacerlo.
   Future<ArRecordingDone> stopRecording() async {
     final r = await _control.invokeMapMethod<String, Object?>('stopRecording');
-    return ArRecordingDone(
+    return ArRecordingDone.fromMap(r ?? const {});
+  }
+
+  /// Compone el frame actual a una imagen y la guarda en la galería.
+  Future<PhotoResult> capturePhoto() async {
+    final r = await _control.invokeMapMethod<String, Object?>('capturePhoto');
+    return PhotoResult(
       path: r?['path'] as String? ?? '',
+      uri: r?['uri'] as String?,
       sizeBytes: (r?['sizeBytes'] as num?)?.toInt() ?? 0,
     );
   }
+
+  Future<void> share(String uri, {String mimeType = 'video/mp4', String title = 'Compartir'}) =>
+      _control.invokeMethod('share', {
+        'uri': uri,
+        'mimeType': mimeType,
+        'title': title,
+      });
+
+  Future<void> openInGallery(String uri, {String mimeType = 'video/mp4'}) =>
+      _control.invokeMethod('openInGallery', {'uri': uri, 'mimeType': mimeType});
 
   Future<bool> setTorch(bool on) async =>
       await _control.invokeMethod<bool>('setTorch', on) ?? false;

@@ -14,10 +14,7 @@ sealed class ArEvent {
       'ready' => ArReady(supportsPlanes: map['supportsPlanes'] as bool? ?? false),
       'playbackTick' => ArPlaybackTick(positionMs: i('positionMs') ?? 0),
       'playbackDone' => const ArPlaybackDone(),
-      'recordingDone' => ArRecordingDone(
-          path: map['path'] as String? ?? '',
-          sizeBytes: i('sizeBytes') ?? 0,
-        ),
+      'recordingDone' => ArRecordingDone.fromMap(map),
       'sceneAnalyzed' => ArSceneAnalyzed(luma: d('luma') ?? 0, noise: d('noise') ?? 0),
       'surfaceFound' => const ArSurfaceFound(),
       'thermalWarning' => ArThermalWarning(level: i('level') ?? 0),
@@ -46,8 +43,61 @@ class ArPlaybackDone extends ArEvent {
 
 class ArRecordingDone extends ArEvent {
   final String path;
+
+  /// `content://` del archivo ya en la galería del sistema. null si el guardado falló.
+  final String? uri;
+
   final int sizeBytes;
-  const ArRecordingDone({required this.path, required this.sizeBytes});
+  final int durationMs;
+
+  /// Métricas de salida del spike (sección 1 de la arquitectura).
+  ///
+  /// Van a la UI a propósito, no solo al log: al probar en tres dispositivos de gama
+  /// baja hace falta poder anotarlas sin conectar un depurador.
+  final int framesSubmitted;
+  final int framesDropped;
+  final int exportMs;
+
+  const ArRecordingDone({
+    required this.path,
+    required this.uri,
+    required this.sizeBytes,
+    required this.durationMs,
+    required this.framesSubmitted,
+    required this.framesDropped,
+    required this.exportMs,
+  });
+
+  factory ArRecordingDone.fromMap(Map<Object?, Object?> map) {
+    int i(String k) => (map[k] as num?)?.toInt() ?? 0;
+    return ArRecordingDone(
+      path: map['path'] as String? ?? '',
+      uri: map['uri'] as String?,
+      sizeBytes: i('sizeBytes'),
+      durationMs: i('durationMs'),
+      framesSubmitted: i('framesSubmitted'),
+      framesDropped: i('framesDropped'),
+      exportMs: i('exportMs'),
+    );
+  }
+
+  bool get savedToGallery => uri != null;
+
+  /// Porcentaje de frames perdidos. Es la métrica que decide si la gama baja aguanta.
+  double get dropRate =>
+      framesSubmitted + framesDropped == 0
+          ? 0
+          : framesDropped / (framesSubmitted + framesDropped);
+}
+
+/// Resultado de una captura de foto.
+class PhotoResult {
+  final String path;
+  final String? uri;
+  final int sizeBytes;
+  const PhotoResult({required this.path, required this.uri, required this.sizeBytes});
+
+  bool get savedToGallery => uri != null;
 }
 
 class ArSceneAnalyzed extends ArEvent {

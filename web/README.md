@@ -46,7 +46,7 @@ Reproduce paso por paso el asistente de la app de referencia:
 |---|---|---|
 | **Inicio** | Crear video / Tomar foto | — |
 | **ESCANEAR** | Colocar el retículo donde aparecerá el ratón | Arrastrar |
-| **SUPERFICIE** | Ajustar la posición hacia arriba o hacia abajo | Arrastrar en vertical |
+| **POSICIÓN** | Acercar o alejar al ratón | Arrastrar en vertical |
 | **TAMAÑO** | Hacerlo más grande o más pequeño | Pellizcar |
 | **EDITAR** | Escoger entre las tres animaciones | ‹ › |
 | **GRABAR** | Linterna, grabar, foto | Botón rojo |

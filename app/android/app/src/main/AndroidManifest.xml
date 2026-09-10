@@ -5,6 +5,14 @@
          Ver docs/plan-de-trabajo.md, hallazgo 1. -->
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
 
+    <!-- Solo hasta API 28. Desde API 29 el almacenamiento por ámbito deja escribir en
+         MediaStore sin permiso alguno, y pedirlo ahí sería pedir de más: en una app
+         para padres con la cámara apuntando a un niño, cada permiso extra es fricción
+         en la instalación y una pregunta más en la revisión de la tienda. -->
+    <uses-permission
+        android:name="android.permission.WRITE_EXTERNAL_STORAGE"
+        android:maxSdkVersion="28" />
+
     <uses-feature android:name="android.hardware.camera" android:required="true" />
     <!-- required="false": la app funciona sin ARCore, con colocación por toque. Es la
          degradación de la decisión B; con "true" Play Store la ocultaría en todos los

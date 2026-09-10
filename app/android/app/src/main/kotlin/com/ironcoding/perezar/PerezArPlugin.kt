@@ -2,8 +2,12 @@ package com.ironcoding.perezar
 
 import android.app.Activity
 import android.content.Context
+import android.graphics.Bitmap
+import android.os.Build
 import android.os.Handler
 import android.os.HandlerThread
+import android.os.PowerManager
+import android.os.SystemClock
 import android.util.Log
 import com.google.ar.core.ArCoreApk
 import com.ironcoding.perezar.analysis.SceneAnalyzer
@@ -14,8 +18,11 @@ import com.ironcoding.perezar.gl.Compositor
 import com.ironcoding.perezar.gl.EglCore
 import com.ironcoding.perezar.gl.GradingParams
 import com.ironcoding.perezar.gl.OverlayRect
+import com.ironcoding.perezar.gallery.MediaStoreSaver
 import com.ironcoding.perezar.media.OverlayDecoder
 import com.ironcoding.perezar.media.Recorder
+import com.ironcoding.perezar.sensors.GyroTracker
+import java.io.File
 import io.flutter.embedding.engine.plugins.FlutterPlugin
 import io.flutter.embedding.engine.plugins.activity.ActivityAware
 import io.flutter.embedding.engine.plugins.activity.ActivityPluginBinding
@@ -60,6 +67,7 @@ class PerezArPlugin : FlutterPlugin, ActivityAware, MethodChannel.MethodCallHand
     private var decoder: OverlayDecoder? = null
     private var driver: ArDriver? = null
     private var recorder: Recorder? = null
+    private var gyro: GyroTracker? = null
 
     @Volatile private var transform = OverlayRect(0.5f, 0.72f, 0.2f, 0.35f)
     @Volatile private var overlayVisible = false
@@ -71,6 +79,12 @@ class PerezArPlugin : FlutterPlugin, ActivityAware, MethodChannel.MethodCallHand
     private var viewportH = 1920
     private var frameCount = 0L
     private var playbackStartNs = 0L
+
+    // Metricas de salida del spike (seccion 1 de la arquitectura).
+    private var recordStartNs = 0L
+    private var lastFrameNs = 0L
+    private var framesSubmitted = 0
+    private var lastThermal = -1
 
     // --- Ciclo de vida del plugin -------------------------------------------------
 
@@ -118,6 +132,7 @@ class PerezArPlugin : FlutterPlugin, ActivityAware, MethodChannel.MethodCallHand
             }
             "setOverlayVisible" -> { overlayVisible = call.arguments as Boolean; result.success(null) }
             "placeAt" -> post(result) {
+                gyro?.anchorHere()
                 driver?.placeAt(
                     (call.argument<Double>("x") ?: 0.5).toFloat(),
                     (call.argument<Double>("y") ?: 0.5).toFloat(),
@@ -130,6 +145,25 @@ class PerezArPlugin : FlutterPlugin, ActivityAware, MethodChannel.MethodCallHand
             "stopRecording" -> post(result) { stopRecording() }
             "setTorch" -> post(result) { driver?.setTorch(call.arguments as Boolean) ?: false }
             "setGrading" -> { applyGrading(call); result.success(null) }
+            "capturePhoto" -> post(result) { capturePhoto() }
+            "saveToGallery" -> post(result) {
+                saveToGallery(call.argument<String>("path")!!, call.argument<String>("mimeType")!!)
+            }
+            "share" -> post(result) {
+                MediaStoreSaver.share(
+                    context, android.net.Uri.parse(call.argument<String>("uri")!!),
+                    call.argument<String>("mimeType") ?: "video/mp4",
+                    call.argument<String>("title") ?: "Compartir",
+                )
+                true
+            }
+            "openInGallery" -> post(result) {
+                MediaStoreSaver.openInGallery(
+                    context, android.net.Uri.parse(call.argument<String>("uri")!!),
+                    call.argument<String>("mimeType") ?: "video/mp4",
+                )
+                true
+            }
             "dispose" -> post(result) { disposeAll() }
             else -> result.notImplemented()
         }
@@ -172,7 +206,16 @@ class PerezArPlugin : FlutterPlugin, ActivityAware, MethodChannel.MethodCallHand
             analyzer.init()
             decoder = OverlayDecoder(comp.overlayTextureId)
 
-            driver = createDriver().apply { start(comp.cameraTextureId, viewportW, viewportH) }
+            val drv = createDriver()
+            drv.start(comp.cameraTextureId, viewportW, viewportH)
+            driver = drv
+
+            // El giroscopio solo se usa SIN ARCore. Con ancla el mundo ya manda, y
+            // aplicar ambos duplicaria la correccion: el personaje se iria al doble de
+            // rapido que el encuadre.
+            if (!drv.supportsPlanes) {
+                gyro = GyroTracker(context).takeIf { it.available }?.also { it.start() }
+            }
 
             mainHandler.post {
                 result.success(mapOf(
@@ -220,6 +263,8 @@ class PerezArPlugin : FlutterPlugin, ActivityAware, MethodChannel.MethodCallHand
 
         core.makeCurrent(previewSurface!!)
         val frame = drv.update() ?: return
+        lastFrameNs = frame.timestampNs
+        if (recorder != null && recordStartNs == 0L) recordStartNs = frame.timestampNs
 
         // El reloj maestro es la camara. Todo lo demas se deriva de aqui.
         if (playing) {
@@ -247,7 +292,12 @@ class PerezArPlugin : FlutterPlugin, ActivityAware, MethodChannel.MethodCallHand
         val overlayXform = FloatArray(16)
         dec.surfaceTexture.getTransformMatrix(overlayXform)
 
+        val gyroOffset = gyro
+            ?.let { floatArrayOf(it.offsetX, it.offsetY) }
+            ?: FLOAT2_ZERO
+
         comp.compose(
+            gyroOffset = gyroOffset,
             camXform = frame.camXform,
             overlayXform = overlayXform,
             overlaySize = dec.width to dec.height,
@@ -272,7 +322,10 @@ class PerezArPlugin : FlutterPlugin, ActivityAware, MethodChannel.MethodCallHand
             core.setPresentationTime(encoderSurface!!, frame.timestampNs)
             core.swapBuffers(encoderSurface!!)
             rec.drainVideo()
+            framesSubmitted++
         }
+
+        if (frameCount % THERMAL_EVERY == 0L) pollThermal()
 
         frameCount++
         if (playing && frameCount % TICK_EVERY == 0L) {
@@ -357,27 +410,90 @@ class PerezArPlugin : FlutterPlugin, ActivityAware, MethodChannel.MethodCallHand
         encoderSurface = egl!!.createWindowSurface(rec.inputSurface)
         rec.start()
         recorder = rec
+        framesSubmitted = 0
+        recordStartNs = 0L
         startPlayback(loop = false)
     }
 
-    private fun stopRecording(): Map<String, Any> {
+    private fun stopRecording(): Map<String, Any?> {
         val rec = recorder ?: return emptyMap()
         recorder = null
         playing = false
-        val result = rec.stop()
+
+        // Frames caidos = los que el reloj de camara dice que debieron ir menos los que
+        // llegaron al encoder. Es la metrica que decide si la gama baja aguanta.
+        val elapsedNs = if (recordStartNs == 0L) 0L else lastFrameNs - recordStartNs
+        val expected = (elapsedNs / FRAME_NS).toInt()
+        val dropped = (expected - framesSubmitted).coerceAtLeast(0)
+
+        val result = rec.stop(framesSubmitted, dropped)
         encoderSurface?.let { egl?.releaseSurface(it) }
         encoderSurface = null
-        return mapOf("path" to result.path, "sizeBytes" to result.sizeBytes)
+
+        val uri = runCatching {
+            MediaStoreSaver.saveVideo(context, result.path, defaultName("mp4")).toString()
+        }.onFailure { Log.e(TAG, "no pude guardar en la galeria", it) }.getOrNull()
+
+        return mapOf(
+            "path" to result.path,
+            "uri" to uri,
+            "sizeBytes" to result.sizeBytes,
+            "durationMs" to elapsedNs / 1_000_000,
+            "framesSubmitted" to result.framesSubmitted,
+            "framesDropped" to result.framesDropped,
+            "exportMs" to result.exportMs,
+        )
+    }
+
+    private fun capturePhoto(): Map<String, Any?> {
+        val comp = compositor ?: error("sin compositor")
+        val bitmap: Bitmap = comp.capture()
+        val file = File(context.cacheDir, defaultName("png"))
+        file.outputStream().use { bitmap.compress(Bitmap.CompressFormat.PNG, 100, it) }
+        bitmap.recycle()
+
+        val uri = runCatching {
+            MediaStoreSaver.saveImage(context, file.absolutePath, file.name).toString()
+        }.onFailure { Log.e(TAG, "no pude guardar la foto", it) }.getOrNull()
+
+        return mapOf("path" to file.absolutePath, "uri" to uri, "sizeBytes" to file.length())
+    }
+
+    private fun saveToGallery(path: String, mimeType: String): String? = runCatching {
+        val name = File(path).name
+        if (mimeType.startsWith("video/")) MediaStoreSaver.saveVideo(context, path, name).toString()
+        else MediaStoreSaver.saveImage(context, path, name).toString()
+    }.onFailure { Log.e(TAG, "guardado fallido", it) }.getOrNull()
+
+    private fun defaultName(extension: String): String =
+        "raton_perez_${System.currentTimeMillis()}.$extension"
+
+    /**
+     * Estado termico. En gama baja el throttling es lo que hace caer los fps a los 60
+     * segundos, y sin avisar parece un bug del render.
+     */
+    private fun pollThermal() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) return
+        val level = (context.getSystemService(Context.POWER_SERVICE) as PowerManager)
+            .currentThermalStatus
+        if (level != lastThermal) {
+            lastThermal = level
+            if (level >= PowerManager.THERMAL_STATUS_MODERATE) {
+                emitOnMain("thermalWarning", mapOf("level" to level))
+            }
+        }
     }
 
     private fun disposeAll() {
         // Si habia grabacion en curso, cerrar el muxer limpiamente. Un mp4 sin atomo moov
         // es un archivo corrupto, y aqui el momento es irrepetible.
-        recorder?.let { runCatching { it.stop() }.onSuccess { r ->
+        recorder?.let { runCatching { it.stop(framesSubmitted, 0) }.onSuccess { r ->
             emitOnMain("recordingDone", mapOf("path" to r.path, "sizeBytes" to r.sizeBytes))
         } }
         recorder = null
 
+        gyro?.stop()
+        gyro = null
         render?.post {
             driver?.stop()
             decoder?.release()
@@ -409,7 +525,10 @@ class PerezArPlugin : FlutterPlugin, ActivityAware, MethodChannel.MethodCallHand
         const val CHANNEL_CONTROL = "ironcoding/perezar/control"
         const val CHANNEL_EVENTS = "ironcoding/perezar/events"
         const val FRAME_MS = 16L
+        const val FRAME_NS = 33_333_333L    // 30 fps, la cadencia del asset
         const val ANALYZE_EVERY = 10L
         const val TICK_EVERY = 6L
+        const val THERMAL_EVERY = 120L
+        val FLOAT2_ZERO = floatArrayOf(0f, 0f)
     }
 }

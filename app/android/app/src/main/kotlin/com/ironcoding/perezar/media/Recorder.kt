@@ -176,7 +176,8 @@ class Recorder(
      * Un mp4 sin atomo moov es un archivo corrupto, y en este producto el momento es
      * irrepetible: el nino solo pierde ese diente una vez. Ver seccion 5.
      */
-    fun stop(): RecordingResult {
+    fun stop(framesSubmitted: Int, framesDropped: Int): RecordingResult {
+        val startedStop = SystemClock.elapsedRealtime()
         running.set(false)
         audioThread?.join(1_000)
         audioRecord?.runCatching { stop(); release() }
@@ -193,7 +194,15 @@ class Recorder(
         muxer.runCatching { release() }
 
         val file = File(outputPath)
-        return RecordingResult(outputPath, file.length())
+        return RecordingResult(
+            path = outputPath,
+            sizeBytes = file.length(),
+            framesSubmitted = framesSubmitted,
+            framesDropped = framesDropped,
+            // Tiempo desde que el usuario suelta el boton hasta tener el archivo. Es lo
+            // que percibe como "espera", y una de las metricas de salida del spike.
+            exportMs = SystemClock.elapsedRealtime() - startedStop,
+        )
     }
 
     private companion object {
@@ -204,4 +213,15 @@ class Recorder(
     }
 }
 
-data class RecordingResult(val path: String, val sizeBytes: Long)
+/**
+ * Metricas de salida del spike, seccion 1 de la arquitectura: frames caidos, tiempo de
+ * export y tamano del archivo. Se emiten a Dart para poder anotarlas sin conectar un
+ * depurador, que es lo que hace falta al probar en tres dispositivos de gama baja.
+ */
+data class RecordingResult(
+    val path: String,
+    val sizeBytes: Long,
+    val framesSubmitted: Int,
+    val framesDropped: Int,
+    val exportMs: Long,
+)

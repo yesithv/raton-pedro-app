@@ -18,6 +18,7 @@ class StepBar extends StatelessWidget {
   final VoidCallback onNextEffect;
   final VoidCallback onRecord;
   final VoidCallback onTorch;
+  final VoidCallback onPhoto;
 
   const StepBar({
     super.key,
@@ -31,6 +32,7 @@ class StepBar extends StatelessWidget {
     required this.onNextEffect,
     required this.onRecord,
     required this.onTorch,
+    required this.onPhoto,
   });
 
   @override
@@ -86,7 +88,13 @@ class StepBar extends StatelessWidget {
                   const SizedBox(width: 18),
                   _Shutter(recording: recording, onTap: onRecord),
                   const SizedBox(width: 18),
-                  const SizedBox(width: 48),
+                  IconButton(
+                    // Deshabilitado mientras se graba: capturar hace un glReadPixels que
+                    // bloquea el pipeline, y en mitad de una grabación eso se traduce en
+                    // frames caídos justo en el momento que el usuario quería guardar.
+                    onPressed: recording ? null : onPhoto,
+                    icon: const Icon(Icons.photo_camera_outlined, color: Colors.white),
+                  ),
                 ],
               ),
           },

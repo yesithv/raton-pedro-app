@@ -1,7 +1,7 @@
 import 'dart:ui' show Size;
 
-/// Definición del asistente. Puerto de web/js/flow.js, que a su vez sigue paso por paso
-/// el flujo de la app de referencia (docs/plan-de-trabajo.md, hallazgo 5).
+/// Definición del asistente. Puerto de web/js/flow.js. El flujo sigue el de la app de
+/// referencia (docs/plan-de-trabajo.md, hallazgo 5); los textos son propios.
 enum WizardStep { inicio, escanear, superficie, tamano, editar, grabar }
 
 /// Qué gesto está activo en cada paso. En la referencia el ajuste está acotado por paso:
@@ -44,10 +44,10 @@ const Map<WizardStep, StepSpec> kSteps = {
   ),
   WizardStep.escanear: StepSpec(
     title: 'ESCANEAR',
-    hint: 'Mueve tu teléfono para detectar la superficie donde colocar al Ratón Pérez.\n'
-        'Cuando la flecha esté estable, tócala.',
+    hint: 'Apunta al suelo o a la cama y mueve el teléfono despacio.\n'
+        'Cuando el círculo se quede quieto, tócalo para dejar ahí al ratón.',
     hintNoPlanes: 'Este teléfono no detecta superficies.\n'
-        'Arrastra el retículo hasta donde quieres que aparezca el Ratón Pérez.',
+        'Arrastra el círculo hasta donde quieras que aparezca el ratón.',
     overlayVisible: false,
     reticle: true,
     loop: false,
@@ -55,9 +55,9 @@ const Map<WizardStep, StepSpec> kSteps = {
     back: WizardStep.inicio,
   ),
   WizardStep.superficie: StepSpec(
-    title: 'SUPERFICIE',
-    hint: 'La superficie ha sido detectada. Puedes ajustar la posición del Ratón Pérez '
-        'moviéndolo hacia arriba o hacia abajo.',
+    title: 'POSICIÓN',
+    hint: 'Ya tengo la superficie. Arrastra hacia arriba o hacia abajo para acercar o '
+        'alejar al ratón.',
     overlayVisible: true,
     reticle: false,
     loop: true,
@@ -66,7 +66,7 @@ const Map<WizardStep, StepSpec> kSteps = {
   ),
   WizardStep.tamano: StepSpec(
     title: 'TAMAÑO',
-    hint: 'Cambia el tamaño del Ratón Pérez. Puedes hacerlo más grande o más pequeño.',
+    hint: 'Pellizca para ajustar el tamaño. Cuanto más pequeño, más creíble.',
     overlayVisible: true,
     reticle: false,
     loop: true,
@@ -75,7 +75,7 @@ const Map<WizardStep, StepSpec> kSteps = {
   ),
   WizardStep.editar: StepSpec(
     title: 'EDITAR',
-    hint: 'Escoge la animación que más te guste.',
+    hint: 'Elige qué hace el ratón.',
     overlayVisible: true,
     reticle: false,
     loop: true,
@@ -84,7 +84,8 @@ const Map<WizardStep, StepSpec> kSteps = {
   ),
   WizardStep.grabar: StepSpec(
     title: 'GRABAR',
-    hint: 'Toca el botón rojo. El video se detiene solo al terminar la animación.',
+    hint: 'Pulsa el botón rojo. Se detiene solo al acabar la animación.\n'
+        'Puedes hablar mientras grabas: tu voz entra en el video.',
     overlayVisible: true,
     reticle: false,
     loop: true,

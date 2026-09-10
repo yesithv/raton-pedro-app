@@ -61,6 +61,73 @@ jobs:
           retention-days: 30
           if-no-files-found: error
 
+  emulador:
+    name: Android · humo en emulador
+    needs: android
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: perezar-debug-apk
+
+      # KVM hace falta para que el emulador no vaya por software, que en un runner es
+      # tan lento que todo da timeout.
+      - name: Habilitar KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' \
+            | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      # Qué prueba esto: que la app arranca, no revienta al crear el contexto GL y llega
+      # a la primera pantalla. Nada más.
+      #
+      # Qué NO prueba, y es la mayor parte: un emulador no tiene ARCore, así que se
+      # ejercita el camino de Camera2Driver, no el de anclaje. Su cámara falsa no tiene
+      # ruido de sensor, así que el SceneAnalyzer mide algo que no existe en la realidad.
+      # Y su MediaCodec no es el de un teléfono barato. El rendimiento aquí no dice
+      # absolutamente nada sobre gama baja.
+      - name: Arrancar y comprobar que no revienta
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 30
+          target: google_apis
+          arch: x86_64
+          profile: pixel_4
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back emulated
+          disable-animations: true
+          script: |
+            adb install -r app-debug.apk
+            adb shell pm grant com.ironcoding.perezar android.permission.CAMERA
+            adb shell pm grant com.ironcoding.perezar android.permission.RECORD_AUDIO
+            adb logcat -c
+            adb shell am start -n com.ironcoding.perezar/.MainActivity
+            sleep 25
+            adb logcat -d > logcat.txt
+
+            if grep -q "FATAL EXCEPTION" logcat.txt; then
+              echo "::error::La app crasheó al arrancar"
+              grep -A 30 "FATAL EXCEPTION" logcat.txt
+              exit 1
+            fi
+            if ! adb shell pidof com.ironcoding.perezar > /dev/null; then
+              echo "::error::El proceso no sigue vivo tras 25 s"
+              tail -80 logcat.txt
+              exit 1
+            fi
+            echo "arrancó y sigue vivo"
+            adb exec-out screencap -p > arranque.png
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: emulador
+          path: |
+            logcat.txt
+            arranque.png
+          if-no-files-found: warn
+
   web:
     name: Web · asistente sobre cámara falsa
     runs-on: ubuntu-latest
