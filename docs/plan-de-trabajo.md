@@ -209,7 +209,80 @@ Y en el metraje el ratón ocupa **~10% del alto de pantalla**, no el 35% que hay
 que el grano, la nitidez o la dominante no cuadran. Conviene revisar ese valor por
 defecto.
 
-### 5. UI observada
+### 5. La app de referencia SÍ usa detección de planos. La sección 0.4 estaba mal enmarcada
+
+El flujo completo es un asistente de cinco pasos:
+
+1. **ESCANEAR** — *"Mueve tu teléfono para detectar la superficie donde colocar al Ratón
+   Pérez. Ya que la flecha esté estable, CLICK EN LA FLECHA AMARILLA"*. Retículo elíptico
+   amarillo con flecha, dibujado **en perspectiva sobre el piso**.
+2. **SUPERFICIE** — *"La superficie ha sido detectada. Puedes ajustar la posición del
+   Ratón Pérez moviéndolo hacia arriba o hacia abajo."* → SIGUIENTE
+3. **Tamaño** — *"Cambia el tamaño del Ratón Pérez. Puedes hacerlo mas grande o
+   pequeño."*, con pellizco → SIGUIENTE
+4. **EDITAR / Escoge video** — *"Tres animaciones disponibles"* → SELECCIONAR
+5. **Grabar** → guardado en galería
+
+El retículo en perspectiva, el icono de "mueve el teléfono", y el ajuste de posición y
+tamaño en el mundo son ARCore/ARKit. Y el ratón aparece apoyado en el piso visto en
+ángulo oblicuo, que un sprite plano pre-renderizado no logra de forma convincente.
+
+La sección 0.4 de la arquitectura decía *"Tienes razón en descartar plane detection… No
+necesitas ARCore para arreglarlo"*. El razonamiento no era falso en sus términos —el
+giroscopio es más barato— pero enmarcaba la detección de planos como pulido opcional. En
+la referencia es la columna vertebral del onboarding: escanear es la primera pantalla, y
+es lo que convence al usuario de que el ratón está en su cuarto antes de que pase nada
+más.
+
+#### Las tres arquitecturas posibles
+
+| | Qué es | Calidad de render | Anclaje al mundo | Requiere ARCore |
+|---|---|---|---|---|
+| **A** | Video alfa pre-renderizado + toque (lo que hay hoy) | Alta (offline, sin límite) | Ninguno — calcomanía | No |
+| **B** | Video alfa pre-renderizado **anclado a un plano AR** | Alta, igual que A | Sí | Sí, con degradación a A |
+| **C** | 3D en tiempo real + ARCore (la referencia) | Baja: hay que renderizar en el teléfono | Sí, completo | Sí, obligatorio |
+
+**Recomendación: B.**
+
+- **No tira nada de lo construido.** El shader no sabe de dónde sale el transform.
+  `uOverlayOrigin`, `uOverlayScale` y `uGyroOffset` ya existen como uniforms; hoy los
+  alimenta el dedo, mañana la pose del ancla. El pipeline de assets, la composición
+  premultiplicada, el grading y el balance de color siguen igual.
+- **Conserva la ventaja de calidad.** Un personaje pre-renderizado puede tener pelo,
+  subsurface y raytracing; uno en tiempo real en un teléfono barato no. Si hay algo en
+  que ganarle a una app de hace cinco años, es en que el personaje se vea bien.
+- **Degrada.** Sin ARCore certificado, cae a colocación por toque en vez de no funcionar.
+  C no tiene esa salida.
+
+Costo de B frente a C: el personaje es un *billboard*, visible desde el ángulo con el que
+se renderizó. Si el padre se agacha o rodea la cama, no cuadra. Para cinco segundos con
+el teléfono apoyado probablemente da igual, pero es la limitación real.
+
+**El dato que decide:** cobertura de ARCore en el mercado objetivo. La arquitectura apunta
+a Android 9+ gama baja, y buena parte de los teléfonos baratos no está en la lista de
+dispositivos certificados. Hay que mirar esos números antes de elegir.
+
+Nota complementaria: si se va por B o C, **ARCore Lighting Estimation entrega gratis** lo
+que hoy calcula `SceneAnalyzer` a mano — intensidad ambiental y corrección de color, que
+es literalmente la dominante `vec3` recién implementada. El trabajo no se pierde (sirve de
+referencia y de camino de respaldo sin ARCore), pero conviene no duplicarlo.
+
+### 6. Son tres animaciones, no quince
+
+*"Tres animaciones disponibles"*, elegibles antes de grabar:
+
+- "RATÓN PERÉZ entra y es descubierto"
+- "RATÓN PERÉZ es descubierto y se esconde"
+- (una tercera, no visible en el material)
+
+Con un catálogo de tres, la preocupación de la corrección sobre descarga bajo demanda no
+aplica: caben de sobra en el bundle. También acota el encargo al animador a tres piezas.
+
+Y el orden importa: la animación **se elige antes de grabar**, no después. Eso significa
+que el decoder solo necesita tener un asset cargado a la vez, y que la pantalla de
+selección puede reproducir en bucle sin estar grabando.
+
+### 7. UI observada
 
 Casa (arriba izq), volver (arriba der), linterna (abajo izq), botón de grabar (abajo
 centro; cuadrado rojo mientras graba). Toast "Video Saved to Gallery" al terminar. La
