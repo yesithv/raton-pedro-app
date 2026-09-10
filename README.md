@@ -8,8 +8,16 @@ Procesamiento 100% on-device. Flutter + capa nativa (GL/Metal).
 
 ## Estado
 
-Fase de validación. Todavía no hay código de app: la decisión de producto (¿el resultado
-se ve creíble de noche?) se toma antes de escribir la primera línea de Kotlin.
+Fase de validación. Hay un prototipo web funcional (cámara + composición + foto) y la
+cadena de herramientas offline. El nativo (Flutter + Android) todavía no.
+
+La decisión de producto — ¿el resultado se ve creíble? — se toma con el prototipo y el
+compositor offline, antes de escribir la primera línea de Kotlin.
+
+## Prototipo web
+
+`web/` — cámara + composición + foto en el navegador del teléfono, sin instalar nada.
+Ver [`web/README.md`](web/README.md) para abrirlo con GitHub Pages.
 
 ## Herramientas
 
@@ -17,7 +25,8 @@ se ve creíble de noche?) se toma antes de escribir la primera línea de Kotlin.
 tools/make_placeholder.py   material sintético para probar la cadena sin assets
 tools/build_effect.py       PNG RGBA -> mp4 empaquetado + metadata (pipeline de assets)
 tools/compose.py            clip + efecto -> mp4 compuesto (réplica del shader)
-shaders/composite.frag      shader de composición (fuente de verdad)
+shaders/composite.{vert,frag}  shader de composición (fuente de verdad,
+                               compartido por el prototipo web y el nativo)
 ```
 
 Ver [`tools/README.md`](tools/README.md).

@@ -1,0 +1,23 @@
+{
+  "id": "portal_placeholder",
+  "durationMs": 5000,
+  "fps": 30.0,
+  "frameCount": 150,
+  "packedSize": [
+    1440,
+    1280
+  ],
+  "trackSize": [
+    720,
+    1280
+  ],
+  "anchorPoint": [
+    0.5,
+    0.9102
+  ],
+  "defaultScaleFactor": 0.35,
+  "referenceLuma": 0.3108,
+  "hasAudio": false,
+  "limitedRange": false,
+  "glowFrames": []
+}

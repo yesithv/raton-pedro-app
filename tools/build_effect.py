@@ -104,6 +104,9 @@ def main():
                    help="defaultScaleFactor: alto del overlay como fraccion de pantalla")
     p.add_argument("--anchor", default="auto",
                    help="'auto' o 'x,y' normalizado. Punto de contacto con la superficie")
+    p.add_argument("--webm", action="store_true",
+                   help="Emitir tambien un VP9 .webm hermano. Solo lo necesita el "
+                        "prototipo web en navegadores sin H.264; en telefonos, nunca")
     p.add_argument("--border", type=int, default=BORDER,
                    help="px forzados a cero en cada borde de cada mitad. 0 para desactivar")
     args = p.parse_args()
@@ -130,8 +133,15 @@ def main():
     worst_clip = 0.0
     lum_sum, lum_n = 0.0, 0
 
-    with ffio.VideoWriter(args.output, packed_w, th, fps=args.fps, crf=args.crf,
-                          gop=args.gop, audio_from=args.audio) as out:
+    writers = [ffio.VideoWriter(args.output, packed_w, th, fps=args.fps, crf=args.crf,
+                                gop=args.gop, audio_from=args.audio, codec="h264")]
+    if args.webm:
+        webm_path = os.path.splitext(args.output)[0] + ".webm"
+        writers.append(ffio.VideoWriter(webm_path, packed_w, th, fps=args.fps,
+                                        crf=max(args.crf + 10, 30), gop=args.gop,
+                                        audio_from=args.audio, codec="vp9"))
+
+    try:
         for i, path in enumerate(paths):
             rgb, a = premultiply_and_scale(load_rgba(path), (tw, th))
             worst_clip = max(worst_clip, zero_border(rgb, a, args.border))
@@ -148,10 +158,14 @@ def main():
 
             frame[:, :tw] = (rgb * 255.0 + 0.5).astype(np.uint8)
             frame[:, tw:] = (a * 255.0 + 0.5).astype(np.uint8)[..., None]
-            out.write(frame)
+            for w in writers:
+                w.write(frame)
 
             if (i + 1) % 30 == 0 or i + 1 == len(paths):
                 print(f"  {i + 1}/{len(paths)}", end="\r", flush=True)
+    finally:
+        for w in writers:
+            w.close()
     print()
 
     if worst_clip > 0.02:
@@ -184,6 +198,8 @@ def main():
 
     size_mb = os.path.getsize(args.output) / 1e6
     print(f"-> {args.output} ({size_mb:.2f} MB)")
+    if args.webm:
+        print(f"-> {webm_path} ({os.path.getsize(webm_path) / 1e6:.2f} MB)")
     print(f"-> {meta_path} (anchorPoint {anchor}, "
           f"referenceLuma {meta['referenceLuma']})")
     if size_mb > 4.0:

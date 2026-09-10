@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1">
+<title>Ratón Pérez AR — prototipo</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ctext y='26' font-size='26'%3E%F0%9F%90%AD%3C/text%3E%3C/svg%3E">
+<link rel="stylesheet" href="app.css">
+</head>
+<body>
+
+<canvas id="stage"></canvas>
+
+<video id="camera" playsinline muted autoplay></video>
+<video id="overlay" playsinline muted preload="auto"></video>
+
+<div id="boot">
+  <h1>Ratón Pérez AR</h1>
+  <p>Prototipo de composición. Apunta la cámara al cuarto, toca la pantalla para colocar
+     al ratón y dale a reproducir.</p>
+  <button id="start">Abrir cámara</button>
+  <p style="font-size:12px">Necesita HTTPS. Toca para colocar, pellizca para escalar.</p>
+</div>
+
+<div id="hud" hidden>
+  <div id="topbar">
+    <div id="dbg"></div>
+    <div id="clamp-warn" hidden>La exposición está tocando el borde del rango. El valor
+      correcto para esta luz queda fuera: sube o baja el piso en el panel y compara.</div>
+  </div>
+
+  <div>
+    <div id="panel" hidden>
+      <label>Exposición mín <input id="s-exp-min" type="range" min="0.1" max="1.5" step="0.01"><output id="s-exp-min-v"></output></label>
+      <label>Exposición máx <input id="s-exp-max" type="range" min="0.5" max="2.5" step="0.01"><output id="s-exp-max-v"></output></label>
+      <label>Key <input id="s-key" type="range" min="0.5" max="2" step="0.01"><output id="s-key-v"></output></label>
+      <label>Softness <input id="s-softness" type="range" min="0" max="2.5" step="0.05"><output id="s-softness-v"></output></label>
+      <label>Grano máx <input id="s-grain-max" type="range" min="0" max="0.2" step="0.005"><output id="s-grain-max-v"></output></label>
+      <label class="check">Rango limitado <input id="s-limited" type="checkbox"></label>
+    </div>
+    <div id="bottombar">
+      <button id="dbg-toggle">Ajustes</button>
+      <button id="play">Reproducir</button>
+      <button id="photo">Foto</button>
+    </div>
+  </div>
+</div>
+
+<div id="shot" hidden>
+  <img id="shot-img" alt="Foto compuesta">
+  <div id="shot-actions">
+    <button id="shot-close">Cerrar</button>
+    <button id="shot-share" hidden>Compartir</button>
+    <a id="shot-save" class="btn" download="raton-perez.png">Guardar</a>
+  </div>
+</div>
+
+<div id="error" hidden></div>
+
+<script type="module" src="js/main.js"></script>
+</body>
+</html>

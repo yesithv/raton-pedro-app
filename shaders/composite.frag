@@ -18,7 +18,8 @@ uniform float uSoftness;            // blur en píxeles de textura, típico 0.5 
 uniform float uTime;                // segundos, para animar el grano
 uniform bool  uLimitedRange;        // true si el asset se codificó en rango 16-235
 
-in  vec2 vCamUV;
+in  vec2 vCamUV;      // coordenada de textura del feed (ajuste "cover" del sensor)
+in  vec2 vScreenUV;   // coordenada de pantalla 0..1 (donde el usuario toco)
 out vec4 fragColor;
 
 // Hash rápido para grano. No es gaussiano perfecto pero a esta amplitud da igual.
@@ -31,8 +32,14 @@ float hash13(vec3 p) {
 void main() {
     vec3 cam = texture(uCamera, vCamUV).rgb;
 
-    // Coordenada local dentro del overlay
-    vec2 ouv = (vCamUV - uOverlayOrigin + uGyroOffset) / uOverlayScale;
+    // Coordenada local dentro del overlay.
+    // OJO: se usa vScreenUV, NO vCamUV. uOverlayOrigin viene de donde el usuario toco
+    // la PANTALLA. El feed va recortado en "cover" respecto a la pantalla, asi que los
+    // dos espacios difieren por una transformacion afin: mezclarlos coloca al personaje
+    // desplazado respecto al dedo, y el error crece con la diferencia de aspecto entre
+    // sensor y pantalla. En el compositor offline coinciden (clip y salida tienen la
+    // misma resolucion), asi que este bug no aparece ahi: solo en el dispositivo.
+    vec2 ouv = (vScreenUV - uOverlayOrigin + uGyroOffset) / uOverlayScale;
 
     if (ouv.x < 0.0 || ouv.x > 1.0 || ouv.y < 0.0 || ouv.y > 1.0) {
         fragColor = vec4(cam, 1.0);
@@ -71,7 +78,7 @@ void main() {
     rgbP *= uExposureMatch;
 
     // --- Inyección de grano, solo sobre el personaje ---
-    // El grano vive en espacio de PANTALLA (vCamUV), no del overlay: el ruido de una
+    // El grano vive en espacio del SENSOR (vCamUV), no del overlay: el ruido de una
     // cámara está en el sensor, no pegado al personaje. Si se mueve con él, se nota.
     float n = hash13(vec3(vCamUV * 1024.0, floor(uTime * 30.0))) - 0.5;
     rgbP += vec3(n) * uGrainAmount * a;

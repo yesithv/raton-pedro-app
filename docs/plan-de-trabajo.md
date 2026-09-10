@@ -158,6 +158,20 @@ como partida propia.
 
 ---
 
+## Prototipo web
+
+`web/` es una app funcional: cámara en vivo, composición del ratón y captura de foto, en
+el navegador del teléfono y sin instalar nada. Usa el mismo `shaders/composite.frag` y el
+mismo asset empaquetado que el nativo.
+
+Instrucciones para abrirlo (GitHub Pages) en [`web/README.md`](../web/README.md).
+
+No sustituye al nativo: no graba video con encoder de hardware y el rendimiento en gama
+baja dentro de un navegador no es representativo. Sirve para decidir dirección de arte y
+validar la composición sobre cámaras reales, que es justo el riesgo número uno.
+
+---
+
 ## Herramientas ya disponibles
 
 El día 1 no arranca en blanco. En `tools/` está la cadena de la fase de validación,
@@ -244,6 +258,27 @@ midiendo píxeles: la matemática predecía luma 0.107 y el resultado daba 0.010
 Moraleja para la semana 2: cuando compares el spike nativo contra el render offline,
 **mide números, no mires imágenes**. Un factor de 10 en una escena oscura se ve como una
 decisión estética plausible.
+
+### 4. El shader necesitaba DOS juegos de UVs, no uno
+
+Salió de portarlo a WebGL, pero afecta igual al nativo. El shader usaba `vCamUV` tanto
+para muestrear la cámara como para posicionar el overlay, y esos dos espacios no
+coinciden: el sensor entrega 4:3 o 16:9 y la pantalla del teléfono es ~9:19.5, así que el
+feed va recortado en "cover" respecto a la superficie de presentación.
+
+`uOverlayOrigin` viene de dónde el usuario tocó la **pantalla**. Mezclarlo con la
+coordenada de textura del **sensor** coloca al personaje desplazado respecto al dedo, y el
+error crece con la diferencia de aspecto. En un teléfono típico es de varios puntos
+porcentuales de la pantalla: suficiente para que el ratón no quede donde lo pusiste.
+
+Ahora `composite.vert` emite `vCamUV` (textura) y `vScreenUV` (pantalla). El overlay se
+posiciona con `vScreenUV`; el grano se queda en `vCamUV`, porque el ruido del sensor vive
+en el sensor.
+
+Este bug **no aparece en el compositor offline**, donde el clip y la salida tienen la
+misma resolución y los dos espacios coinciden. Solo en el dispositivo. Es un buen
+recordatorio de que la referencia offline valida la matemática de composición, no la
+geometría de presentación.
 
 ---
 

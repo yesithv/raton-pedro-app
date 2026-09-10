@@ -84,7 +84,7 @@ class VideoWriter:
     """
 
     def __init__(self, path, width, height, fps=30.0, crf=18, gop=15,
-                 audio_from=None, pix_fmt="yuvj420p"):
+                 audio_from=None, codec="h264"):
         if width % 2 or height % 2:
             raise ValueError(f"Dimensiones impares no codifican en 4:2:0: {width}x{height}")
 
@@ -98,9 +98,21 @@ class VideoWriter:
             cmd += ["-i", audio_from, "-map", "0:v:0", "-map", "1:a:0",
                     "-c:a", "aac", "-b:a", "128k", "-shortest"]
 
-        cmd += ["-c:v", "libx264", "-profile:v", "high", "-pix_fmt", pix_fmt,
-                "-crf", str(crf), "-g", str(gop),
-                "-color_range", "pc", "-movflags", "+faststart", path]
+        if codec == "h264":
+            # yuvj420p = rango completo, que es lo que espera el shader con
+            # uLimitedRange=false.
+            cmd += ["-c:v", "libx264", "-profile:v", "high", "-pix_fmt", "yuvj420p",
+                    "-crf", str(crf), "-g", str(gop), "-color_range", "pc",
+                    "-movflags", "+faststart"]
+        elif codec == "vp9":
+            # Solo para el prototipo web: hay builds de Chromium y de Firefox sin H.264.
+            # Ningun telefono real lo necesita.
+            cmd += ["-c:v", "libvpx-vp9", "-pix_fmt", "yuv420p", "-color_range", "pc",
+                    "-crf", str(crf), "-b:v", "0", "-g", str(gop),
+                    "-row-mt", "1", "-cpu-used", "5", "-deadline", "good"]
+        else:
+            raise ValueError(f"codec no soportado: {codec}")
+        cmd += [path]
 
         self.path = path
         self.proc = subprocess.Popen(cmd, stdin=subprocess.PIPE, stderr=subprocess.PIPE)
