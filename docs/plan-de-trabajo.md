@@ -158,6 +158,33 @@ como partida propia.
 
 ---
 
+## Herramientas ya disponibles
+
+El día 1 no arranca en blanco. En `tools/` está la cadena de la fase de validación,
+probada end to end:
+
+| Script | Qué hace |
+|---|---|
+| `tools/make_placeholder.py` | Material sintético para probar la cadena hoy, sin assets ni grabaciones |
+| `tools/build_effect.py` | PNG RGBA → mp4 empaquetado + metadata. Es el pipeline de assets y el contrato con el animador |
+| `tools/compose.py` | Clip de referencia + efecto → mp4 compuesto. Réplica exacta del shader |
+
+`shaders/composite.frag` es el shader corregido, y la fuente de verdad que `compose.py`
+replica. Instrucciones de uso en `tools/README.md`; los valores que salgan van a
+`docs/receta-grading.md`.
+
+Prueba de humo, 5 minutos:
+
+```bash
+pip install -r tools/requirements.txt
+python3 tools/make_placeholder.py --outdir /tmp/ph --size 720x1280
+python3 tools/build_effect.py /tmp/ph/frames -o /tmp/ph/efecto.mp4 --track-size 480x848
+python3 tools/compose.py /tmp/ph/cuarto_sintetico.mp4 /tmp/ph/efecto.mp4 -o /tmp/ph/graded.mp4
+python3 tools/compose.py /tmp/ph/cuarto_sintetico.mp4 /tmp/ph/efecto.mp4 -o /tmp/ph/naive.mp4 --naive
+```
+
+---
+
 ## Revisión del shader
 
 La matemática está bien. `rgbP * uExposureMatch` sobre premultiplicado es correcto,
@@ -165,18 +192,108 @@ La matemática está bien. `rgbP * uExposureMatch` sobre premultiplicado es corr
 pantalla (`vCamUV * 1024.0`) es la decisión acertada — el grano de una cámara vive en el
 sensor, no pegado al personaje, así que no debe moverse con él.
 
-**Un bug real que hay que arreglar antes de escribirlo en producción:** el blur de 5
-muestras sobre `uvColor` puede cruzar la costura del empaquetado. En `uvColor.x` cerca de
-0.5 (borde derecho de la mitad de color), el tap `uvColor + vec2(texel.x, 0.0)` lee dentro
-del **matte**, que es luma casi blanca donde el personaje es opaco. Resultado: una franja
-brillante en el borde derecho del overlay. Lo mismo aplica al filtrado bilineal en la
-costura, incluso sin el blur.
+Tres correcciones, ya aplicadas en `shaders/composite.frag`.
 
-Arreglos, en orden de preferencia:
-1. Clampear: `uvColor.x = clamp(uvColor.x, texel.x, 0.5 - texel.x)` y el equivalente para
-   `uvMatte`.
-2. Dejar una banda de guarda de 8px de negro entre las dos mitades en el empaquetado.
-3. Apoyarse solo en el margen de seguridad del 5% del animador — funciona, pero depende de
-   que nadie lo incumpla nunca, y alguien lo va a incumplir.
+### 1. `precision mediump float` rompe el grano en el dispositivo real
 
-Haz el (1) y el (2). Cuestan nada.
+Es el más caro de los tres, porque **no se reproduce en un emulador de escritorio**,
+donde `mediump` es float32. Solo aparece en gama baja, donde `mediump` es realmente half
+float, y por tanto solo lo vas a ver tarde.
+
+`hash13()` hace `fract()` sobre valores de hasta ~1024 (`vCamUV * 1024.0`), y luego suma
+otro término del orden de 100. Con una mantisa de 10 bits, `fract()` de un valor ~100 deja
+unos 3 bits útiles de fracción: el hash colapsa a un puñado de valores y el "grano" sale
+como bandas o bloques fijos en vez de ruido. Es el modo de fallo clásico de los hash de
+`fract()` en móvil.
+
+Arreglo: `precision highp float`. En GLSL ES 3.0 `highp` es obligatorio en el fragment
+shader, así que no hay razón para no usarlo. Si el grano llegara a costar rendimiento, la
+salida no es bajar la precisión: es un lookup a una textura de ruido de 256x256 desplazada
+por frame.
+
+### 2. El blur de 5 taps cruza la costura del empaquetado
+
+En `uvColor.x` cerca de 0.5 (borde derecho de la mitad de color), el tap
+`uvColor + vec2(texel.x, 0.0)` lee dentro del **matte**, que es luma casi blanca donde el
+personaje es opaco. Resultado: una franja brillante en el borde derecho del overlay. El
+filtrado bilineal hace lo mismo en la costura, incluso sin blur.
+
+Arreglo, dos capas:
+
+1. **Clamp de UV en el shader**, que es lo que resuelve el problema.
+2. **Borde de 2px forzado a cero en cada mitad, al construir el asset**, ya implementado
+   en `build_effect.py`. Así, aunque el clamp fallara, el sangrado es negro y
+   transparente, es decir invisible.
+
+Un guard band *entre* las dos mitades también funcionaría, pero es peor: rompe el reparto
+limpio 0.0-0.5 / 0.5-1.0 y obliga a pasar los límites como uniforms. El borde a cero
+protege igual sin tocar el layout de UVs.
+
+`build_effect.py` además avisa si encuentra contenido en esa zona, que es la señal de que
+el animador se comió el margen de seguridad del 5%.
+
+### 3. `resize` con float64 — no es del shader, pero cuesta un día
+
+No afecta al dispositivo, pero sí a la herramienta de validación, y lo dejo anotado porque
+es el tipo de bug que hace desconfiar de los resultados sin saber por qué: `PIL` con
+`mode="F"` espera float32 y **no valida el dtype**. Con un array float64 reinterpreta los
+bytes en silencio y devuelve ~0, sin excepción. Se manifestaba como "el grading deja al
+personaje demasiado oscuro", que parece una decisión de arte y no un bug. Se detectó
+midiendo píxeles: la matemática predecía luma 0.107 y el resultado daba 0.010.
+
+Moraleja para la semana 2: cuando compares el spike nativo contra el render offline,
+**mide números, no mires imágenes**. Un factor de 10 en una escena oscura se ve como una
+decisión estética plausible.
+
+---
+
+## Correcciones al `SceneAnalyzer`
+
+Salieron de implementar el analizador en `compose.py`. Las tres afectan al nativo.
+
+### El ruido no se puede medir sobre un mip de 128x128
+
+La arquitectura dice que `SceneAnalyzer` corre sobre un mip reducido del frame. Para la
+**luminancia** está bien y es barato. Para el **ruido** no: un mip es un filtro paso-bajo,
+y promedia exactamente la señal que intentas estimar. El sigma se mide sobre un recorte a
+resolución nativa — basta una ventana de 128x128 dentro de la zona donde cae el personaje.
+
+Además, usa **MAD** (desviación absoluta mediana × 1.4826) y no desviación estándar: la
+desviación estándar cuenta los bordes reales de la escena como si fueran ruido y
+sobreestima el sigma, sobre todo en cuartos con muebles.
+
+### La luma del personaje es constante de build time, no de runtime
+
+Estimarla por frame en el dispositivo parece lo natural y está mal. En los frames donde
+solo se ve el portal —que es emisivo y muy brillante— el estimador concluye que el
+personaje es brillante y baja la exposición; cuando el ratón aparece, la sube. El
+personaje pulsa de brillo justo durante la emergencia, que es el momento que más se mira.
+
+`build_effect.py` la calcula una vez sobre los píxeles sólidos del asset y la escribe como
+`referenceLuma` en el JSON. En el dispositivo es una lectura de metadata: gratis, estable,
+y elimina una fuente de error entera.
+
+**Esto agrega un campo al contrato del JSON de la sección 6 de la arquitectura.**
+
+### Los uniforms necesitan suavizado temporal
+
+`SceneAnalyzer` corre cada 10 frames. Sin un EMA entre análisis, la exposición salta en
+escalón tres veces por segundo y el personaje parpadea de brillo — que delata más que no
+igualar nada. `compose.py` usa un EMA con coeficiente 0.15 por análisis; el nativo debe
+hacer lo mismo.
+
+---
+
+## El hallazgo que va a dominar el día 3
+
+Corriendo el compositor sobre una escena oscura, la exposición se pega al piso del rango
+(0.35) porque el valor físicamente correcto es más bajo todavía. Traducido: **en un cuarto
+realmente oscuro, la exposición correcta deja al personaje casi invisible.**
+
+Ese piso no es un parámetro técnico. Es la tensión central del producto: realismo contra
+legibilidad, y cada punto que subes el piso compra visibilidad y paga con credibilidad. No
+lo decide el shader ni el `SceneAnalyzer`. Lo decide el A/B con padres.
+
+`compose.py` avisa cuando la exposición está clampeando y con qué valor crudo, justamente
+para que esto no pase inadvertido. Cuando salte en un clip real, lleva dos o tres valores
+del piso al test del día 3 en vez de elegir uno tú.

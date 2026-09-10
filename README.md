@@ -11,13 +11,26 @@ Procesamiento 100% on-device. Flutter + capa nativa (GL/Metal).
 Fase de validación. Todavía no hay código de app: la decisión de producto (¿el resultado
 se ve creíble de noche?) se toma antes de escribir la primera línea de Kotlin.
 
+## Herramientas
+
+```
+tools/make_placeholder.py   material sintético para probar la cadena sin assets
+tools/build_effect.py       PNG RGBA -> mp4 empaquetado + metadata (pipeline de assets)
+tools/compose.py            clip + efecto -> mp4 compuesto (réplica del shader)
+shaders/composite.frag      shader de composición (fuente de verdad)
+```
+
+Ver [`tools/README.md`](tools/README.md).
+
 ## Documentación
 
 - [`docs/arquitectura.md`](docs/arquitectura.md) — diseño técnico: empaquetado de assets,
   shader de composición, pipeline de grabación Android/iOS, contrato Flutter ↔ nativo,
   especificación para el animador 3D.
 - [`docs/plan-de-trabajo.md`](docs/plan-de-trabajo.md) — orden de ejecución, cronograma de
-  las 3 semanas de PoC y correcciones al plan de validación.
+  las 3 semanas de PoC, correcciones al plan de validación y revisión del shader.
+- [`docs/receta-grading.md`](docs/receta-grading.md) — plantilla de los valores de grading.
+  Se llena con los resultados del test de percepción.
 
 ## Por dónde empezar
 
