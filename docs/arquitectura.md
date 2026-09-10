@@ -62,6 +62,14 @@ un set de assets.
 
 ### 0.4 — Sin ningún tracking, se ve como una calcomanía
 
+> **Corrección (ver `plan-de-trabajo.md`, hallazgo 5).** Esta subsección descarta la
+> detección de planos y propone el giroscopio como sustituto barato. La app de referencia
+> usa ARCore/ARKit, y no como pulido: escanear la superficie es su **primera pantalla**, y
+> es lo que hace creer al usuario que el ratón está en su cuarto. La elección entre las
+> tres arquitecturas posibles (A: toque, B: video alfa anclado a un plano AR, C: 3D en
+> tiempo real) está abierta y documentada en `plan-de-trabajo.md`. Lo que sigue es válido
+> solo para la opción A.
+
 Descartar plane detection es correcto. Pero si el padre mueve el teléfono durante los
 5 segundos, el personaje se queda pegado a la pantalla en vez de al cuarto, y el cerebro lo
 detecta al instante.
