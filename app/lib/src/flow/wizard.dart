@@ -103,6 +103,12 @@ const Map<WizardStep, StepSpec> kSteps = {
     reticle: false,
     loop: true,
     gesture: StepGesture.moveAndScale,
+    // A SELFIE se entra desde INICIO y se sale a INICIO: sin este enlace la cadena de
+    // "atrás" muere aquí y la flecha ni siquiera se dibuja, porque _Chrome la condiciona
+    // a que back exista. Quien la pulse pasa por _toggleCamera, que además devuelve la
+    // cámara trasera; volver a INICIO con la frontal puesta dejaría el asistente AR
+    // apuntando a la cara.
+    back: WizardStep.inicio,
   ),
 };
 
