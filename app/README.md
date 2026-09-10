@@ -111,6 +111,13 @@ un archivo corrupto, y aquí el momento es irrepetible: el niño solo pierde ese
 vez. El guardado en galería va en nativo por lo mismo — no puede depender de que Dart siga
 vivo para completarse.
 
+**Los permisos se piden en tiempo de ejecución, antes de `initialize()`.** Declararlos en
+el manifest no basta desde Android 6: sin pedirlos, la cámara falla en silencio y la
+pantalla se queda en negro sin ningún error visible. Se usa `Activity.requestPermissions`
+del framework en vez de `ActivityCompat`, para no arrastrar AndroidX solo para esto. La
+cámara es obligatoria; el micrófono no, porque sin él el video sale mudo pero sigue
+siendo un video.
+
 **El giroscopio solo actúa sin ARCore.** Con ancla el mundo ya manda; aplicar ambos
 duplicaría la corrección y el personaje se movería al doble de rápido que el encuadre.
 

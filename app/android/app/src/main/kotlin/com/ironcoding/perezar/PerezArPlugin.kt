@@ -2,6 +2,7 @@ package com.ironcoding.perezar
 
 import android.app.Activity
 import android.content.Context
+import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.os.Build
 import android.os.Handler
@@ -29,6 +30,7 @@ import io.flutter.embedding.engine.plugins.activity.ActivityPluginBinding
 import io.flutter.plugin.common.EventChannel
 import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel
+import io.flutter.plugin.common.PluginRegistry
 import io.flutter.view.TextureRegistry
 import org.json.JSONObject
 
@@ -42,10 +44,16 @@ import org.json.JSONObject
  * vida de Android, y el caso feo -onPause durante una grabacion- es justo el que no
  * puede fallar.
  */
-class PerezArPlugin : FlutterPlugin, ActivityAware, MethodChannel.MethodCallHandler {
+class PerezArPlugin :
+    FlutterPlugin,
+    ActivityAware,
+    MethodChannel.MethodCallHandler,
+    PluginRegistry.RequestPermissionsResultListener {
 
     private lateinit var context: Context
     private var activity: Activity? = null
+    private var activityBinding: ActivityPluginBinding? = null
+    private var pendingPermissions: MethodChannel.Result? = null
 
     private lateinit var methodChannel: MethodChannel
     private lateinit var eventChannel: EventChannel
@@ -108,15 +116,72 @@ class PerezArPlugin : FlutterPlugin, ActivityAware, MethodChannel.MethodCallHand
         eventChannel.setStreamHandler(null)
     }
 
-    override fun onAttachedToActivity(binding: ActivityPluginBinding) { activity = binding.activity }
-    override fun onDetachedFromActivity() { activity = null }
-    override fun onReattachedToActivityForConfigChanges(b: ActivityPluginBinding) { activity = b.activity }
-    override fun onDetachedFromActivityForConfigChanges() { activity = null }
+    override fun onAttachedToActivity(binding: ActivityPluginBinding) {
+        activity = binding.activity
+        activityBinding = binding
+        binding.addRequestPermissionsResultListener(this)
+    }
+
+    override fun onDetachedFromActivity() {
+        activityBinding?.removeRequestPermissionsResultListener(this)
+        activityBinding = null
+        activity = null
+    }
+
+    override fun onReattachedToActivityForConfigChanges(b: ActivityPluginBinding) =
+        onAttachedToActivity(b)
+
+    override fun onDetachedFromActivityForConfigChanges() = onDetachedFromActivity()
+
+    // --- Permisos en tiempo de ejecucion --------------------------------------------
+
+    /**
+     * Declarar los permisos en el manifest NO basta desde Android 6: hay que pedirlos en
+     * ejecucion o la camara falla en silencio y la app se queda en negro. Se resuelve con
+     * Activity.requestPermissions del framework, disponible desde API 23, en vez de
+     * ActivityCompat: eso evita arrastrar AndroidX solo para esto.
+     */
+    private fun ensurePermissions(result: MethodChannel.Result) {
+        val act = activity
+        if (act == null) { result.error("no_activity", "sin Activity", null); return }
+
+        val missing = REQUIRED_PERMISSIONS.filter {
+            act.checkSelfPermission(it) != PackageManager.PERMISSION_GRANTED
+        }
+        if (missing.isEmpty()) { result.success(true); return }
+
+        if (pendingPermissions != null) {
+            result.error("busy", "ya hay una solicitud de permisos en curso", null)
+            return
+        }
+        pendingPermissions = result
+        act.requestPermissions(missing.toTypedArray(), PERMISSIONS_REQUEST)
+    }
+
+    override fun onRequestPermissionsResult(
+        requestCode: Int,
+        permissions: Array<out String>,
+        grantResults: IntArray,
+    ): Boolean {
+        if (requestCode != PERMISSIONS_REQUEST) return false
+        val result = pendingPermissions ?: return false
+        pendingPermissions = null
+
+        // La camara es obligatoria; el microfono no. Sin microfono el video sale mudo,
+        // que es peor pero sigue siendo un video; sin camara no hay nada que componer.
+        val granted = permissions.withIndex().none { (i, permission) ->
+            permission == android.Manifest.permission.CAMERA &&
+                grantResults.getOrNull(i) != PackageManager.PERMISSION_GRANTED
+        }
+        result.success(granted)
+        return true
+    }
 
     // --- MethodChannel ------------------------------------------------------------
 
     override fun onMethodCall(call: MethodCall, result: MethodChannel.Result) {
         when (call.method) {
+            "requestPermissions" -> ensurePermissions(result)
             "initialize" -> initialize(call, result)
             "loadEffect" -> post(result) { loadEffect(call.argument<String>("assetPath")!!,
                                                       call.argument<String>("metadata")!!) }
@@ -529,6 +594,11 @@ class PerezArPlugin : FlutterPlugin, ActivityAware, MethodChannel.MethodCallHand
         const val ANALYZE_EVERY = 10L
         const val TICK_EVERY = 6L
         const val THERMAL_EVERY = 120L
+        const val PERMISSIONS_REQUEST = 0x9E7
+        val REQUIRED_PERMISSIONS = arrayOf(
+            android.Manifest.permission.CAMERA,
+            android.Manifest.permission.RECORD_AUDIO,
+        )
         val FLOAT2_ZERO = floatArrayOf(0f, 0f)
     }
 }

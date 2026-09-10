@@ -20,6 +20,17 @@ class ArController {
       .receiveBroadcastStream()
       .map((e) => ArEvent.fromMap(e as Map<Object?, Object?>));
 
+  /// Pide cámara y micrófono. Devuelve false si el usuario niega la CÁMARA.
+  ///
+  /// Hay que llamarlo antes de [initialize]: declarar los permisos en el manifest no
+  /// basta desde Android 6, y sin pedirlos la cámara falla en silencio y la pantalla se
+  /// queda en negro sin ningún error visible.
+  ///
+  /// El micrófono se pide a la vez pero no bloquea: sin él el video sale mudo, que es
+  /// peor pero sigue siendo un video.
+  Future<bool> requestPermissions() async =>
+      await _control.invokeMethod<bool>('requestPermissions') ?? false;
+
   Future<void> initialize({required int width, required int height}) async {
     final result = await _control.invokeMapMethod<String, Object?>(
       'initialize',

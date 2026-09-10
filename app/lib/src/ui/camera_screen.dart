@@ -47,6 +47,12 @@ class _CameraScreenState extends State<CameraScreen> with WidgetsBindingObserver
 
   Future<void> _boot() async {
     try {
+      if (!await _ar.requestPermissions()) {
+        setState(() => _error =
+            'Sin permiso de cámara no puedo componer nada.\n\n'
+            'Concédelo en Ajustes → Aplicaciones → Ratón Pérez → Permisos.');
+        return;
+      }
       _catalog = await EffectCatalog.load();
       final size = WidgetsBinding.instance.platformDispatcher.views.first.physicalSize;
       await _ar.initialize(width: size.width.toInt(), height: size.height.toInt());

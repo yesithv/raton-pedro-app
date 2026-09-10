@@ -98,31 +98,55 @@ const grabar = await page.textContent('#step-title');
 check('paso GRABAR', () => assert.equal(grabar, 'GRABAR'));
 
 console.log('composición');
-// El personaje tiene que estar realmente dibujado, no solo "sin errores": se compara la
-// zona donde cae con la misma zona del fondo.
-const contrast = await page.evaluate(() => {
+// Que el personaje esté REALMENTE dibujado, no solo que no haya errores.
+//
+// La primera versión de esta comprobación medía la zona del personaje contra otra zona
+// del fondo y exigía una diferencia mayor que un umbral inventado. Era frágil por
+// construcción: la escena tiene un degradado, así que dos zonas cualesquiera ya difieren,
+// y el umbral acabó fallando en CI por 0.0002. Ahora se mide contra el RUIDO PROPIO de
+// la escena: se lee dos veces la misma región con el overlay apagado para saber cuánto
+// cambia sola, y luego con el overlay encendido. Si dibuja, la diferencia tiene que
+// destacar sobre ese suelo de ruido. Sin umbrales a ojo.
+const sampleRegion = () => page.evaluate(() => {
   const c = document.getElementById('stage');
   const gl = c.getContext('webgl2');
-  const read = (x, y, w, h) => {
-    const px = new Uint8Array(w * h * 4);
-    gl.readPixels(x, y, w, h, gl.RGBA, gl.UNSIGNED_BYTE, px);
-    let sum = 0;
-    for (let i = 0; i < px.length; i += 4) {
-      sum += 0.2126 * px[i] + 0.7152 * px[i + 1] + 0.0722 * px[i + 2];
-    }
-    return sum / (w * h) / 255;
-  };
-  const w = Math.round(c.width * 0.12);
-  const h = Math.round(c.height * 0.10);
-  return {
-    personaje: read(Math.round(c.width * 0.44), Math.round(c.height * 0.24), w, h),
-    fondo: read(Math.round(c.width * 0.08), Math.round(c.height * 0.24), w, h),
-  };
+  // Caja alrededor del punto donde se tocó (0.5, 0.717), hacia arriba: ahí está el
+  // cuerpo, porque se posiciona por el punto de CONTACTO con el suelo.
+  const w = Math.round(c.width * 0.22);
+  const h = Math.round(c.height * 0.16);
+  const x = Math.round(c.width * 0.39);
+  const y = Math.round(c.height * 0.20);   // origen de GL abajo-izquierda
+  const px = new Uint8Array(w * h * 4);
+  gl.readPixels(x, y, w, h, gl.RGBA, gl.UNSIGNED_BYTE, px);
+  const acc = [0, 0, 0];
+  for (let i = 0; i < px.length; i += 4) {
+    acc[0] += px[i]; acc[1] += px[i + 1]; acc[2] += px[i + 2];
+  }
+  const n = w * h * 255;
+  return [acc[0] / n, acc[1] / n, acc[2] / n];
 });
-console.log(`  luma personaje ${contrast.personaje.toFixed(4)} · fondo ${contrast.fondo.toFixed(4)}`);
-check('el personaje se distingue del fondo', () =>
-  assert(Math.abs(contrast.personaje - contrast.fondo) > 0.01,
-    `sin contraste: ${JSON.stringify(contrast)}`));
+const distance = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]);
+
+await page.click('#home');            // inicio: overlay apagado
+await page.waitForTimeout(700);
+const sinOverlayA = await sampleRegion();
+await page.waitForTimeout(500);
+const sinOverlayB = await sampleRegion();
+const ruido = distance(sinOverlayA, sinOverlayB);
+
+// Volver a GRABAR por el mismo camino: la colocación y el tamaño se conservan.
+for (const id of ['#go-video', '#place', '#next-superficie', '#next-tamano', '#select-fx']) {
+  await page.click(id);
+  await page.waitForTimeout(250);
+}
+await page.waitForTimeout(700);
+const conOverlay = await sampleRegion();
+const senal = distance(conOverlay, sinOverlayB);
+
+console.log(`  señal ${senal.toFixed(5)} · ruido de la escena ${ruido.toFixed(5)}`);
+check('el overlay cambia la imagen más que el ruido de la escena', () =>
+  assert(senal > Math.max(ruido * 4, 0.002),
+    `el overlay no destaca sobre el ruido: señal ${senal.toFixed(5)}, ruido ${ruido.toFixed(5)}`));
 
 const hud = await page.evaluate(() => {
   document.getElementById('dbg-toggle').click();
