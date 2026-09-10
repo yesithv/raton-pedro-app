@@ -160,6 +160,28 @@ check('SceneAnalyzer resuelve un vec3 de exposición', () => {
   }
 });
 
+// Ninguna página puede escribir en la galería: o hay hoja del sistema (y el botón que la
+// abre es la acción principal) o solo queda la descarga (y entonces la principal es esa).
+// Lo que NO puede pasar es que no haya ninguna, o que no se explique cuál lleva al carrete.
+const caminoDeGuardado = (kind) => page.evaluate((k) => {
+  const file = new File([new Blob(['x'])], 'a.bin', { type: 'application/octet-stream' });
+  return {
+    can: !!navigator.canShare?.({ files: [file] }),
+    tip: document.getElementById(`${k}-tip`).textContent.trim(),
+    shareVisible: !document.getElementById(`${k}-share`).hidden,
+    savePrimary: document.getElementById(`${k}-save`).classList.contains('primary'),
+  };
+}, kind);
+
+const revisarGuardado = (kind, guardado) => check(
+  `${kind}: siempre hay un camino visible para quedarse con el archivo`, () => {
+    assert(guardado.tip.length > 0, 'no se explica cómo guardar');
+    assert.equal(guardado.shareVisible, guardado.can,
+      'el botón de la hoja del sistema no coincide con si el navegador la tiene');
+    assert.equal(guardado.savePrimary, !guardado.can,
+      'la descarga tiene que ser la acción principal solo cuando no hay hoja del sistema');
+  });
+
 console.log('grabación');
 await page.click('#dbg-toggle');
 await page.click('#record');
@@ -186,6 +208,7 @@ check('el códec del contenedor está garantizado', () =>
   // que juzgar por él da un falso positivo en cuanto el navegador tiene H.264.
   assert(!meta.includes('ojo:'), `la app avisa de contenedor ambiguo:\n${meta}`));
 check('la grabación incluye micrófono', () => assert(meta.includes('micrófono'), meta));
+revisarGuardado('clip', await caminoDeGuardado('clip'));
 
 console.log('navegación');
 await page.click('#clip-close');
@@ -250,6 +273,8 @@ check('la foto guardada tiene el tamaño del lienzo', () =>
 check('el ratón está DENTRO de la foto, no solo en pantalla', () =>
   assert(captura.diff > 12,
     `la zona del ratón es casi idéntica a la cámara sola: ${captura.diff.toFixed(1)}/255`));
+
+revisarGuardado('shot', await caminoDeGuardado('shot'));
 
 await page.click('#shot-close');
 await page.click('#home');

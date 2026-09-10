@@ -454,7 +454,13 @@ async function stopRecording() {
   const ext = CanvasRecorder.extensionFor(result.mimeType);
   el("clip-save").href = url;
   el("clip-save").download = `raton-perez.${ext}`;
-  wireShare("clip-share", result.blob, `raton-perez.${ext}`);
+  offerSave("clip", result.blob, `raton-perez.${ext}`,
+    ext === "mp4"
+      ? "Elige <b>Guardar vídeo</b> y el clip entra en el carrete."
+      : "Ojo: este clip es <b>.webm</b>, y el carrete del teléfono no lo acepta. " +
+        "Se puede compartir o descargar, pero para guardarlo en la galería hace falta " +
+        "que el navegador grabe en mp4.",
+    "Este navegador no puede escribir en la galería: el clip se descarga como archivo.");
 }
 
 function capturePhoto() {
@@ -466,7 +472,11 @@ function capturePhoto() {
     img.src = url;
     el("shot").hidden = false;
     el("shot-save").href = url;
-    wireShare("shot-share", blob, "raton-perez.png");
+    offerSave("shot", blob, "raton-perez.png",
+      "Elige <b>Guardar imagen</b> y la foto entra en el carrete.\n" +
+      "En el iPhone también sirve mantener pulsada la foto de arriba → " +
+      "<b>Añadir a Fotos</b>.",
+      "Este navegador no puede escribir en la galería: la foto se descarga como archivo.");
   }, "image/png");
 }
 
@@ -512,15 +522,32 @@ function composeShot() {
   return out;
 }
 
-function wireShare(id, blob, filename) {
-  const btn = el(id);
+/**
+ * Deja listos los dos caminos para quedarse con el archivo.
+ *
+ * NINGUNA PAGINA WEB PUEDE ESCRIBIR EN LA GALERIA. No hay API: ni en iOS ni en Android.
+ * La unica via es la hoja de compartir del sistema, donde "Guardar imagen" / "Guardar
+ * video" si mete el archivo en el carrete. El <a download> hace otra cosa distinta -en
+ * iOS deja el archivo en Archivos, no en Fotos- asi que se queda como plan B y pierde la
+ * prioridad visual: era exactamente la confusion que hacia que las fotos acabaran donde
+ * nadie las busca.
+ */
+function offerSave(kind, blob, filename, tipShare, tipDownload) {
+  const btn = el(`${kind}-share`);
+  const link = el(`${kind}-save`);
   const file = new File([blob], filename, { type: blob.type });
   const can = !!navigator.canShare?.({ files: [file] });
+
   btn.hidden = !can;
   btn.onclick = async () => {
     try { await navigator.share({ files: [file] }); }
-    catch (e) { if (e.name !== "AbortError") fail(`No pude compartir: ${e.message}`); }
+    catch (e) { if (e.name !== "AbortError") fail(`No pude abrir el menú: ${e.message}`); }
   };
+
+  // Sin hoja del sistema (escritorio, navegadores viejos) la descarga es lo unico que
+  // hay, y entonces si es la accion principal.
+  link.classList.toggle("primary", !can);
+  el(`${kind}-tip`).innerHTML = can ? tipShare : tipDownload;
 }
 
 async function toggleTorch() {

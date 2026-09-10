@@ -93,8 +93,21 @@ En el navegador no hay equivalente: WebXR depende igualmente de ARCore, y en una
 inmersiva se pierde el acceso a la textura de cámara que el shader necesita. Aquí el
 retículo se coloca a dedo. Es la razón principal por la que existe la fase nativa.
 
-**Guardado automático en la galería.** El navegador no escribe en el carrete; hay que
-usar Compartir o Guardar.
+**Guardado automático en la galería.** Ninguna página web puede escribir en el carrete:
+no existe API para eso, ni en iOS ni en Android. La única vía es la **hoja de compartir
+del sistema** (`navigator.share` con un `File`), donde *Guardar imagen* / *Guardar vídeo*
+sí mete el archivo en Fotos. Por eso ese botón es la acción principal del resultado y el
+`<a download>` quedó de plan B: en iOS la descarga va a **Archivos**, no a Fotos, y quien
+pulsa "Guardar" esperando el carrete no vuelve a encontrar la foto.
+
+Segundo camino en iPhone: mantener pulsada la imagen del resultado → *Añadir a Fotos*.
+Depende de que el menú de pulsación larga esté vivo, así que `#shot-img` deshace el
+`-webkit-user-select: none` que el `body` pone para que arrastrar al ratón no seleccione
+texto. Si alguien vuelve a apagarlo ahí, ese camino desaparece sin ruido.
+
+Para el vídeo hay una condición extra: el carrete no acepta `.webm`. Si el navegador
+grabó en webm en vez de mp4 —ver *Sobre el formato de grabación*— el clip se puede
+compartir y descargar, pero no guardar en la galería, y la app lo dice en el resultado.
 
 El HUD de arriba muestra en vivo lo que resuelve el `SceneAnalyzer`. **Esos números son
 el entregable real de este prototipo**: van a `docs/receta-grading.md` y son los que el
