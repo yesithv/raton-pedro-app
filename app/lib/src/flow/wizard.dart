@@ -1,0 +1,110 @@
+import 'dart:ui' show Size;
+
+/// Definición del asistente. Puerto de web/js/flow.js, que a su vez sigue paso por paso
+/// el flujo de la app de referencia (docs/plan-de-trabajo.md, hallazgo 5).
+enum WizardStep { inicio, escanear, superficie, tamano, editar, grabar }
+
+/// Qué gesto está activo en cada paso. En la referencia el ajuste está acotado por paso:
+/// no se puede mover y escalar a la vez, y a partir de EDITAR el transform queda fijo.
+enum StepGesture { none, move, moveY, scale }
+
+class StepSpec {
+  final String title;
+  final String hint;
+
+  /// Texto alternativo cuando el dispositivo no tiene ARCore y no hay nada que escanear.
+  final String? hintNoPlanes;
+
+  final bool overlayVisible;
+  final bool reticle;
+  final bool loop;
+  final StepGesture gesture;
+  final WizardStep? back;
+
+  const StepSpec({
+    required this.title,
+    required this.hint,
+    this.hintNoPlanes,
+    required this.overlayVisible,
+    required this.reticle,
+    required this.loop,
+    required this.gesture,
+    this.back,
+  });
+}
+
+const Map<WizardStep, StepSpec> kSteps = {
+  WizardStep.inicio: StepSpec(
+    title: '',
+    hint: '',
+    overlayVisible: false,
+    reticle: false,
+    loop: false,
+    gesture: StepGesture.none,
+  ),
+  WizardStep.escanear: StepSpec(
+    title: 'ESCANEAR',
+    hint: 'Mueve tu teléfono para detectar la superficie donde colocar al Ratón Pérez.\n'
+        'Cuando la flecha esté estable, tócala.',
+    hintNoPlanes: 'Este teléfono no detecta superficies.\n'
+        'Arrastra el retículo hasta donde quieres que aparezca el Ratón Pérez.',
+    overlayVisible: false,
+    reticle: true,
+    loop: false,
+    gesture: StepGesture.move,
+    back: WizardStep.inicio,
+  ),
+  WizardStep.superficie: StepSpec(
+    title: 'SUPERFICIE',
+    hint: 'La superficie ha sido detectada. Puedes ajustar la posición del Ratón Pérez '
+        'moviéndolo hacia arriba o hacia abajo.',
+    overlayVisible: true,
+    reticle: false,
+    loop: true,
+    gesture: StepGesture.moveY,
+    back: WizardStep.escanear,
+  ),
+  WizardStep.tamano: StepSpec(
+    title: 'TAMAÑO',
+    hint: 'Cambia el tamaño del Ratón Pérez. Puedes hacerlo más grande o más pequeño.',
+    overlayVisible: true,
+    reticle: false,
+    loop: true,
+    gesture: StepGesture.scale,
+    back: WizardStep.superficie,
+  ),
+  WizardStep.editar: StepSpec(
+    title: 'EDITAR',
+    hint: 'Escoge la animación que más te guste.',
+    overlayVisible: true,
+    reticle: false,
+    loop: true,
+    gesture: StepGesture.none,
+    back: WizardStep.tamano,
+  ),
+  WizardStep.grabar: StepSpec(
+    title: 'GRABAR',
+    hint: 'Toca el botón rojo. El video se detiene solo al terminar la animación.',
+    overlayVisible: true,
+    reticle: false,
+    loop: true,
+    gesture: StepGesture.none,
+    back: WizardStep.editar,
+  ),
+};
+
+/// Estado del transform, autoritativo en Dart. Se empuja a nativo, nunca al revés.
+class PlacementState {
+  double x = 0.5;
+  double y = 0.72;
+
+  /// Alto del overlay como fracción del alto de pantalla.
+  double scaleFactor = 0.35;
+
+  /// true cuando hay un ancla real de ARCore: entonces manda el mundo y estos valores
+  /// solo sirven de respaldo.
+  bool anchored = false;
+
+  double scaleXFor(double aspectRatio, Size screen) =>
+      scaleFactor * screen.height * aspectRatio / screen.width;
+}

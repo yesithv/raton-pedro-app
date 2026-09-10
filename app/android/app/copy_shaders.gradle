@@ -1,0 +1,13 @@
+// El shader es fuente única de verdad: vive en shaders/ en la raíz del repo y lo
+// comparten el prototipo web y el nativo. Este task lo copia a assets en cada build,
+// para que no haya una segunda copia que se quede atrás sin que nadie se entere.
+//
+// Aplicar desde app/android/app/build.gradle:   apply from: "copy_shaders.gradle"
+
+task copyShaders(type: Copy) {
+    from "${rootProject.projectDir}/../../shaders"
+    include "composite.vert", "composite.frag"
+    into "${projectDir}/src/main/assets/shaders"
+}
+
+preBuild.dependsOn copyShaders

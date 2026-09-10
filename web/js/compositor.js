@@ -32,8 +32,15 @@ async function fetchFirst(candidates) {
 function toWebGL(src) {
   return src
     .replace(/^#extension\s+GL_OES_EGL_image_external_essl3.*$/m, "")
+    // El bloque #ifdef OVERLAY_EXTERNAL se compila SIN definir la macro: en el navegador
+    // el overlay llega de un <video> como textura 2D. En Android llega de MediaCodec por
+    // una SurfaceTexture, que es externa, y alli si se define.
+    .replace(/#ifdef\s+OVERLAY_EXTERNAL[\s\S]*?#else\n([\s\S]*?)#endif/g, "$1")
     .replace(/samplerExternalOES/g, "sampler2D");
 }
+
+// Las matrices de coordenadas de SurfaceTexture no existen en web: identidad.
+const IDENTITY4 = new Float32Array([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]);
 
 function compile(gl, type, src, label) {
   const sh = gl.createShader(type);
@@ -84,6 +91,7 @@ export class Compositor {
     this.u = {};
     for (const name of ["uCamera", "uOverlay", "uCamUVScale", "uCamUVOffset",
                         "uOverlayOrigin", "uOverlayScale", "uGyroOffset",
+                        "uCamXform", "uOverlayXform", "uOverlayTexel",
                         "uExposureMatch", "uGrainAmount", "uSoftness", "uTime",
                         "uLimitedRange"]) {
       this.u[name] = gl.getUniformLocation(prog, name);
@@ -94,6 +102,8 @@ export class Compositor {
     gl.uniform1i(this.u.uCamera, 0);
     gl.uniform1i(this.u.uOverlay, 1);
     gl.uniform2f(this.u.uGyroOffset, 0, 0); // seccion 0.4: el uniform existe, no se usa aun
+    gl.uniformMatrix4fv(this.u.uCamXform, false, IDENTITY4);
+    gl.uniformMatrix4fv(this.u.uOverlayXform, false, IDENTITY4);
   }
 
   _makeTexture(unit) {
@@ -145,6 +155,14 @@ export class Compositor {
 
     this._upload(this.texCamera, cameraVideo);
     if (overlayVideo) this._upload(this.texOverlay, overlayVideo);
+
+    if (overlayVideo) {
+      // El tamano del overlay se pasa como uniform en vez de consultarlo con
+      // textureSize(): sobre un sampler externo no esta garantizado, y en la CPU se
+      // conoce de todos modos.
+      gl.uniform2f(this.u.uOverlayTexel,
+        1 / Math.max(overlayVideo.videoWidth, 1), 1 / Math.max(overlayVideo.videoHeight, 1));
+    }
 
     const fit = Compositor.coverFit(cameraVideo.videoWidth, cameraVideo.videoHeight, cw, ch);
     gl.uniform2fv(this.u.uCamUVScale, fit.scale);

@@ -1,0 +1,29 @@
+{
+  "id": "es_descubierto_y_se_esconde",
+  "durationMs": 5000,
+  "fps": 30.0,
+  "frameCount": 150,
+  "packedSize": [
+    1440,
+    1280
+  ],
+  "trackSize": [
+    720,
+    1280
+  ],
+  "anchorPoint": [
+    0.5,
+    0.9602
+  ],
+  "defaultScaleFactor": 0.35,
+  "referenceLuma": 0.3098,
+  "referenceColor": [
+    0.3281,
+    0.3063,
+    0.2902
+  ],
+  "hasAudio": false,
+  "limitedRange": false,
+  "glowFrames": [],
+  "title": "Rat\u00f3n P\u00e9rez es descubierto y se esconde"
+}

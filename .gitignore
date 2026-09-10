@@ -1,4 +1,16 @@
 __pycache__/
 *.pyc
 out/
-assets/*.mp4
+/assets/*.mp4
+
+# Flutter / Android
+app/.dart_tool/
+app/build/
+app/.flutter-plugins*
+app/android/.gradle/
+app/android/local.properties
+app/ios/
+
+# El shader vive en shaders/ y es fuente única de verdad. copy_shaders.gradle lo copia
+# aquí en cada build; versionarlo crearía una segunda copia que se queda atrás.
+app/android/app/src/main/assets/shaders/

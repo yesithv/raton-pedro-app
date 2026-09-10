@@ -15,6 +15,9 @@ narración y guardar o compartir— además de la cadena de herramientas offline
 Falta lo que sólo existe en nativo: **detección de planos** (ARCore/ARKit) y **guardado
 automático en la galería**. Y el personaje real: los tres efectos son placeholders.
 
+La app nativa está escrita en `app/` pero **sin compilar**: este entorno no tiene Flutter
+SDK ni Android SDK.
+
 La decisión de producto — ¿el resultado se ve creíble? — se toma con el prototipo y el
 compositor offline, antes de escribir la primera línea de Kotlin.
 
@@ -24,6 +27,14 @@ compositor offline, antes de escribir la primera línea de Kotlin.
 EDITAR → GRABAR), con tres animaciones, grabación de video con micrófono y captura de
 foto, en el navegador del teléfono y sin instalar nada.
 Ver [`web/README.md`](web/README.md) para abrirlo con GitHub Pages.
+
+## App nativa
+
+`app/` — Flutter + capa nativa Android. **Sin compilar todavía**: escrita pero nunca
+construida ni ejecutada. Implementa la opción B de
+[`docs/decision-arquitectura.md`](docs/decision-arquitectura.md): video alfa
+pre-renderizado anclado a un plano de ARCore, con degradación a colocación por toque
+cuando el dispositivo no está certificado. Ver [`app/README.md`](app/README.md).
 
 ## Herramientas
 

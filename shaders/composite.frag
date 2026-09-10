@@ -6,7 +6,29 @@
 precision highp float;
 
 uniform samplerExternalOES uCamera;
-uniform sampler2D  uOverlay;        // empaquetado lado a lado: color | matte
+
+// En Android el overlay llega de MediaCodec por una SurfaceTexture, que TAMBIEN es una
+// textura OES externa; en el navegador llega de un <video> como textura 2D normal. Es la
+// unica divergencia real entre plataformas, y se resuelve compilando el mismo archivo con
+// una macro en vez de manteniendo dos shaders.
+#ifdef OVERLAY_EXTERNAL
+uniform samplerExternalOES uOverlay;   // empaquetado lado a lado: color | matte
+#else
+uniform sampler2D uOverlay;
+#endif
+
+// Matriz de coordenadas que entrega SurfaceTexture.getTransformMatrix(). Suele ser la
+// identidad para la salida de un decoder, pero no esta garantizado: hay dispositivos que
+// devuelven un volteo o un recorte de borde. En web es la identidad.
+uniform mat4 uOverlayXform;
+
+// 1.0 / tamano de la textura del overlay, en texels.
+//
+// Sustituye a textureSize(uOverlay, 0). textureSize() sobre un sampler externo no esta
+// garantizado en todas las implementaciones de GL_OES_EGL_image_external_essl3, y el
+// tamano se conoce en la CPU desde el JSON del asset: no hay razon para preguntarselo al
+// GPU en cada fragmento.
+uniform vec2 uOverlayTexel;
 
 uniform vec2  uOverlayOrigin;       // esquina sup-izq del overlay, coords normalizadas
 uniform vec2  uOverlayScale;        // tamaño del overlay en coords normalizadas
@@ -22,6 +44,10 @@ uniform bool  uLimitedRange;        // true si el asset se codificó en rango 16
 in  vec2 vCamUV;      // coordenada de textura del feed (ajuste "cover" del sensor)
 in  vec2 vScreenUV;   // coordenada de pantalla 0..1 (donde el usuario toco)
 out vec4 fragColor;
+
+vec3 sampleOverlay(vec2 uv) {
+    return texture(uOverlay, (uOverlayXform * vec4(uv, 0.0, 1.0)).xy).rgb;
+}
 
 // Hash rápido para grano. No es gaussiano perfecto pero a esta amplitud da igual.
 float hash13(vec3 p) {
@@ -48,7 +74,7 @@ void main() {
     }
 
     // El atlas está empaquetado lado a lado: color en [0.0, 0.5], matte en [0.5, 1.0]
-    vec2 texel = 1.0 / vec2(textureSize(uOverlay, 0));
+    vec2 texel = uOverlayTexel;
     vec2 blur  = texel * uSoftness;
 
     // CLAMP DE COSTURA. Sin esto, los taps del blur (y el propio filtrado bilineal)
@@ -61,13 +87,13 @@ void main() {
     vec2 uvMatte = vec2(clamp(ouv.x * 0.5 + 0.5, 0.5 + pad, 1.0 - pad), ouv.y);
 
     // --- Muestreo con suavizado para igualar la MTF pobre de la cámara ---
-    vec3 rgbP = texture(uOverlay, uvColor).rgb * 0.5
-              + texture(uOverlay, uvColor + vec2( blur.x, 0.0)).rgb * 0.125
-              + texture(uOverlay, uvColor + vec2(-blur.x, 0.0)).rgb * 0.125
-              + texture(uOverlay, uvColor + vec2(0.0,  blur.y)).rgb * 0.125
-              + texture(uOverlay, uvColor + vec2(0.0, -blur.y)).rgb * 0.125;
+    vec3 rgbP = sampleOverlay(uvColor) * 0.5
+              + sampleOverlay(uvColor + vec2( blur.x, 0.0)) * 0.125
+              + sampleOverlay(uvColor + vec2(-blur.x, 0.0)) * 0.125
+              + sampleOverlay(uvColor + vec2(0.0,  blur.y)) * 0.125
+              + sampleOverlay(uvColor + vec2(0.0, -blur.y)) * 0.125;
 
-    float a = texture(uOverlay, uvMatte).r;
+    float a = sampleOverlay(uvMatte).r;
 
     // Expansión de rango si el asset quedó en 16-235 (BT.601 limited)
     if (uLimitedRange) {
