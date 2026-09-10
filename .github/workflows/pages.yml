@@ -1,0 +1,61 @@
+name: Pages
+
+# Publica el prototipo web. getUserMedia exige HTTPS, así que sin esto no hay forma de
+# probarlo en un teléfono.
+#
+# Requiere UN clic manual la primera vez: Settings -> Pages -> Source: "GitHub Actions".
+#
+# Aviso: si el entorno github-pages tiene reglas de protección de rama (por defecto suele
+# limitarse a la rama principal), el despliegue desde una rama de trabajo fallará con un
+# error de "environment protection rules". Se arregla en Settings -> Environments ->
+# github-pages, permitiendo la rama, o fusionando a main.
+
+on:
+  push:
+    branches: ["**"]
+    paths:
+      - "web/**"
+      - "shaders/**"
+      - ".github/workflows/pages.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Preparar el sitio
+        run: |
+          mkdir -p _site/web _site/shaders
+          # web/ y shaders/ conservan su posición relativa: la página carga el shader
+          # desde ../shaders/, que es lo que evita tener dos copias del mismo archivo.
+          cp -r web/* _site/web/
+          cp shaders/composite.vert shaders/composite.frag _site/shaders/
+          rm -rf _site/web/test
+          cat > _site/index.html <<'HTML'
+          <!doctype html>
+          <meta charset="utf-8">
+          <title>Ratón Pérez AR</title>
+          <meta http-equiv="refresh" content="0; url=web/">
+          <p>Redirigiendo a <a href="web/">el prototipo</a>…</p>
+          HTML
+
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+      - id: deploy
+        uses: actions/deploy-pages@v4

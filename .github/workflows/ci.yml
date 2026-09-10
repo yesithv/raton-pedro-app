@@ -1,0 +1,103 @@
+name: CI
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # Fijado, no "stable": la verificación local se hizo contra esta versión y un salto de
+  # Flutter puede cambiar el Gradle generado sin que nadie toque el repo.
+  FLUTTER_VERSION: "3.47.3"
+
+jobs:
+  dart:
+    name: Dart · analyze y tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+      - run: flutter pub get
+        working-directory: app
+      - run: flutter analyze
+        working-directory: app
+      - run: flutter test
+        working-directory: app
+
+  android:
+    name: Android · APK
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+
+      # Esto es lo que NO se puede comprobar en un entorno sin Google Maven: el Android
+      # Gradle Plugin, AndroidX y, sobre todo, la API REAL de ARCore. Si ArCoreDriver.kt
+      # se desvía de la API de verdad, falla aquí y en ningún otro sitio.
+      - run: flutter build apk --debug
+        working-directory: app
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: perezar-debug-apk
+          path: app/build/app/outputs/flutter-apk/app-debug.apk
+          retention-days: 30
+          if-no-files-found: error
+
+  web:
+    name: Web · asistente sobre cámara falsa
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - run: pip install -r tools/requirements.txt
+      - run: npm ci || npm install --no-fund --no-audit
+        working-directory: web/test
+      - run: npx playwright install --with-deps chromium
+        working-directory: web/test
+
+      - name: Cadena de assets
+        run: |
+          python3 tools/make_placeholder.py --outdir /tmp/ph --effect-frames 45 \
+            --room-frames 60 --size 720x1280
+          python3 tools/build_effect.py /tmp/ph/frames -o /tmp/ph/efecto.mp4 \
+            --track-size 480x848
+          python3 tools/compose.py /tmp/ph/cuarto_sintetico.mp4 /tmp/ph/efecto.mp4 \
+            -o /tmp/ph/graded.mp4
+
+      - name: Recorrido del asistente
+        run: SHOT_DIR=/tmp/shots ./web/test/run.sh
+        env:
+          WORK_DIR: /tmp/webtest
+
+      # Las capturas son la mitad del valor: dejan ver si la composición se rompió
+      # visualmente aunque las aserciones pasen.
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: capturas-asistente
+          path: /tmp/shots
+          if-no-files-found: warn

@@ -21,6 +21,15 @@ SDK ni Android SDK.
 La decisión de producto — ¿el resultado se ve creíble? — se toma con el prototipo y el
 compositor offline, antes de escribir la primera línea de Kotlin.
 
+## CI
+
+| Workflow | Qué hace |
+|---|---|
+| `.github/workflows/ci.yml` | `flutter analyze` + tests; **construye el APK** (lo único que valida AGP, AndroidX y la API real de ARCore); recorre el asistente web sobre una cámara falsa y sube las capturas |
+| `.github/workflows/pages.yml` | Publica el prototipo web con HTTPS, que es lo que exige `getUserMedia` |
+
+El APK queda como artefacto descargable de cada ejecución.
+
 ## Prototipo web
 
 `web/` — el asistente completo de la referencia (ESCANEAR → SUPERFICIE → TAMAÑO →

@@ -1,0 +1,12 @@
+{
+  "name": "perezar-web-test",
+  "private": true,
+  "type": "module",
+  "description": "Recorrido del asistente sobre cámara falsa. Ver flow.test.mjs.",
+  "scripts": {
+    "test": "./run.sh"
+  },
+  "dependencies": {
+    "playwright": "^1.63.0"
+  }
+}
