@@ -3,7 +3,6 @@ name: Pages
 # Publica el prototipo web. getUserMedia exige HTTPS, así que sin esto no hay forma de
 # probarlo en un teléfono.
 #
-# Requiere UN clic manual la primera vez: Settings -> Pages -> Source: "GitHub Actions".
 #
 # Aviso: si el entorno github-pages tiene reglas de protección de rama (por defecto suele
 # limitarse a la rama principal), el despliegue desde una rama de trabajo fallará con un
@@ -53,7 +52,12 @@ jobs:
           <p>Redirigiendo a <a href="web/">el prototipo</a>…</p>
           HTML
 
+      # enablement: true habilita Pages por API si el repo no lo tiene. Sin esto la
+      # primera ejecución falla con "Get Pages site failed … Not Found" y hace falta
+      # entrar a Settings a mano.
       - uses: actions/configure-pages@v5
+        with:
+          enablement: true
       - uses: actions/upload-pages-artifact@v3
         with:
           path: _site

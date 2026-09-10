@@ -47,6 +47,7 @@ export class CanvasRecorder {
     this.recorder = null;
     this.chunks = [];
     this.startedAt = 0;
+    this.requestedMimeType = "";
   }
 
   /** Pide el microfono. Se llama aparte de start() para que el permiso no bloquee. */
@@ -81,6 +82,7 @@ export class CanvasRecorder {
     }
 
     const mimeType = pickMimeType();
+    this.requestedMimeType = mimeType;
     this.chunks = [];
     this.recorder = new MediaRecorder(stream,
       mimeType ? { mimeType, videoBitsPerSecond: 8_000_000 } : { videoBitsPerSecond: 8_000_000 });
@@ -104,10 +106,23 @@ export class CanvasRecorder {
       }
       const durationMs = this.elapsedMs;
       this.recorder.onstop = () => {
+        // Dos mimeType, y la distinción importa:
+        //   requestedMimeType  lo que se PIDIÓ, que es lo que determinó el códec.
+        //   mimeType           lo que el navegador REPORTA, que puede venir normalizado:
+        //                      Chrome devuelve "video/mp4" a secas aunque se le pidiera
+        //                      "video/mp4;codecs=avc1…".
+        // Juzgar la ambigüedad por el reportado da un falso positivo en cuanto el
+        // navegador sí tiene H.264. Lo cazó CI: en local, sin H.264, salía webm y la
+        // comprobación pasaba; en el runner, con H.264, saltaba sin motivo.
         const mimeType = this.recorder.mimeType || "video/webm";
         const blob = new Blob(this.chunks, { type: mimeType });
         this.chunks = [];
-        resolve({ blob, mimeType, durationMs });
+        resolve({
+          blob,
+          mimeType,
+          requestedMimeType: this.requestedMimeType,
+          durationMs,
+        });
       };
       this.recorder.onerror = (e) => reject(e.error ?? new Error("Fallo la grabacion."));
       this.recorder.stop();
@@ -118,8 +133,12 @@ export class CanvasRecorder {
     return mimeType.includes("mp4") ? "mp4" : "webm";
   }
 
-  /** true si el mimeType elegido no garantiza el codec que sugiere su contenedor. */
-  static isAmbiguous(mimeType) {
-    return mimeType === "video/mp4";
+  /**
+   * true si el mimeType SOLICITADO no garantiza el códec que sugiere su contenedor.
+   *
+   * Hay que pasarle requestedMimeType, no mimeType: ver la nota en stop().
+   */
+  static isAmbiguous(requestedMimeType) {
+    return requestedMimeType === "video/mp4" || requestedMimeType === "";
   }
 }

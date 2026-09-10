@@ -7,9 +7,12 @@
 | `flutter analyze` sobre todo el Dart | ✅ sin incidencias |
 | `flutter test` (10 pruebas de flujo, catálogo y eventos) | ✅ pasan |
 | Kotlin: 9 archivos contra el `android.jar` **real** y el jar **real** del embedding de Flutter | ✅ sin errores ni avisos |
-| Superficie de API de ARCore | ⚠️ contra un stub, no contra el artefacto real |
-| `MainActivity.kt` | ⚠️ sin comprobar |
-| `flutter build apk` | ❌ imposible en este entorno |
+| Superficie de API de ARCore | ✅ **contra el artefacto real, en CI** |
+| `flutter build apk --debug` | ✅ **en CI**, APK descargable como artefacto |
+
+`.github/workflows/ci.yml` construye el APK en cada push. Ahí sí se alcanza Google Maven,
+así que valida el Android Gradle Plugin, AndroidX y la API real de ARCore — todo lo que
+un entorno con la salida de red restringida deja sin comprobar.
 
 **Nunca se ha ejecutado en un dispositivo.** Que compile no dice nada sobre si el
 pipeline GL funciona, si los timestamps cuadran o si el mp4 sale bien.
@@ -23,8 +26,8 @@ supertipo `LifecycleOwner` es de AndroidX); sin el aar de ARCore, `ArCoreDriver`
 compila contra `tools/kotlin-check/arcore_stub.kt`.
 
 Ese stub **prueba que `PerezArPlugin` y `ArCoreDriver` son consistentes entre sí y con el
-resto del módulo. No prueba que la API real de ARCore tenga esas firmas.** Está escrito de
-memoria; espera ajustes ahí.
+resto del módulo. No prueba que la API real de ARCore tenga esas firmas** — eso lo dice
+únicamente el build de CI, que hasta ahora ha aceptado el código sin cambios.
 
 Para reproducir la comprobación que sí se puede hacer:
 

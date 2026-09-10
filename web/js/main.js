@@ -375,7 +375,7 @@ async function stopRecording() {
   el("clip-meta").textContent =
     `${(result.durationMs / 1000).toFixed(1)}s · ${(result.blob.size / 1e6).toFixed(1)} MB · ` +
     `${result.mimeType.split(";")[0]}${recorder.micEnabled ? " · con micrófono" : " · sin audio"}` +
-    (CanvasRecorder.isAmbiguous(result.mimeType)
+    (CanvasRecorder.isAmbiguous(result.requestedMimeType)
       ? " · ojo: este navegador no declaró el códec, comprueba que abra fuera" : "");
 
   // Arranca reproduciendo: MediaRecorder no escribe la duracion en el contenedor, asi

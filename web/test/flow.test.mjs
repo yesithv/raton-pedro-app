@@ -155,10 +155,12 @@ check('el clip tiene dimensiones y peso', () => {
   assert(clip.w > 0 && clip.h > 0, 'clip sin dimensiones');
   assert(clip.bytes > 50_000, `clip sospechosamente pequeño: ${clip.bytes} bytes`);
 });
-check('el contenedor declara su códec', () =>
-  // "video/mp4" a secas en Chromium contiene VP9: un .mp4 que no abre en ningún sitio.
-  assert.notEqual(clip.type, 'video/mp4', 'contenedor ambiguo, revisa recorder.js'));
 const meta = await page.textContent('#clip-meta');
+check('el códec del contenedor está garantizado', () =>
+  // Se comprueba el aviso visible, no el contenedor: el mimeType que REPORTA el
+  // navegador viene normalizado ("video/mp4" aunque se pidiera con codecs=avc1…), así
+  // que juzgar por él da un falso positivo en cuanto el navegador tiene H.264.
+  assert(!meta.includes('ojo:'), `la app avisa de contenedor ambiguo:\n${meta}`));
 check('la grabación incluye micrófono', () => assert(meta.includes('micrófono'), meta));
 
 console.log('navegación');
