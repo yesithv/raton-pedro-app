@@ -1,0 +1,28 @@
+{
+  "id": "selfie_raton",
+  "durationMs": 1000,
+  "fps": 8.0,
+  "frameCount": 8,
+  "packedSize": [
+    1120,
+    560
+  ],
+  "trackSize": [
+    560,
+    560
+  ],
+  "anchorPoint": [
+    0.467,
+    0.8036
+  ],
+  "defaultScaleFactor": 0.4,
+  "referenceLuma": 0.4801,
+  "referenceColor": [
+    0.4981,
+    0.4849,
+    0.3785
+  ],
+  "hasAudio": false,
+  "limitedRange": false,
+  "glowFrames": []
+}

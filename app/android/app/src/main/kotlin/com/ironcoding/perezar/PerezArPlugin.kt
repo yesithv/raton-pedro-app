@@ -4,6 +4,7 @@ import android.app.Activity
 import android.content.Context
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
+import android.hardware.camera2.CameraCharacteristics
 import android.os.Build
 import android.os.Handler
 import android.os.HandlerThread
@@ -51,6 +52,7 @@ class PerezArPlugin :
     PluginRegistry.RequestPermissionsResultListener {
 
     private lateinit var context: Context
+    private lateinit var flutterAssets: FlutterPlugin.FlutterAssets
     private var activity: Activity? = null
     private var activityBinding: ActivityPluginBinding? = null
     private var pendingPermissions: MethodChannel.Result? = null
@@ -98,6 +100,7 @@ class PerezArPlugin :
 
     override fun onAttachedToEngine(binding: FlutterPlugin.FlutterPluginBinding) {
         context = binding.applicationContext
+        flutterAssets = binding.flutterAssets
         textures = binding.textureRegistry
         methodChannel = MethodChannel(binding.binaryMessenger, CHANNEL_CONTROL).apply {
             setMethodCallHandler(this@PerezArPlugin)
@@ -184,7 +187,7 @@ class PerezArPlugin :
             "requestPermissions" -> ensurePermissions(result)
             "initialize" -> initialize(call, result)
             "loadEffect" -> post(result) { loadEffect(call.argument<String>("assetPath")!!,
-                                                      call.argument<String>("metadata")!!) }
+                                                      call.argument<String>("metadata")!!); null }
             "setTransform" -> {
                 // Se llama en cada frame del gesto de arrastre. Dart NO espera el retorno.
                 transform = OverlayRect(
@@ -203,10 +206,11 @@ class PerezArPlugin :
                     (call.argument<Double>("y") ?: 0.5).toFloat(),
                 ) ?: false
             }
-            "play" -> post(result) { startPlayback(loop = call.argument<Boolean>("loop") ?: false) }
-            "pause" -> post(result) { playing = false }
+            "switchCamera" -> post(result) { switchCamera(call.argument<Boolean>("front") ?: false) }
+            "play" -> post(result) { startPlayback(loop = call.argument<Boolean>("loop") ?: false); null }
+            "pause" -> post(result) { playing = false; null }
             "startRecording" -> post(result) { startRecording(call.argument<String>("outputPath")!!,
-                                                              call.argument<Boolean>("audio") ?: true) }
+                                                              call.argument<Boolean>("audio") ?: true); null }
             "stopRecording" -> post(result) { stopRecording() }
             "setTorch" -> post(result) { driver?.setTorch(call.arguments as Boolean) ?: false }
             "setGrading" -> { applyGrading(call); result.success(null) }
@@ -229,7 +233,7 @@ class PerezArPlugin :
                 )
                 true
             }
-            "dispose" -> post(result) { disposeAll() }
+            "dispose" -> post(result) { disposeAll(); null }
             else -> result.notImplemented()
         }
     }
@@ -312,6 +316,46 @@ class PerezArPlugin :
             Log.w(TAG, "ARCore no arranco, se cae a Camera2", it)
             fallback()
         }
+    }
+
+    /**
+     * Alterna entre camara frontal (selfie) y trasera.
+     *
+     * La frontal siempre se sirve con Camera2Driver: ARCore no ofrece deteccion de
+     * planos con ella, asi que no tiene sentido pagar su coste. Al volver a la trasera
+     * se reintenta ARCore igual que en el arranque, por si el dispositivo lo soporta.
+     */
+    private fun switchCamera(front: Boolean): Map<String, Any?> {
+        val comp = compositor ?: return mapOf("supportsPlanes" to false)
+        val current = driver
+
+        val next: ArDriver = when {
+            front && current is Camera2Driver -> current.apply {
+                setFacing(CameraCharacteristics.LENS_FACING_FRONT)
+            }
+            front -> {
+                current?.stop()
+                Camera2Driver(context, analyzer).apply {
+                    start(comp.cameraTextureId, viewportW, viewportH)
+                    setFacing(CameraCharacteristics.LENS_FACING_FRONT)
+                }
+            }
+            current is Camera2Driver && current.isFrontFacing -> {
+                current.stop()
+                createDriver().also { it.start(comp.cameraTextureId, viewportW, viewportH) }
+            }
+            else -> current ?: createDriver().also { it.start(comp.cameraTextureId, viewportW, viewportH) }
+        }
+        driver = next
+
+        gyro?.stop()
+        gyro = if (!next.supportsPlanes) {
+            GyroTracker(context).takeIf { it.available }?.also { it.start() }
+        } else {
+            null
+        }
+
+        return mapOf("supportsPlanes" to next.supportsPlanes)
     }
 
     // --- Bucle de render ----------------------------------------------------------
@@ -457,7 +501,7 @@ class PerezArPlugin :
                 arr.optDouble(2, 0.5).toFloat(),
             )
         }
-        decoder?.load(context.assets.openFd(assetPath))
+        decoder?.load(context.assets.openFd(flutterAssets.getAssetFilePathByName(assetPath)))
         playbackStartNs = 0L
     }
 
