@@ -14,61 +14,108 @@
 <video id="camera" playsinline muted autoplay></video>
 <video id="overlay" playsinline muted preload="auto"></video>
 
+<!-- Arranque: permiso de cámara -->
 <div id="boot">
   <h1>Ratón Pérez AR</h1>
-  <p>Prototipo de composición. Apunta la cámara al cuarto, toca la pantalla para colocar
-     al ratón y dale a reproducir.</p>
+  <p>Prototipo de composición. Coloca al Ratón Pérez en el cuarto, escoge la animación
+     y graba el video.</p>
   <button id="start">Abrir cámara</button>
-  <p style="font-size:12px">Necesita HTTPS. Toca para colocar, pellizca para escalar.</p>
+  <p class="fine">Necesita HTTPS y permiso de cámara.</p>
 </div>
 
-<div id="hud" hidden>
-  <div id="topbar">
-    <div id="dbg"></div>
-    <div id="rec-badge" hidden><span class="dot"></span><span id="rec-time">0.0s</span></div>
-    <div id="clamp-warn" hidden>La exposición está tocando el borde del rango. El valor
-      correcto para esta luz queda fuera: sube o baja el piso en el panel y compara.</div>
+<!-- Retículo de colocación (paso ESCANEAR) -->
+<div id="reticle" hidden>
+  <div class="ring"></div>
+  <div class="arrow">↑</div>
+</div>
+
+<!-- Cromo permanente -->
+<div id="chrome" hidden>
+  <button id="home" class="icon" title="Inicio" aria-label="Inicio">⌂</button>
+  <div id="step-title"></div>
+  <button id="back" class="icon" title="Atrás" aria-label="Atrás">←</button>
+</div>
+
+<!-- Instrucciones por paso -->
+<div id="hint" hidden></div>
+
+<!-- Badge de grabación -->
+<div id="rec-badge" hidden><span class="dot"></span><span id="rec-time">0.0s</span></div>
+
+<!-- Barra inferior, cambia por paso -->
+<div id="bar" hidden>
+
+  <div id="ui-inicio" class="pane" hidden>
+    <button id="go-video" class="primary">Crear video</button>
+    <button id="go-photo">Tomar foto</button>
   </div>
 
-  <div>
-    <div id="panel" hidden>
-      <label>Exposición mín <input id="s-exp-min" type="range" min="0.1" max="1.5" step="0.01"><output id="s-exp-min-v"></output></label>
-      <label>Exposición máx <input id="s-exp-max" type="range" min="0.5" max="2.5" step="0.01"><output id="s-exp-max-v"></output></label>
-      <label>Key <input id="s-key" type="range" min="0.5" max="2" step="0.01"><output id="s-key-v"></output></label>
-      <label>Balance color <input id="s-wb" type="range" min="0" max="1" step="0.01"><output id="s-wb-v"></output></label>
-      <label>Softness <input id="s-softness" type="range" min="0" max="2.5" step="0.05"><output id="s-softness-v"></output></label>
-      <label>Grano máx <input id="s-grain-max" type="range" min="0" max="0.2" step="0.005"><output id="s-grain-max-v"></output></label>
-      <label class="check">Rango limitado <input id="s-limited" type="checkbox"></label>
-      <label class="check">Micrófono <input id="s-mic" type="checkbox" checked></label>
+  <div id="ui-escanear" class="pane" hidden>
+    <button id="place" class="primary">Colocar aquí</button>
+  </div>
+
+  <div id="ui-superficie" class="pane" hidden>
+    <button id="next-superficie" class="primary">Siguiente</button>
+  </div>
+
+  <div id="ui-tamano" class="pane" hidden>
+    <button id="next-tamano" class="primary">Siguiente</button>
+  </div>
+
+  <div id="ui-editar" class="pane" hidden>
+    <div class="picker">
+      <button id="fx-prev" class="icon" aria-label="Anterior">‹</button>
+      <div id="fx-title"></div>
+      <button id="fx-next" class="icon" aria-label="Siguiente">›</button>
     </div>
-    <div id="bottombar">
-      <button id="dbg-toggle">Ajustes</button>
-      <button id="play">Reproducir</button>
-      <button id="record">Grabar</button>
-      <button id="photo">Foto</button>
-    </div>
+    <button id="select-fx" class="primary">Seleccionar</button>
   </div>
+
+  <div id="ui-grabar" class="pane" hidden>
+    <button id="torch" class="icon" title="Linterna" aria-label="Linterna">⚡</button>
+    <button id="record" class="shutter" aria-label="Grabar"><span></span></button>
+    <button id="photo" class="icon" title="Foto" aria-label="Foto">◎</button>
+  </div>
+
+  <button id="dbg-toggle" class="tiny">Ajustes</button>
 </div>
 
-<div id="shot" hidden>
-  <img id="shot-img" alt="Foto compuesta">
-  <div id="shot-actions">
-    <button id="shot-close">Cerrar</button>
-    <button id="shot-share" hidden>Compartir</button>
-    <a id="shot-save" class="btn" download="raton-perez.png">Guardar</a>
-  </div>
+<!-- Panel de ajustes / depuración -->
+<div id="panel" hidden>
+  <div id="dbg"></div>
+  <label>Exposición mín <input id="s-exp-min" type="range" min="0.1" max="1.5" step="0.01"><output id="s-exp-min-v"></output></label>
+  <label>Exposición máx <input id="s-exp-max" type="range" min="0.5" max="2.5" step="0.01"><output id="s-exp-max-v"></output></label>
+  <label>Key <input id="s-key" type="range" min="0.5" max="2" step="0.01"><output id="s-key-v"></output></label>
+  <label>Balance color <input id="s-wb" type="range" min="0" max="1" step="0.01"><output id="s-wb-v"></output></label>
+  <label>Softness <input id="s-softness" type="range" min="0" max="2.5" step="0.05"><output id="s-softness-v"></output></label>
+  <label>Grano máx <input id="s-grain-max" type="range" min="0" max="0.2" step="0.005"><output id="s-grain-max-v"></output></label>
+  <label class="check">Rango limitado <input id="s-limited" type="checkbox"></label>
+  <label class="check">Micrófono <input id="s-mic" type="checkbox" checked></label>
+  <div id="clamp-warn" hidden></div>
 </div>
 
+<!-- Resultado: video -->
 <div id="clip" hidden>
   <video id="clip-video" controls playsinline></video>
   <div id="clip-meta"></div>
-  <div id="clip-actions">
+  <div class="actions">
     <button id="clip-close">Cerrar</button>
-    <button id="clip-share" hidden>Compartir</button>
+    <button id="clip-share" hidden class="primary">Compartir</button>
     <a id="clip-save" class="btn" download="raton-perez.webm">Guardar</a>
   </div>
 </div>
 
+<!-- Resultado: foto -->
+<div id="shot" hidden>
+  <img id="shot-img" alt="Foto compuesta">
+  <div class="actions">
+    <button id="shot-close">Cerrar</button>
+    <button id="shot-share" hidden class="primary">Compartir</button>
+    <a id="shot-save" class="btn" download="raton-perez.png">Guardar</a>
+  </div>
+</div>
+
+<div id="toast" hidden></div>
 <div id="error" hidden></div>
 
 <script type="module" src="js/main.js"></script>

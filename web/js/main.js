@@ -1,41 +1,51 @@
 import { Compositor } from "./compositor.js";
 import { SceneAnalyzer, ParamSolver } from "./analyzer.js";
 import { CanvasRecorder, isSupported as recSupported } from "./recorder.js";
+import { STEPS } from "./flow.js";
 
-const EFFECT = "assets/portal_placeholder";
-const ANALYZE_EVERY = 10; // misma cadencia que el dispositivo (seccion 2 de la arquitectura)
+const ANALYZE_EVERY = 10;   // misma cadencia que el dispositivo (seccion 2 de la arquitectura)
+const OFFSCREEN = 10.0;     // origen del overlay cuando no debe verse: el shader lo descarta
 
 const el = (id) => document.getElementById(id);
 
 const state = {
+  step: "inicio",
+  catalog: [],
+  fxIndex: 0,
   meta: null,
   transform: { x: 0.5, y: 0.72, scaleFactor: 0.35 },
-  playing: false,
   frame: 0,
   fps: 0,
   cfg: {
-    // Valores de arranque para un cuarto CON algo de luz (lamparita, luz de pasillo).
-    // Para oscuridad total hay que bajar el piso y aceptar la discusion de realismo
-    // contra legibilidad. Ver docs/receta-grading.md.
+    // Arranque pensado para un cuarto CON algo de luz (lamparita, tira LED, pasillo).
     key: 1.15,
-    whiteBalance: 0.5,   // 0 = solo ganancia global; 1 = adopta la dominante entera
+    whiteBalance: 0.5,
     exposureMin: 0.5, exposureMax: 1.4,
     grainMin: 0.015, grainMax: 0.09,
     softness: 0.8,
     smoothing: 0.15,
     limitedRange: false,
-    mic: true,   // la narracion en vivo del padre es funcion, no ruido
+    mic: true,          // la narracion en vivo del padre es funcion, no ruido
     manual: false,
     manualExposure: 1.0, manualGrain: 0.03,
   },
 };
 
-let compositor, analyzer, solver, cameraVideo, overlayVideo, recorder;
+let compositor, analyzer, solver, recorder, cameraVideo, overlayVideo, cameraTrack;
 
 function fail(msg) {
   el("error").textContent = msg;
   el("error").hidden = false;
+  clearTimeout(fail._t);
+  fail._t = setTimeout(() => { el("error").hidden = true; }, 6000);
   console.error(msg);
+}
+
+function toast(msg) {
+  el("toast").textContent = msg;
+  el("toast").hidden = false;
+  clearTimeout(toast._t);
+  toast._t = setTimeout(() => { el("toast").hidden = true; }, 2600);
 }
 
 // ---------------------------------------------------------------------------
@@ -50,14 +60,14 @@ function overlayRect(canvasW, canvasH) {
   return {
     originX: state.transform.x - ax * scaleX,
     originY: state.transform.y - ay * scaleY,
-    scaleX,
-    scaleY,
+    scaleX, scaleY,
   };
 }
 
 /** Rectangulo del overlay llevado a coords de TEXTURA de camara, para el analyzer. */
-function toCameraRect(rect, camVideo, canvasW, canvasH) {
-  const fit = Compositor.coverFit(camVideo.videoWidth, camVideo.videoHeight, canvasW, canvasH);
+function toCameraRect(rect, canvasW, canvasH) {
+  const fit = Compositor.coverFit(cameraVideo.videoWidth, cameraVideo.videoHeight,
+                                  canvasW, canvasH);
   const map = (v, i) => Math.min(1, Math.max(0, v * fit.scale[i] + fit.offset[i]));
   return {
     x0: map(rect.originX, 0), x1: map(rect.originX + rect.scaleX, 0),
@@ -66,124 +76,165 @@ function toCameraRect(rect, camVideo, canvasW, canvasH) {
 }
 
 // ---------------------------------------------------------------------------
+// Pasos
+// ---------------------------------------------------------------------------
+
+function setStep(name) {
+  const step = STEPS[name];
+  state.step = name;
+
+  el("step-title").textContent = step.title;
+  el("hint").textContent = step.hint;
+  el("hint").hidden = !step.hint;
+  el("reticle").hidden = !step.reticle;
+  el("chrome").hidden = name === "inicio";
+  el("back").hidden = !step.back;
+
+  for (const k of Object.keys(STEPS)) el(`ui-${k}`).hidden = k !== name;
+
+  overlayVideo.loop = !!step.loop;
+  if (step.loop) overlayVideo.play().catch(() => {});
+  else overlayVideo.pause();
+
+  if (step.reticle) positionReticle();
+}
+
+function positionReticle() {
+  const r = el("stage").getBoundingClientRect();
+  const n = el("reticle");
+  n.style.left = `${state.transform.x * r.width}px`;
+  n.style.top = `${state.transform.y * r.height}px`;
+}
+
+/** Vuelve al bucle de vista previa tras grabar. */
+function resumeLoop() {
+  if (!STEPS[state.step].loop) return;
+  overlayVideo.loop = true;
+  overlayVideo.play().catch(() => {});
+}
+
+// ---------------------------------------------------------------------------
+// Catalogo de efectos
+// ---------------------------------------------------------------------------
+
+async function loadEffect(index) {
+  const entry = state.catalog[index];
+  state.fxIndex = index;
+  state.meta = await (await fetch(`${entry.base}.json`)).json();
+  el("fx-title").textContent = state.meta.title ?? entry.title;
+
+  // H.264 primero, VP9 de respaldo: hay builds de Chromium y Firefox sin codecs
+  // propietarios donde el <video> falla con "no supported sources", que en pantalla se
+  // ve igual que si el shader no dibujara nada.
+  let lastError = null;
+  for (const src of [`${entry.base}.mp4`, `${entry.base}.webm`]) {
+    try {
+      await new Promise((resolve, reject) => {
+        const ok = () => { off(); resolve(); };
+        const err = () => { off(); reject(new Error(`no reproducible: ${src}`)); };
+        const off = () => {
+          overlayVideo.removeEventListener("loadeddata", ok);
+          overlayVideo.removeEventListener("error", err);
+        };
+        overlayVideo.addEventListener("loadeddata", ok, { once: true });
+        overlayVideo.addEventListener("error", err, { once: true });
+        overlayVideo.src = src;
+        overlayVideo.load();
+      });
+      solver = new ParamSolver(state.cfg);   // el asset cambio: reinicia el EMA
+      return;
+    } catch (e) { lastError = e; }
+  }
+  throw new Error(`No pude cargar "${entry.title}".\n${lastError?.message ?? ""}`);
+}
+
+async function cycleEffect(delta) {
+  const n = state.catalog.length;
+  try {
+    await loadEffect((state.fxIndex + delta + n) % n);
+    if (STEPS[state.step].loop) overlayVideo.play().catch(() => {});
+  } catch (e) { fail(e.message); }
+}
+
+// ---------------------------------------------------------------------------
 // Arranque
 // ---------------------------------------------------------------------------
 
 async function boot() {
-  state.meta = await (await fetch(`${EFFECT}.json`)).json();
+  state.catalog = (await (await fetch("assets/catalog.json")).json()).effects;
 
   compositor = new Compositor(el("stage"));
   await compositor.init();
-
   analyzer = new SceneAnalyzer();
   solver = new ParamSolver(state.cfg);
 
   overlayVideo = el("overlay");
-  await loadOverlaySource();
   overlayVideo.addEventListener("ended", () => {
-    state.playing = false;
-    el("play").textContent = "Reproducir";
-    // Si estabamos grabando, la animacion manda: se corta al terminar el efecto.
     if (recorder?.isRecording) stopRecording();
-    else goToPose();
   });
-
-  recorder = new CanvasRecorder(el("stage"), 30);
-  el("record").disabled = !recSupported();
-  if (!recSupported()) el("record").title = "Este navegador no soporta MediaRecorder";
 
   cameraVideo = el("camera");
   const stream = await navigator.mediaDevices.getUserMedia({
-    video: { facingMode: { ideal: "environment" }, width: { ideal: 1280 }, height: { ideal: 720 } },
-    audio: false, // el MVP no graba microfono. Ver seccion 4 de la arquitectura.
+    video: { facingMode: { ideal: "environment" },
+             width: { ideal: 1280 }, height: { ideal: 720 } },
+    audio: false,   // el microfono se pide aparte, solo al grabar
   });
   cameraVideo.srcObject = stream;
+  cameraTrack = stream.getVideoTracks()[0];
   await cameraVideo.play();
+
+  await loadEffect(0);
   await overlayVideo.play().catch(() => {});
   overlayVideo.pause();
-  goToPose();
+
+  recorder = new CanvasRecorder(el("stage"), 30);
+  el("record").disabled = !recSupported();
+
+  el("torch").hidden = !(cameraTrack.getCapabilities?.().torch);
 
   el("boot").hidden = true;
-  el("hud").hidden = false;
+  el("bar").hidden = false;
+  setStep("inicio");
   requestAnimationFrame(loop);
-}
-
-/**
- * Carga el asset empaquetado. H.264 primero, VP9 como respaldo.
- *
- * Ningun telefono real necesita el respaldo: iOS Safari y Chrome Android decodifican
- * H.264 por hardware. Existe porque hay builds de Chromium y de Firefox compilados sin
- * los codecs propietarios, y en esos el <video> falla en silencio con "no supported
- * sources" — que se ve identico a "el shader no dibuja nada".
- */
-async function loadOverlaySource() {
-  const candidates = [`${EFFECT}.mp4`, `${EFFECT}.webm`];
-  let lastError = null;
-  for (const src of candidates) {
-    try {
-      await new Promise((resolve, reject) => {
-        const onOk = () => { cleanup(); resolve(); };
-        const onErr = () => { cleanup(); reject(new Error(`no reproducible: ${src}`)); };
-        const cleanup = () => {
-          overlayVideo.removeEventListener("loadeddata", onOk);
-          overlayVideo.removeEventListener("error", onErr);
-        };
-        overlayVideo.addEventListener("loadeddata", onOk, { once: true });
-        overlayVideo.addEventListener("error", onErr, { once: true });
-        overlayVideo.src = src;
-        overlayVideo.load();
-      });
-      state.overlaySource = src;
-      return;
-    } catch (e) {
-      lastError = e;
-    }
-  }
-  throw new Error(`No pude cargar el asset del efecto.\n${lastError?.message ?? ""}`);
-}
-
-/** Pose estatica para posicionar: un frame donde el personaje ya esta presente. */
-function goToPose() {
-  if (overlayVideo.duration) overlayVideo.currentTime = overlayVideo.duration * 0.72;
 }
 
 // ---------------------------------------------------------------------------
 // Bucle de render
 // ---------------------------------------------------------------------------
 
-let lastT = performance.now(), frames = 0, fpsT = lastT;
+let frames = 0, fpsT = performance.now();
 
 function loop(now) {
   requestAnimationFrame(loop);
-  if (cameraVideo.readyState < 2) return;
+  if (!cameraVideo || cameraVideo.readyState < 2) return;
 
   const rect = el("stage").getBoundingClientRect();
   const { w, h } = compositor.resize(rect.width, rect.height, window.devicePixelRatio || 1);
+  const showOverlay = STEPS[state.step].overlay;
   const ov = overlayRect(w, h);
 
-  if (state.frame % ANALYZE_EVERY === 0) {
-    const measured = analyzer.measure(cameraVideo, toCameraRect(ov, cameraVideo, w, h));
+  if (showOverlay && state.frame % ANALYZE_EVERY === 0) {
     const ref = state.meta.referenceColor ??
-      [state.meta.referenceLuma ?? 0.5, state.meta.referenceLuma ?? 0.5,
-       state.meta.referenceLuma ?? 0.5];
-    solver.update(measured, ref);
+      Array(3).fill(state.meta.referenceLuma ?? 0.5);
+    solver.update(analyzer.measure(cameraVideo, toCameraRect(ov, w, h)), ref);
   }
 
   const params = state.cfg.manual
-    ? { exposure: [state.cfg.manualExposure, state.cfg.manualExposure,
-                   state.cfg.manualExposure], grain: state.cfg.manualGrain }
-    : { exposure: solver.exposure, grain: solver.grain };
+    ? { exposure: Array(3).fill(state.cfg.manualExposure), grain: state.cfg.manualGrain }
+    : { exposure: solver.exposure ?? [1, 1, 1], grain: solver.grain ?? 0 };
 
   compositor.render({
     cameraVideo,
     overlayVideo: overlayVideo.readyState >= 2 ? overlayVideo : null,
-    transform: ov,
+    // Fuera de pantalla en vez de un uniform de visibilidad: el shader ya descarta
+    // cualquier fragmento cuyo ouv caiga fuera de [0,1].
+    transform: showOverlay ? ov : { ...ov, originX: OFFSCREEN, originY: OFFSCREEN },
     params: { ...params, softness: state.cfg.softness, limitedRange: state.cfg.limitedRange },
     timeSec: now / 1000,
   });
 
   if (recorder?.isRecording) {
-    el("rec-time").textContent = (recorder.elapsedMs / 1000).toFixed(1) + "s";
+    el("rec-time").textContent = `${(recorder.elapsedMs / 1000).toFixed(1)}s`;
   }
 
   state.frame++;
@@ -192,7 +243,7 @@ function loop(now) {
     state.fps = (frames * 1000) / (now - fpsT);
     frames = 0;
     fpsT = now;
-    updateHud(params);
+    if (!el("panel").hidden) updateHud(params);
   }
 }
 
@@ -201,9 +252,8 @@ function updateHud(params) {
   const rgb = analyzer.last.sceneRgb ?? [0, 0, 0];
   const spread = Math.max(...e) / Math.max(Math.min(...e), 1e-3);
   el("dbg").textContent =
-    `fps ${state.fps.toFixed(0)}\n` +
-    `uExposureMatch ${e.map((v) => v.toFixed(3)).join(" ")}` +
-    (state.cfg.manual ? " (manual)" : "") + "\n" +
+    `fps ${state.fps.toFixed(0)}   paso ${state.step}\n` +
+    `uExposureMatch ${e.map((v) => v.toFixed(3)).join(" ")}\n` +
     `  ganancia     ${solver.rawExposure.toFixed(3)} crudo\n` +
     `  dominante    ${spread.toFixed(2)}x  (wb ${state.cfg.whiteBalance.toFixed(2)})\n` +
     `uGrainAmount   ${params.grain.toFixed(4)}\n` +
@@ -215,135 +265,128 @@ function updateHud(params) {
   const clamping = !state.cfg.manual &&
     (solver.rawExposure < state.cfg.exposureMin || solver.rawExposure > state.cfg.exposureMax);
   el("clamp-warn").hidden = !clamping;
+  if (clamping) {
+    el("clamp-warn").textContent =
+      "La exposición toca el borde del rango: el valor correcto para esta luz queda " +
+      "fuera. Mueve el piso y compara.";
+  }
 }
 
 // ---------------------------------------------------------------------------
-// Interaccion
+// Gestos: dependen del paso, como en el asistente de la referencia
 // ---------------------------------------------------------------------------
 
 function setupGestures() {
   const stage = el("stage");
   const pointers = new Map();
-  let pinchStart = null;
+  let pinch = null;
+
+  const norm = (e) => {
+    const r = stage.getBoundingClientRect();
+    return { x: (e.clientX - r.left) / r.width, y: (e.clientY - r.top) / r.height };
+  };
+  const clamp01 = (v) => Math.min(1, Math.max(0, v));
 
   stage.addEventListener("pointerdown", (e) => {
     stage.setPointerCapture(e.pointerId);
     pointers.set(e.pointerId, e);
-    if (pointers.size === 1) placeAt(e);
     if (pointers.size === 2) {
       const [a, b] = [...pointers.values()];
-      pinchStart = { dist: Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY),
-                     scale: state.transform.scaleFactor };
+      pinch = { d: Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY),
+                s: state.transform.scaleFactor };
+    } else {
+      apply(e);
     }
   });
 
   stage.addEventListener("pointermove", (e) => {
     if (!pointers.has(e.pointerId)) return;
     pointers.set(e.pointerId, e);
-    if (pointers.size === 1) placeAt(e);
-    else if (pointers.size === 2 && pinchStart) {
+    if (pointers.size === 2 && pinch) {
+      const g = STEPS[state.step].gesture;
+      if (g !== "scale") return;
       const [a, b] = [...pointers.values()];
       const d = Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY);
-      state.transform.scaleFactor = Math.min(0.9, Math.max(0.08,
-        pinchStart.scale * (d / Math.max(pinchStart.dist, 1))));
+      state.transform.scaleFactor =
+        Math.min(0.9, Math.max(0.06, pinch.s * (d / Math.max(pinch.d, 1))));
+    } else if (pointers.size === 1) {
+      apply(e);
     }
   });
 
-  const release = (e) => { pointers.delete(e.pointerId); if (pointers.size < 2) pinchStart = null; };
+  const release = (e) => { pointers.delete(e.pointerId); if (pointers.size < 2) pinch = null; };
   stage.addEventListener("pointerup", release);
   stage.addEventListener("pointercancel", release);
 
-  function placeAt(e) {
-    const r = stage.getBoundingClientRect();
-    state.transform.x = Math.min(1, Math.max(0, (e.clientX - r.left) / r.width));
-    state.transform.y = Math.min(1, Math.max(0, (e.clientY - r.top) / r.height));
+  function apply(e) {
+    const g = STEPS[state.step].gesture;
+    const p = norm(e);
+    if (g === "move") {
+      state.transform.x = clamp01(p.x);
+      state.transform.y = clamp01(p.y);
+      positionReticle();
+    } else if (g === "moveY" || g === "scale") {
+      // La referencia solo deja ajustar arriba/abajo en el paso SUPERFICIE.
+      state.transform.y = clamp01(p.y);
+    }
   }
 }
 
-function play() {
-  if (state.playing) {
-    overlayVideo.pause();
-    state.playing = false;
-    el("play").textContent = "Reproducir";
-    return;
-  }
-  overlayVideo.currentTime = 0;
-  overlayVideo.play();
-  state.playing = true;
-  el("play").textContent = "Pausar";
-}
+// ---------------------------------------------------------------------------
+// Grabacion y foto
+// ---------------------------------------------------------------------------
 
 async function startRecording() {
   try {
-    if (state.cfg.mic && !recorder.micEnabled) {
-      const ok = await recorder.enableMic();
-      if (!ok) fail("No conseguí permiso de micrófono. Grabo solo vídeo.");
+    if (state.cfg.mic && !recorder.micEnabled && !(await recorder.enableMic())) {
+      toast("Sin permiso de micrófono: grabo solo vídeo.");
     }
     recorder.start();
-  } catch (e) {
-    return fail(e.message);
-  }
+  } catch (e) { return fail(e.message); }
 
-  // Grabar y reproducir el efecto son la misma accion, igual que startRecording() en
-  // el contrato nativo (seccion 5 de la arquitectura).
+  // Grabar y reproducir son la misma accion, igual que startRecording() en el contrato
+  // nativo (seccion 5 de la arquitectura).
+  overlayVideo.loop = false;
   overlayVideo.currentTime = 0;
   overlayVideo.play();
-  state.playing = true;
-  el("play").textContent = "Pausar";
 
-  el("record").textContent = "Detener";
-  el("record").classList.add("rec");
+  el("record").classList.add("on");
+  el("hint").hidden = true;          // comparte posicion con el badge de grabacion
   el("rec-badge").hidden = false;
 }
 
 async function stopRecording() {
   let result;
-  try {
-    result = await recorder.stop();
-  } catch (e) {
-    return fail(e.message);
-  } finally {
-    el("record").textContent = "Grabar";
-    el("record").classList.remove("rec");
+  try { result = await recorder.stop(); }
+  catch (e) { return fail(e.message); }
+  finally {
+    el("record").classList.remove("on");
     el("rec-badge").hidden = true;
+    el("hint").hidden = !STEPS[state.step].hint;
   }
 
-  overlayVideo.pause();
-  state.playing = false;
-  el("play").textContent = "Reproducir";
-  goToPose();
+  resumeLoop();
 
   const url = URL.createObjectURL(result.blob);
   const video = el("clip-video");
   if (video.src) URL.revokeObjectURL(video.src);
   video.src = url;
   el("clip").hidden = false;
-  // Reproducir de inmediato, y no solo por comodidad: MediaRecorder no escribe la
-  // duracion en el contenedor (ffmpeg reporta "Duration: N/A"), asi que el <video> no
-  // pinta ningun frame hasta que empieza a reproducir y se ve un rectangulo negro. El
-  // usuario creeria que la grabacion fallo. Va despues de un gesto del usuario -el
-  // boton de detener-, asi que la politica de autoplay lo permite con audio.
-  el("clip-video").play().catch(() => {});
   el("clip-meta").textContent =
     `${(result.durationMs / 1000).toFixed(1)}s · ${(result.blob.size / 1e6).toFixed(1)} MB · ` +
     `${result.mimeType.split(";")[0]}${recorder.micEnabled ? " · con micrófono" : " · sin audio"}` +
     (CanvasRecorder.isAmbiguous(result.mimeType)
-      ? " · ojo: este navegador no declaró el códec, comprueba que el archivo abra fuera"
-      : "");
+      ? " · ojo: este navegador no declaró el códec, comprueba que abra fuera" : "");
+
+  // Arranca reproduciendo: MediaRecorder no escribe la duracion en el contenedor, asi
+  // que el <video> no pinta ningun frame hasta reproducir y se veria un rectangulo
+  // negro que parece una grabacion fallida.
+  video.play().catch(() => {});
 
   const ext = CanvasRecorder.extensionFor(result.mimeType);
   el("clip-save").href = url;
   el("clip-save").download = `raton-perez.${ext}`;
-  el("clip-share").hidden = !navigator.canShare;
-  el("clip-share").onclick = async () => {
-    const file = new File([result.blob], `raton-perez.${ext}`, { type: result.blob.type });
-    if (navigator.canShare?.({ files: [file] })) await navigator.share({ files: [file] });
-  };
-}
-
-function toggleRecording() {
-  if (recorder?.isRecording) stopRecording();
-  else startRecording();
+  wireShare("clip-share", result.blob, `raton-perez.${ext}`);
 }
 
 function capturePhoto() {
@@ -355,20 +398,70 @@ function capturePhoto() {
     img.src = url;
     el("shot").hidden = false;
     el("shot-save").href = url;
-    el("shot-share").hidden = !navigator.canShare;
-    el("shot-share").onclick = async () => {
-      const file = new File([blob], "raton-perez.png", { type: "image/png" });
-      if (navigator.canShare?.({ files: [file] })) await navigator.share({ files: [file] });
-    };
+    wireShare("shot-share", blob, "raton-perez.png");
   }, "image/png");
 }
 
+function wireShare(id, blob, filename) {
+  const btn = el(id);
+  const file = new File([blob], filename, { type: blob.type });
+  const can = !!navigator.canShare?.({ files: [file] });
+  btn.hidden = !can;
+  btn.onclick = async () => {
+    try { await navigator.share({ files: [file] }); }
+    catch (e) { if (e.name !== "AbortError") fail(`No pude compartir: ${e.message}`); }
+  };
+}
+
+async function toggleTorch() {
+  const on = !el("torch").classList.contains("on");
+  try {
+    await cameraTrack.applyConstraints({ advanced: [{ torch: on }] });
+    el("torch").classList.toggle("on", on);
+  } catch (e) {
+    fail("Este dispositivo no deja controlar la linterna desde el navegador.");
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Controles
+// ---------------------------------------------------------------------------
+
 function setupControls() {
-  el("play").onclick = play;
+  el("go-video").onclick = () => setStep("escanear");
+  el("go-photo").onclick = () => setStep("escanear");
+  el("place").onclick = () => setStep("superficie");
+  el("next-superficie").onclick = () => setStep("tamano");
+  el("next-tamano").onclick = () => setStep("editar");
+  el("select-fx").onclick = () => setStep("grabar");
+  el("fx-prev").onclick = () => cycleEffect(-1);
+  el("fx-next").onclick = () => cycleEffect(1);
+
+  el("home").onclick = () => setStep("inicio");
+  el("back").onclick = () => setStep(STEPS[state.step].back ?? "inicio");
+
+  el("record").onclick = () => (recorder?.isRecording ? stopRecording() : startRecording());
   el("photo").onclick = capturePhoto;
-  el("record").onclick = toggleRecording;
-  el("shot-close").onclick = () => { el("shot").hidden = true; };
+  el("torch").onclick = toggleTorch;
+
   el("clip-close").onclick = () => { el("clip").hidden = true; el("clip-video").pause(); };
+  el("shot-close").onclick = () => { el("shot").hidden = true; };
+  el("dbg-toggle").onclick = () => { el("panel").hidden = !el("panel").hidden; };
+
+  for (const [id, key, digits] of [
+    ["s-exp-min", "exposureMin", 2], ["s-exp-max", "exposureMax", 2],
+    ["s-key", "key", 2], ["s-wb", "whiteBalance", 2],
+    ["s-softness", "softness", 2], ["s-grain-max", "grainMax", 3],
+  ]) {
+    const input = el(id), out = el(`${id}-v`);
+    input.value = state.cfg[key];
+    out.textContent = state.cfg[key].toFixed(digits);
+    input.oninput = () => {
+      state.cfg[key] = parseFloat(input.value);
+      out.textContent = state.cfg[key].toFixed(digits);
+    };
+  }
+  el("s-limited").onchange = (e) => { state.cfg.limitedRange = e.target.checked; };
   el("s-mic").checked = state.cfg.mic;
   el("s-mic").onchange = async (e) => {
     state.cfg.mic = e.target.checked;
@@ -378,26 +471,8 @@ function setupControls() {
       fail("El navegador negó el micrófono.");
     }
   };
-  el("dbg-toggle").onclick = () => { el("panel").hidden = !el("panel").hidden; };
 
-  for (const [id, key, fmt] of [
-    ["s-exp-min", "exposureMin", (v) => v.toFixed(2)],
-    ["s-exp-max", "exposureMax", (v) => v.toFixed(2)],
-    ["s-key", "key", (v) => v.toFixed(2)],
-    ["s-wb", "whiteBalance", (v) => v.toFixed(2)],
-    ["s-softness", "softness", (v) => v.toFixed(2)],
-    ["s-grain-max", "grainMax", (v) => v.toFixed(3)],
-  ]) {
-    const input = el(id);
-    const out = el(`${id}-v`);
-    input.value = state.cfg[key];
-    out.textContent = fmt(state.cfg[key]);
-    input.oninput = () => {
-      state.cfg[key] = parseFloat(input.value);
-      out.textContent = fmt(state.cfg[key]);
-    };
-  }
-  el("s-limited").onchange = (e) => { state.cfg.limitedRange = e.target.checked; };
+  addEventListener("resize", () => { if (STEPS[state.step].reticle) positionReticle(); });
 }
 
 el("start").onclick = async () => {

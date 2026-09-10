@@ -33,19 +33,40 @@ python3 -m http.server 8000     # desde la raíz del repo
 # http://localhost:8000/web/
 ```
 
-## Uso
+Aviso sobre ese servidor: `python3 -m http.server` **no responde a peticiones HTTP
+Range**, así que el `<video>` no puede buscar (`seekable` queda en `[0,0]`). La app no
+depende de buscar —los pasos con personaje reproducen en bucle— pero si añades algo que
+sí lo necesite, fallará solo en local y funcionará en Pages, que sí soporta Range.
 
-| Acción | Gesto |
-|---|---|
-| Colocar al ratón | Tocar la pantalla (el punto que tocas es el punto de contacto con la superficie, no el centro) |
-| Mover | Arrastrar |
-| Escalar | Pellizcar |
-| Reproducir la animación | Botón *Reproducir* |
-| Grabar video | Botón *Grabar*. Arranca la animación y se detiene solo al terminarla |
-| Capturar foto | Botón *Foto* → Guardar o Compartir |
-| Narrar con tu voz | Casilla *Micrófono* en *Ajustes*, activada por defecto |
-| Ver y ajustar los uniforms | Botón *Ajustes* |
-| Igualar la dominante de color del cuarto | Deslizador *Balance color* en *Ajustes* |
+## El flujo
+
+Reproduce paso por paso el asistente de la app de referencia:
+
+| Paso | Qué hace | Gesto |
+|---|---|---|
+| **Inicio** | Crear video / Tomar foto | — |
+| **ESCANEAR** | Colocar el retículo donde aparecerá el ratón | Arrastrar |
+| **SUPERFICIE** | Ajustar la posición hacia arriba o hacia abajo | Arrastrar en vertical |
+| **TAMAÑO** | Hacerlo más grande o más pequeño | Pellizcar |
+| **EDITAR** | Escoger entre las tres animaciones | ‹ › |
+| **GRABAR** | Linterna, grabar, foto | Botón rojo |
+
+El punto que colocas es el **punto de contacto** con la superficie (`anchorPoint` del
+asset), no el centro del cuadro: el ratón queda parado ahí y no flotando.
+
+La grabación arranca la animación y se detiene sola al terminarla. El micrófono va
+activado por defecto —la narración en vivo es funcionalidad, no ruido— y se puede apagar
+en *Ajustes*, donde también están los uniforms del grading en vivo.
+
+### Lo que no hace, y no puede hacer
+
+**Detección de planos.** La referencia usa ARCore/ARKit para detectar una superficie real.
+En el navegador no hay equivalente: WebXR depende igualmente de ARCore, y en una sesión
+inmersiva se pierde el acceso a la textura de cámara que el shader necesita. Aquí el
+retículo se coloca a dedo. Es la razón principal por la que existe la fase nativa.
+
+**Guardado automático en la galería.** El navegador no escribe en el carrete; hay que
+usar Compartir o Guardar.
 
 El HUD de arriba muestra en vivo lo que resuelve el `SceneAnalyzer`. **Esos números son
 el entregable real de este prototipo**: van a `docs/receta-grading.md` y son los que el
@@ -65,11 +86,29 @@ decisión de realismo contra legibilidad, y se toma mirando, no calculando.
 ```
 index.html          UI
 app.css
+js/flow.js          definición del asistente: pasos, textos, gestos
 js/compositor.js    WebGL2. Carga shaders/composite.{vert,frag} y los reescribe a WebGL
-js/analyzer.js      SceneAnalyzer: luma de un mip, ruido de un recorte nativo, EMA
-js/main.js          orquestación, gestos, foto
-assets/             asset empaquetado + metadata (generados por tools/build_effect.py)
+js/analyzer.js      SceneAnalyzer: color de un mip, ruido de un recorte nativo, EMA
+js/recorder.js      canvas.captureStream + MediaRecorder, con micrófono
+js/main.js          máquina de estados, gestos, grabación, foto
+assets/             catálogo, assets empaquetados y metadata (tools/build_effect.py)
 ```
+
+## Regenerar el catálogo
+
+Las tres animaciones son placeholders sintéticos con distinto movimiento. Para
+regenerarlas:
+
+```bash
+for v in entra_y_es_descubierto es_descubierto_y_se_esconde saluda_y_se_va; do
+  python3 tools/make_placeholder.py --outdir /tmp/cat/$v --variant $v --size 1080x1920
+  python3 tools/build_effect.py /tmp/cat/$v/frames -o web/assets/$v.mp4 \
+      --id $v --track-size 720x1280 --webm
+done
+```
+
+`web/assets/catalog.json` lista los tres con su título. Cuando llegue el personaje real
+del animador, se sustituyen las secuencias PNG y el resto del pipeline no cambia.
 
 ## Diferencias contra el shader del dispositivo
 
@@ -108,10 +147,3 @@ Safari en iOS y Chrome en Android decodifican H.264 por hardware. Existe porque 
 de Chromium y de Firefox compilados sin códecs propietarios, y ahí el `<video>` falla con
 "no supported sources", que en pantalla se ve idéntico a "el shader no dibuja nada".
 
-## Regenerar el asset
-
-```bash
-python3 tools/make_placeholder.py --outdir /tmp/ph --size 1080x1920
-python3 tools/build_effect.py /tmp/ph/frames -o web/assets/portal_placeholder.mp4 \
-    --id portal_placeholder --track-size 720x1280 --webm
-```

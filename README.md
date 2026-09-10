@@ -8,17 +8,21 @@ Procesamiento 100% on-device. Flutter + capa nativa (GL/Metal).
 
 ## Estado
 
-Fase de validación. Hay un prototipo web funcional —colocar el ratón, ver el efecto,
-grabar el video con narración, guardar o compartir— y la cadena de herramientas offline.
-El nativo (Flutter + Android) todavía no.
+Fase de validación. El prototipo web reproduce el flujo completo de la app de referencia
+—colocar el ratón, ajustar posición y tamaño, escoger entre tres animaciones, grabar con
+narración y guardar o compartir— además de la cadena de herramientas offline.
+
+Falta lo que sólo existe en nativo: **detección de planos** (ARCore/ARKit) y **guardado
+automático en la galería**. Y el personaje real: los tres efectos son placeholders.
 
 La decisión de producto — ¿el resultado se ve creíble? — se toma con el prototipo y el
 compositor offline, antes de escribir la primera línea de Kotlin.
 
 ## Prototipo web
 
-`web/` — cámara, composición, **grabación de video con micrófono** y foto, en el navegador
-del teléfono, sin instalar nada.
+`web/` — el asistente completo de la referencia (ESCANEAR → SUPERFICIE → TAMAÑO →
+EDITAR → GRABAR), con tres animaciones, grabación de video con micrófono y captura de
+foto, en el navegador del teléfono y sin instalar nada.
 Ver [`web/README.md`](web/README.md) para abrirlo con GitHub Pages.
 
 ## Herramientas

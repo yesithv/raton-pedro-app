@@ -1,5 +1,5 @@
 {
-  "id": "portal_placeholder",
+  "id": "entra_y_es_descubierto",
   "durationMs": 5000,
   "fps": 30.0,
   "frameCount": 150,
@@ -12,17 +12,18 @@
     1280
   ],
   "anchorPoint": [
-    0.5,
-    0.9102
+    0.359,
+    0.893
   ],
   "defaultScaleFactor": 0.35,
-  "referenceLuma": 0.3108,
+  "referenceLuma": 0.3114,
   "referenceColor": [
-    0.3288,
-    0.3075,
-    0.2918
+    0.3299,
+    0.308,
+    0.2917
   ],
   "hasAudio": false,
   "limitedRange": false,
-  "glowFrames": []
+  "glowFrames": [],
+  "title": "Rat\u00f3n P\u00e9rez entra y es descubierto"
 }

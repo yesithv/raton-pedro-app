@@ -51,8 +51,40 @@ def smoothstep(edge0, edge1, x):
     return t * t * (3.0 - 2.0 * t)
 
 
-def effect_frame(t, w, h):
+# Las tres animaciones del catalogo. Cada una devuelve, para t en [0,1]:
+#   dx    desplazamiento horizontal en coords normalizadas
+#   dy    desplazamiento vertical (positivo = mas abajo)
+#   sc    escala del personaje
+#   vis   opacidad global del personaje
+#   glow  intensidad del portal
+VARIANTS = {
+    "entra_y_es_descubierto": lambda t, ss: dict(
+        dx=-0.34 * (1.0 - ss(0.05, 0.45, t)),
+        dy=0.0,
+        sc=1.0,
+        vis=ss(0.02, 0.12, t),
+        glow=ss(0.45, 0.62, t) * (1.0 - ss(0.80, 0.97, t)),
+    ),
+    "es_descubierto_y_se_esconde": lambda t, ss: dict(
+        dx=0.0,
+        dy=0.10 * ss(0.62, 0.95, t),
+        sc=1.0 - 0.45 * ss(0.62, 0.95, t),
+        vis=ss(0.02, 0.10, t) * (1.0 - ss(0.78, 0.98, t)),
+        glow=ss(0.05, 0.22, t) * (1.0 - ss(0.42, 0.60, t)),
+    ),
+    "saluda_y_se_va": lambda t, ss: dict(
+        dx=0.30 * ss(0.68, 1.0, t),
+        dy=-0.022 * (1.0 - abs(np.cos(t * 14.0))) * ss(0.20, 0.30, t) * (1.0 - ss(0.60, 0.68, t)),
+        sc=1.0,
+        vis=ss(0.02, 0.12, t) * (1.0 - ss(0.88, 1.0, t)),
+        glow=ss(0.0, 0.14, t) * (1.0 - ss(0.30, 0.46, t)),
+    ),
+}
+
+
+def effect_frame(t, w, h, variant="entra_y_es_descubierto"):
     """t en [0,1]. Devuelve RGBA float32 con alfa RECTA."""
+    m = VARIANTS[variant](t, smoothstep)
     yy, xx = np.mgrid[0:h, 0:w]
     xx = (xx / w).astype(np.float32)
     yy = (yy / h).astype(np.float32)
@@ -61,7 +93,7 @@ def effect_frame(t, w, h):
     a = np.zeros((h, w), np.float32)
 
     # --- Portal: color alto, alfa baja. Con premultiplicado se comporta como aditivo.
-    glow = smoothstep(0.0, 0.15, t) * (1.0 - smoothstep(0.40, 0.60, t))
+    glow = m["glow"]
     if glow > 0.001:
         d = np.sqrt(((xx - 0.5) / 0.20) ** 2 + ((yy - 0.72) / 0.20) ** 2)
         halo = np.exp(-d * d * 2.2).astype(np.float32)
@@ -70,25 +102,32 @@ def effect_frame(t, w, h):
         rgb += np.array([0.55, 0.72, 0.88], np.float32)[None, None, :] * pa[..., None]
         a = np.maximum(a, pa)
 
-    # --- Raton: emerge entre t=0.10 y t=0.32, y se asienta.
-    body_a = smoothstep(0.10, 0.32, t)
+    # --- Raton, con el movimiento que dicte la variante.
+    body_a = m["vis"]
     if body_a > 0.001:
-        rise = (1.0 - smoothstep(0.10, 0.38, t)) * 0.055
+        dx, sc = m["dx"], max(m["sc"], 0.05)
+        rise = m["dy"]
         base = np.array([0.60, 0.56, 0.53], np.float32)
 
         # Sombra de contacto: negro con alfa variable, muy difuminada. Va PRIMERO,
         # debajo del personaje.
-        sd = np.sqrt(((xx - 0.5) / 0.13) ** 2 + ((yy - 0.868 + rise) / 0.028) ** 2)
+        sd = np.sqrt(((xx - 0.5 - dx) / (0.13 * sc)) ** 2
+                     + ((yy - 0.868 - rise) / (0.028 * sc)) ** 2)
         sh = np.clip(np.exp(-sd * sd * 1.6) * 0.5 * body_a, 0.0, 0.5).astype(np.float32)
         a = np.maximum(a, sh)
 
+        # Coordenadas relativas al punto de contacto (0.5, 0.875), para que escalar
+        # no despegue al personaje del suelo.
         parts = [
-            (0.50, 0.770 + rise, 0.100, 0.105),   # cuerpo
-            (0.50, 0.632 + rise, 0.074, 0.074),   # cabeza
-            (0.437, 0.567 + rise, 0.036, 0.036),  # oreja izq
-            (0.563, 0.567 + rise, 0.036, 0.036),  # oreja der
+            (0.000, -0.105, 0.100, 0.105),   # cuerpo
+            (0.000, -0.243, 0.074, 0.074),   # cabeza
+            (-0.063, -0.308, 0.036, 0.036),  # oreja izq
+            (0.063, -0.308, 0.036, 0.036),   # oreja der
         ]
-        for cx, cy, rx, ry in parts:
+        for ox, oy, rx, ry in parts:
+            cx = 0.5 + dx + ox * sc
+            cy = 0.875 + rise + oy * sc
+            rx, ry = rx * sc, ry * sc
             m, n = ellipse(xx, yy, cx, cy, rx, ry)
             m = m * body_a
             lit = shade(n, base)
@@ -134,6 +173,8 @@ def main():
     p = argparse.ArgumentParser(description=__doc__,
                                 formatter_class=argparse.RawDescriptionHelpFormatter)
     p.add_argument("--outdir", default="/tmp/perezar-placeholder")
+    p.add_argument("--variant", default="entra_y_es_descubierto",
+                   choices=sorted(VARIANTS), help="Animacion a generar")
     p.add_argument("--effect-frames", type=int, default=150)
     p.add_argument("--room-frames", type=int, default=240)
     p.add_argument("--size", default="1080x1920")
@@ -146,7 +187,7 @@ def main():
 
     print(f"efecto: {args.effect_frames} frames PNG RGBA {w}x{h} -> {frames_dir}")
     for i in range(args.effect_frames):
-        rgba = effect_frame(i / max(args.effect_frames - 1, 1), w, h)
+        rgba = effect_frame(i / max(args.effect_frames - 1, 1), w, h, args.variant)
         Image.fromarray((rgba * 255.0 + 0.5).astype(np.uint8), mode="RGBA").save(
             os.path.join(frames_dir, f"frame_{i:04d}.png"))
         if (i + 1) % 25 == 0:
