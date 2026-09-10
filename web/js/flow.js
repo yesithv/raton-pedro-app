@@ -60,6 +60,26 @@ export const STEPS = {
     loop: true,
     back: "tamano",
   },
+
+  // FOTO no es un paso mas del asistente: es la otra mitad del producto (hallazgo 8 de
+  // docs/plan-de-trabajo.md, "el modo foto es un selfie con el nino dormido"). Se entra
+  // desde INICIO y se sale a INICIO, sin escaneo, sin superficie y sin catalogo.
+  //
+  // Y sobre todo SIN VIDEO: aqui el raton es un PNG con alfa dibujado encima de la
+  // camara, no un frame del atlas color|matte. Una foto no necesita animacion, y el
+  // <video> del overlay es justo la pieza que mas se rompe en un movil (autoplay,
+  // codecs, decodificadores ocupados). Para una imagen fija, un <img> siempre pinta.
+  foto: {
+    title: "FOTO",
+    hint: "Arrastra al ratón donde quieras y pellizca para cambiar su tamaño.\n" +
+          "Pulsa el botón blanco para tomar la foto.",
+    overlay: false,
+    sticker: true,
+    reticle: false,
+    gesture: "moveAndScale",
+    back: "inicio",
+  },
+
   grabar: {
     title: "GRABAR",
     hint: "Pulsa el botón rojo. Se detiene solo al acabar la animación.\n" +
@@ -73,3 +93,4 @@ export const STEPS = {
 };
 
 export const ORDER = ["inicio", "escanear", "superficie", "tamano", "editar", "grabar"];
+// FOTO no aparece: no esta en la cadena del asistente, se entra y se sale por INICIO.

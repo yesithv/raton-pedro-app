@@ -14,6 +14,9 @@
 <video id="camera" playsinline muted autoplay></video>
 <video id="overlay" playsinline muted preload="auto"></video>
 
+<!-- Ratón del modo FOTO: PNG con alfa encima de la cámara, sin vídeo ni shader -->
+<img id="sticker" src="assets/raton_perez.png" alt="Ratón Pérez" draggable="false" hidden>
+
 <!-- Arranque: permiso de cámara -->
 <div id="boot">
   <h1>Ratón Pérez AR</h1>
@@ -48,6 +51,12 @@
   <div id="ui-inicio" class="pane" hidden>
     <button id="go-video" class="primary">Crear video</button>
     <button id="go-photo">Tomar foto</button>
+  </div>
+
+  <div id="ui-foto" class="pane" hidden>
+    <button id="flip" class="icon" title="Cambiar de cámara" aria-label="Cambiar de cámara">⟳</button>
+    <button id="snap" class="shutter still" aria-label="Tomar foto"><span></span></button>
+    <button id="sticker-flip" class="icon" title="Girar al ratón" aria-label="Girar al ratón">⇄</button>
   </div>
 
   <div id="ui-escanear" class="pane" hidden>

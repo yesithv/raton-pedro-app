@@ -152,6 +152,18 @@ button:disabled { opacity: 0.5; cursor: default; }
 }
 @keyframes breathe { 50% { transform: scale(1.07); opacity: 0.75; } }
 
+/* --- Ratón del modo FOTO ---
+   Se ancla por los PIES (translate -50% -100%): el dedo marca donde se apoya, igual que
+   el retículo del asistente, no donde queda su centro. */
+#sticker {
+  position: fixed; z-index: 11;
+  translate: -50% -100%;
+  pointer-events: none;
+  width: auto;
+  filter: drop-shadow(0 8px 16px rgba(0, 0, 0, 0.45));
+}
+#sticker.mirror { scale: -1 1; }
+
 /* --- Barra inferior --- */
 #bar {
   position: fixed; z-index: 12;
@@ -182,6 +194,8 @@ button:disabled { opacity: 0.5; cursor: default; }
   transition: border-radius 140ms ease, width 140ms ease, height 140ms ease;
 }
 .shutter.on span { width: 26px; height: 26px; border-radius: 5px; }
+/* Foto, no vídeo: el punto rojo es el lenguaje de "grabando" y aquí engañaría. */
+.shutter.still span { background: #fff; }
 
 /* --- Panel de ajustes --- */
 #panel {

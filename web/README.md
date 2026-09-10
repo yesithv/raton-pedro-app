@@ -17,14 +17,15 @@ arte y validar la composición, no para medir fps de producción.
 
 `getUserMedia` exige **HTTPS**. La vía sin instalar nada es GitHub Pages:
 
-1. En el repo → **Settings → Pages**
-2. *Source*: `Deploy from a branch`
-3. Branch: `claude/ratón-pérez-ar-architecture-mqz01l`, carpeta `/ (root)` → **Save**
-4. Espera 1-2 minutos y abre en el teléfono:
+1. En el repo → **Settings → Pages** → *Source*: **GitHub Actions** (una sola vez; no se
+   puede automatizar, ver la cabecera de `.github/workflows/pages.yml`)
+2. Fusiona a `main`. `.github/workflows/pages.yml` se dispara con cualquier cambio en
+   `web/**` o `shaders/**` y publica el sitio.
+3. Espera 1-2 minutos y abre en el teléfono:
    `https://yesithv.github.io/raton-pedro-app/web/`
 
-La carpeta tiene que ser la raíz del repo, no `/web`: la página carga el shader desde
-`../shaders/`, que es lo que evita tener dos copias del shader.
+El workflow copia `web/` y `shaders/` conservando su posición relativa: la página carga el
+shader desde `../shaders/`, que es lo que evita tener dos copias del mismo archivo.
 
 En local funciona sin HTTPS porque `localhost` está exento:
 
@@ -50,6 +51,7 @@ Reproduce paso por paso el asistente de la app de referencia:
 | **TAMAÑO** | Hacerlo más grande o más pequeño | Pellizcar |
 | **EDITAR** | Escoger entre las tres animaciones | ‹ › |
 | **GRABAR** | Linterna, grabar, foto | Botón rojo |
+| **FOTO** | Cámara frontal + ratón encima, para la foto con el niño | Arrastrar y pellizcar |
 
 El punto que colocas es el **punto de contacto** con la superficie (`anchorPoint` del
 asset), no el centro del cuadro: el ratón queda parado ahí y no flotando.
@@ -57,6 +59,32 @@ asset), no el centro del cuadro: el ratón queda parado ahí y no flotando.
 La grabación arranca la animación y se detiene sola al terminarla. El micrófono va
 activado por defecto —la narración en vivo es funcionalidad, no ruido— y se puede apagar
 en *Ajustes*, donde también están los uniforms del grading en vivo.
+
+### El modo FOTO no pasa por el shader
+
+*Tomar foto* no entra en el asistente: abre la **cámara frontal** con el ratón ya puesto
+encima, y ahí se arrastra, se pellizca y se dispara. El botón `⟳` cambia entre frontal y
+trasera; el `⇄` gira al ratón para que mire al otro lado. Al salir del paso se vuelve sola
+a la cámara trasera.
+
+El ratón de este paso es **`assets/raton_perez.png`**, un PNG con alfa, no un frame del
+atlas `color | matte`. Es deliberado:
+
+- Una foto no necesita animación, y el `<video>` del overlay es la pieza que más se rompe
+  en un móvil: autoplay bloqueado, códecs que faltan, decodificadores ocupados. Cuando
+  falla, la pantalla se queda con la cámara sola y parece que la app no hace nada. Un
+  `<img>` siempre pinta.
+- Por lo mismo el ratón va en el **DOM**, encima del lienzo, no dentro del shader. La
+  captura lo compone aparte en un canvas 2D (`composeShot()` en `js/main.js`), repitiendo
+  la misma geometría que usa la vista previa y añadiendo la sombra.
+
+Lo que se pierde con esa decisión es el grading: aquí el ratón **no** adopta la exposición
+ni la dominante de color del cuarto, cosa que sí hace el modo vídeo. Para una foto con
+flash o con luz de pasillo se nota poco; si llega a molestar, la salida es dibujar también
+este paso con el shader dándole un matte a partir del alfa del PNG, no volver al `<video>`.
+
+El PNG sale del render original con `python3 tools/crop_alpha.py`, que lo recorta al
+rectángulo con píxeles opacos y le deja un margen para la sombra.
 
 ### Lo que no hace, y no puede hacer
 
@@ -92,6 +120,7 @@ js/analyzer.js      SceneAnalyzer: color de un mip, ruido de un recorte nativo, 
 js/recorder.js      canvas.captureStream + MediaRecorder, con micrófono
 js/main.js          máquina de estados, gestos, grabación, foto
 assets/             catálogo, assets empaquetados y metadata (tools/build_effect.py)
+assets/raton_perez.png  el ratón del modo FOTO: PNG con alfa, sin vídeo ni shader
 ```
 
 ## Regenerar el catálogo

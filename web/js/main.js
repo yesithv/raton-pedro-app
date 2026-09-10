@@ -14,6 +14,12 @@ const state = {
   fxIndex: 0,
   meta: null,
   transform: { x: 0.5, y: 0.72, scaleFactor: 0.35 },
+  facing: "environment",
+  // Modo FOTO. Va aparte de transform a proposito: el encuadre de una foto con el nino
+  // no tiene nada que ver con el del video del cuarto, y compartir estado obligaria a
+  // recolocar el raton cada vez que se cambia de modo. y=1 es el borde inferior; el
+  // raton se ancla por los pies.
+  sticker: { x: 0.5, y: 0.94, h: 0.45, mirror: false },
   frame: 0,
   fps: 0,
   cfg: {
@@ -81,6 +87,7 @@ function toCameraRect(rect, canvasW, canvasH) {
 
 function setStep(name) {
   const step = STEPS[name];
+  const previous = state.step;
   state.step = name;
 
   el("step-title").textContent = step.title;
@@ -96,7 +103,24 @@ function setStep(name) {
   if (step.loop) overlayVideo.play().catch(() => {});
   else overlayVideo.pause();
 
+  el("sticker").hidden = !step.sticker;
+  if (step.sticker) positionSticker();
   if (step.reticle) positionReticle();
+
+  // La camara frontal pertenece al paso FOTO y solo a el. Se cambia aqui y no en el
+  // manejador del boton porque a FOTO se entra por un camino pero se sale por tres
+  // (atras, inicio y el propio boton de cambiar camara).
+  if (name === "foto" && previous !== "foto") setCamera("user");
+  else if (previous === "foto" && name !== "foto") setCamera("environment");
+}
+
+function positionSticker() {
+  const r = el("stage").getBoundingClientRect();
+  const n = el("sticker");
+  n.style.height = `${state.sticker.h * r.height}px`;
+  n.style.left = `${state.sticker.x * r.width}px`;
+  n.style.top = `${state.sticker.y * r.height}px`;
+  n.classList.toggle("mirror", state.sticker.mirror);
 }
 
 function positionReticle() {
@@ -157,6 +181,49 @@ async function cycleEffect(delta) {
 }
 
 // ---------------------------------------------------------------------------
+// Camara
+// ---------------------------------------------------------------------------
+
+/**
+ * Abre la camara indicada y deja el <video> reproduciendo.
+ *
+ * Cierra la anterior ANTES de pedir la nueva: un movil sirve una sola camara a la vez,
+ * y pedir la frontal con la trasera todavia abierta falla en iOS con NotReadableError.
+ * El precio es que si la nueva no existe hay que reabrir la vieja, que es lo que hace
+ * setCamera().
+ */
+async function openCamera(facing) {
+  cameraVideo.srcObject?.getTracks().forEach((t) => t.stop());
+  const stream = await navigator.mediaDevices.getUserMedia({
+    video: { facingMode: { ideal: facing },
+             width: { ideal: 1280 }, height: { ideal: 720 } },
+    audio: false,   // el microfono se pide aparte, solo al grabar
+  });
+  cameraVideo.srcObject = stream;
+  cameraTrack = stream.getVideoTracks()[0];
+  state.facing = facing;
+  await cameraVideo.play();
+
+  // La linterna es de la trasera: la frontal no la tiene y el boton sobra.
+  el("torch").hidden = !(cameraTrack.getCapabilities?.().torch);
+  el("torch").classList.remove("on");
+}
+
+/** Cambia de camara sin dejar la pantalla en negro si la nueva no se puede abrir. */
+async function setCamera(facing) {
+  if (state.facing === facing) return;
+  const previous = state.facing;
+  try {
+    await openCamera(facing);
+  } catch (e) {
+    toast(facing === "user"
+      ? "Este dispositivo no me deja usar la cámara frontal."
+      : "No pude volver a la cámara de atrás.");
+    try { await openCamera(previous); } catch (e2) { fail(e2.message); }
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Arranque
 // ---------------------------------------------------------------------------
 
@@ -174,14 +241,7 @@ async function boot() {
   });
 
   cameraVideo = el("camera");
-  const stream = await navigator.mediaDevices.getUserMedia({
-    video: { facingMode: { ideal: "environment" },
-             width: { ideal: 1280 }, height: { ideal: 720 } },
-    audio: false,   // el microfono se pide aparte, solo al grabar
-  });
-  cameraVideo.srcObject = stream;
-  cameraTrack = stream.getVideoTracks()[0];
-  await cameraVideo.play();
+  await openCamera("environment");
 
   await loadEffect(0);
   await overlayVideo.play().catch(() => {});
@@ -189,8 +249,6 @@ async function boot() {
 
   recorder = new CanvasRecorder(el("stage"), 30);
   el("record").disabled = !recSupported();
-
-  el("torch").hidden = !(cameraTrack.getCapabilities?.().torch);
 
   el("boot").hidden = true;
   el("bar").hidden = false;
@@ -293,7 +351,7 @@ function setupGestures() {
     if (pointers.size === 2) {
       const [a, b] = [...pointers.values()];
       pinch = { d: Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY),
-                s: state.transform.scaleFactor };
+                s: STEPS[state.step].sticker ? state.sticker.h : state.transform.scaleFactor };
     } else {
       apply(e);
     }
@@ -304,11 +362,16 @@ function setupGestures() {
     pointers.set(e.pointerId, e);
     if (pointers.size === 2 && pinch) {
       const g = STEPS[state.step].gesture;
-      if (g !== "scale") return;
+      if (g !== "scale" && g !== "moveAndScale") return;
       const [a, b] = [...pointers.values()];
       const d = Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY);
-      state.transform.scaleFactor =
-        Math.min(0.9, Math.max(0.06, pinch.s * (d / Math.max(pinch.d, 1))));
+      const factor = d / Math.max(pinch.d, 1);
+      if (g === "moveAndScale") {
+        state.sticker.h = Math.min(1.6, Math.max(0.08, pinch.s * factor));
+        positionSticker();
+      } else {
+        state.transform.scaleFactor = Math.min(0.9, Math.max(0.06, pinch.s * factor));
+      }
     } else if (pointers.size === 1) {
       apply(e);
     }
@@ -321,7 +384,12 @@ function setupGestures() {
   function apply(e) {
     const g = STEPS[state.step].gesture;
     const p = norm(e);
-    if (g === "move") {
+    if (g === "moveAndScale") {
+      // En FOTO se arrastra el PNG, no el overlay del shader.
+      state.sticker.x = clamp01(p.x);
+      state.sticker.y = clamp01(p.y);
+      positionSticker();
+    } else if (g === "move") {
       state.transform.x = clamp01(p.x);
       state.transform.y = clamp01(p.y);
       positionReticle();
@@ -390,7 +458,7 @@ async function stopRecording() {
 }
 
 function capturePhoto() {
-  el("stage").toBlob((blob) => {
+  composeShot().toBlob((blob) => {
     if (!blob) return fail("No pude capturar el lienzo.");
     const url = URL.createObjectURL(blob);
     const img = el("shot-img");
@@ -400,6 +468,48 @@ function capturePhoto() {
     el("shot-save").href = url;
     wireShare("shot-share", blob, "raton-perez.png");
   }, "image/png");
+}
+
+/**
+ * Lienzo listo para guardar.
+ *
+ * Fuera del paso FOTO es el propio #stage (lo dibuja todo el shader). En FOTO el raton
+ * es un <img> del DOM que el shader no ve, asi que hay que repetir en 2D la misma
+ * geometria que usa positionSticker(): el lienzo cubre exactamente la misma caja CSS,
+ * asi que las coordenadas normalizadas valen igual y no hace falta convertir nada mas
+ * que la escala de la sombra.
+ */
+function composeShot() {
+  const stage = el("stage");
+  const sticker = el("sticker");
+  if (!STEPS[state.step].sticker || !sticker.naturalWidth) return stage;
+
+  const out = document.createElement("canvas");
+  out.width = stage.width;
+  out.height = stage.height;
+  const ctx = out.getContext("2d");
+  ctx.drawImage(stage, 0, 0);
+
+  const h = state.sticker.h * out.height;
+  const w = h * (sticker.naturalWidth / sticker.naturalHeight);
+  const x = state.sticker.x * out.width - w / 2;
+  const y = state.sticker.y * out.height - h;
+
+  // Misma sombra que el drop-shadow del CSS, en pixeles de lienzo: sin ella el raton se
+  // ve pegado encima de la foto en vez de apoyado en la escena.
+  const k = out.height / Math.max(stage.getBoundingClientRect().height, 1);
+  ctx.shadowColor = "rgba(0, 0, 0, 0.45)";
+  ctx.shadowBlur = 16 * k;
+  ctx.shadowOffsetY = 8 * k;
+
+  if (state.sticker.mirror) {
+    ctx.translate(x + w / 2, 0);
+    ctx.scale(-1, 1);
+    ctx.drawImage(sticker, -w / 2, y, w, h);
+  } else {
+    ctx.drawImage(sticker, x, y, w, h);
+  }
+  return out;
 }
 
 function wireShare(id, blob, filename) {
@@ -429,7 +539,13 @@ async function toggleTorch() {
 
 function setupControls() {
   el("go-video").onclick = () => setStep("escanear");
-  el("go-photo").onclick = () => setStep("escanear");
+  el("go-photo").onclick = () => setStep("foto");
+  el("snap").onclick = capturePhoto;
+  el("flip").onclick = () => setCamera(state.facing === "user" ? "environment" : "user");
+  el("sticker-flip").onclick = () => {
+    state.sticker.mirror = !state.sticker.mirror;
+    positionSticker();
+  };
   el("place").onclick = () => setStep("superficie");
   el("next-superficie").onclick = () => setStep("tamano");
   el("next-tamano").onclick = () => setStep("editar");
@@ -472,7 +588,10 @@ function setupControls() {
     }
   };
 
-  addEventListener("resize", () => { if (STEPS[state.step].reticle) positionReticle(); });
+  addEventListener("resize", () => {
+    if (STEPS[state.step].reticle) positionReticle();
+    if (STEPS[state.step].sticker) positionSticker();
+  });
 }
 
 el("start").onclick = async () => {

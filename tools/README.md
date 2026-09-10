@@ -7,6 +7,15 @@ es el ground truth contra el que se valida el pipeline nativo.
 make_placeholder.py   material sintético para probar la cadena hoy
 build_effect.py       PNG RGBA -> mp4 empaquetado + metadata   (pipeline de assets)
 compose.py            clip + efecto -> mp4 compuesto           (réplica del shader)
+crop_alpha.py         PNG RGBA -> PNG recortado al contenido   (el ratón del modo FOTO)
+```
+
+`crop_alpha.py` es el único que no necesita nada instalado: solo `zlib` de la librería
+estándar. Genera `web/assets/raton_perez.png`, que el prototipo dibuja tal cual encima de
+la cámara en el paso FOTO:
+
+```bash
+python3 tools/crop_alpha.py temp/ScreenShots/Base_Image.png web/assets/raton_perez.png
 ```
 
 ## Instalación
