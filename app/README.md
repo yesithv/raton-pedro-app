@@ -9,13 +9,21 @@
 | Kotlin: 9 archivos contra el `android.jar` **real** y el jar **real** del embedding de Flutter | ✅ sin errores ni avisos |
 | Superficie de API de ARCore | ✅ **contra el artefacto real, en CI** |
 | `flutter build apk --debug` | ✅ **en CI**, APK descargable como artefacto |
+| Arranque en emulador: instala, lanza, sin crash ni ANR | ✅ **en CI** |
+| Contexto EGL ES 3.0 creado y activo | ✅ visto en el logcat del emulador |
+| Que el shader componga algo | ❌ nadie lo ha visto todavía |
+| Anclaje ARCore, cámara real, MediaCodec de gama baja | ❌ un emulador no los tiene |
 
 `.github/workflows/ci.yml` construye el APK en cada push. Ahí sí se alcanza Google Maven,
 así que valida el Android Gradle Plugin, AndroidX y la API real de ARCore — todo lo que
 un entorno con la salida de red restringida deja sin comprobar.
 
-**Nunca se ha ejecutado en un dispositivo.** Que compile no dice nada sobre si el
-pipeline GL funciona, si los timestamps cuadran o si el mp4 sale bien.
+**Nunca se ha ejecutado en un dispositivo real.** Arranca en un emulador sin reventar, y
+el logcat muestra un contexto EGL ES 3.0 creado y activo — como `Compositor.init()` corre
+en un `HandlerThread` sin try/catch, un shader que no compilara habría matado el proceso,
+así que sobrevivir es evidencia razonable de que compiló. Lo que sigue sin saberse es si
+la composición **pinta al personaje**, si los timestamps de cámara y audio cuadran, y si
+el mp4 sale bien. Eso solo lo dice un teléfono.
 
 ### Por qué falta lo que falta
 
