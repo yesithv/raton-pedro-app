@@ -282,7 +282,51 @@ Y el orden importa: la animación **se elige antes de grabar**, no después. Eso
 que el decoder solo necesita tener un asset cargado a la vez, y que la pantalla de
 selección puede reproducir en bucle sin estar grabando.
 
-### 7. UI observada
+### 7. El personaje es una caricatura, y eso recalibra el riesgo central
+
+El ratón es 3D estilizado: gris azulado, ojos grandes, dientes de conejo, sudadera
+amarilla con logo de diente, jeans y bolso. Nada foto-realista.
+
+Y las dos imágenes de marketing con la niña dormida son la evidencia fuerte: **la
+composición es mala y no importa**. El ratón lleva luz de estudio neutra y la niña luz
+cálida tenue; no hay igualación de exposición, ni grano, ni dominante de color. Se ve
+pegado. Y aun así es la imagen que ellos usan para vender el producto.
+
+La sección 1 de la arquitectura sostiene que el riesgo mayor es que *"cualquier adulto
+identifica como falso en medio segundo"*. **Esa tesis estaba calibrada para un personaje
+foto-realista.** Con una caricatura nadie exige coherencia fotométrica: el cerebro ya lo
+clasificó como dibujo y deja de comparar. Es lo que predijo la corrección #1 al pedir que
+el estilizado entrara en la primera ronda del test, solo que ahora está confirmado por un
+producto con cinco años en la calle.
+
+Consecuencias:
+
+- El grading (exposición, grano, blur, dominante) baja de **existencial** a **pulido que
+  suma**. Sigue valiendo la pena —está construido y cuesta poco— pero deja de ser lo que
+  decide si el producto existe.
+- **El riesgo mayor pasa a la ingeniería**: colocación AR y pipeline de grabación.
+- El gate del día 3 deja de ser un go/no-go de producto y pasa a ser una calibración de
+  parámetros. Sigue mereciendo la pena hacerlo; ya no puede matar el proyecto.
+
+### 8. El modo foto es un selfie con el niño dormido
+
+Las imágenes de marketing y la tarjeta "TAKE PHOTO" muestran el segundo modo: el ratón
+**grande, junto al niño dormido, con el brazo extendido fuera de cuadro** en pose de
+selfie. Otra escala, otro encuadre y otro pipeline que el modo video, donde el ratón va
+pequeño en el piso.
+
+Confirma la sección 0.5: son dos módulos, no dos usos del mismo. Y refuerza el argumento
+de construir la foto después: es la mitad del valor percibido a una fracción del costo.
+
+### 9. Sobre el personaje
+
+El flujo, las funciones y el concepto son terreno libre. El personaje concreto —ese ratón
+gris de sudadera amarilla con logo de diente— y los textos son diseño propio de ellos. El
+brief al animador de la sección 6 de la arquitectura tiene que producir un personaje
+original. Hace falta de todos modos: no hay forma de enviar a producción sin un personaje
+propio.
+
+### 10. UI observada
 
 Casa (arriba izq), volver (arriba der), linterna (abajo izq), botón de grabar (abajo
 centro; cuadrado rojo mientras graba). Toast "Video Saved to Gallery" al terminar. La
@@ -292,9 +336,13 @@ linterna coincide con el `setTorch` que ya está en el contrato de canales.
 
 ## Prototipo web
 
-`web/` es una app funcional: cámara en vivo, composición del ratón y captura de foto, en
-el navegador del teléfono y sin instalar nada. Usa el mismo `shaders/composite.frag` y el
-mismo asset empaquetado que el nativo.
+`web/` es una app funcional: cámara en vivo, composición del ratón, **grabación de video
+con micrófono** y captura de foto, en el navegador del teléfono y sin instalar nada. Usa
+el mismo `shaders/composite.frag` y el mismo asset empaquetado que el nativo.
+
+Cierra el bucle que pide el producto: colocar el ratón, ver el efecto, grabar, y guardar
+o compartir el resultado. Lo que no hace es detección de planos —WebXR depende igualmente
+de ARCore— así que la colocación es por toque.
 
 Instrucciones para abrirlo (GitHub Pages) en [`web/README.md`](../web/README.md).
 

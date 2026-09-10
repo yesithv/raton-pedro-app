@@ -25,6 +25,7 @@
 <div id="hud" hidden>
   <div id="topbar">
     <div id="dbg"></div>
+    <div id="rec-badge" hidden><span class="dot"></span><span id="rec-time">0.0s</span></div>
     <div id="clamp-warn" hidden>La exposición está tocando el borde del rango. El valor
       correcto para esta luz queda fuera: sube o baja el piso en el panel y compara.</div>
   </div>
@@ -38,10 +39,12 @@
       <label>Softness <input id="s-softness" type="range" min="0" max="2.5" step="0.05"><output id="s-softness-v"></output></label>
       <label>Grano máx <input id="s-grain-max" type="range" min="0" max="0.2" step="0.005"><output id="s-grain-max-v"></output></label>
       <label class="check">Rango limitado <input id="s-limited" type="checkbox"></label>
+      <label class="check">Micrófono <input id="s-mic" type="checkbox" checked></label>
     </div>
     <div id="bottombar">
       <button id="dbg-toggle">Ajustes</button>
       <button id="play">Reproducir</button>
+      <button id="record">Grabar</button>
       <button id="photo">Foto</button>
     </div>
   </div>
@@ -53,6 +56,16 @@
     <button id="shot-close">Cerrar</button>
     <button id="shot-share" hidden>Compartir</button>
     <a id="shot-save" class="btn" download="raton-perez.png">Guardar</a>
+  </div>
+</div>
+
+<div id="clip" hidden>
+  <video id="clip-video" controls playsinline></video>
+  <div id="clip-meta"></div>
+  <div id="clip-actions">
+    <button id="clip-close">Cerrar</button>
+    <button id="clip-share" hidden>Compartir</button>
+    <a id="clip-save" class="btn" download="raton-perez.webm">Guardar</a>
   </div>
 </div>
 

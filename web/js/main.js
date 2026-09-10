@@ -1,5 +1,6 @@
 import { Compositor } from "./compositor.js";
 import { SceneAnalyzer, ParamSolver } from "./analyzer.js";
+import { CanvasRecorder, isSupported as recSupported } from "./recorder.js";
 
 const EFFECT = "assets/portal_placeholder";
 const ANALYZE_EVERY = 10; // misma cadencia que el dispositivo (seccion 2 de la arquitectura)
@@ -23,12 +24,13 @@ const state = {
     softness: 0.8,
     smoothing: 0.15,
     limitedRange: false,
+    mic: true,   // la narracion en vivo del padre es funcion, no ruido
     manual: false,
     manualExposure: 1.0, manualGrain: 0.03,
   },
 };
 
-let compositor, analyzer, solver, cameraVideo, overlayVideo;
+let compositor, analyzer, solver, cameraVideo, overlayVideo, recorder;
 
 function fail(msg) {
   el("error").textContent = msg;
@@ -80,9 +82,15 @@ async function boot() {
   await loadOverlaySource();
   overlayVideo.addEventListener("ended", () => {
     state.playing = false;
-    goToPose();
     el("play").textContent = "Reproducir";
+    // Si estabamos grabando, la animacion manda: se corta al terminar el efecto.
+    if (recorder?.isRecording) stopRecording();
+    else goToPose();
   });
+
+  recorder = new CanvasRecorder(el("stage"), 30);
+  el("record").disabled = !recSupported();
+  if (!recSupported()) el("record").title = "Este navegador no soporta MediaRecorder";
 
   cameraVideo = el("camera");
   const stream = await navigator.mediaDevices.getUserMedia({
@@ -174,6 +182,10 @@ function loop(now) {
     timeSec: now / 1000,
   });
 
+  if (recorder?.isRecording) {
+    el("rec-time").textContent = (recorder.elapsedMs / 1000).toFixed(1) + "s";
+  }
+
   state.frame++;
   frames++;
   if (now - fpsT > 500) {
@@ -261,6 +273,79 @@ function play() {
   el("play").textContent = "Pausar";
 }
 
+async function startRecording() {
+  try {
+    if (state.cfg.mic && !recorder.micEnabled) {
+      const ok = await recorder.enableMic();
+      if (!ok) fail("No conseguí permiso de micrófono. Grabo solo vídeo.");
+    }
+    recorder.start();
+  } catch (e) {
+    return fail(e.message);
+  }
+
+  // Grabar y reproducir el efecto son la misma accion, igual que startRecording() en
+  // el contrato nativo (seccion 5 de la arquitectura).
+  overlayVideo.currentTime = 0;
+  overlayVideo.play();
+  state.playing = true;
+  el("play").textContent = "Pausar";
+
+  el("record").textContent = "Detener";
+  el("record").classList.add("rec");
+  el("rec-badge").hidden = false;
+}
+
+async function stopRecording() {
+  let result;
+  try {
+    result = await recorder.stop();
+  } catch (e) {
+    return fail(e.message);
+  } finally {
+    el("record").textContent = "Grabar";
+    el("record").classList.remove("rec");
+    el("rec-badge").hidden = true;
+  }
+
+  overlayVideo.pause();
+  state.playing = false;
+  el("play").textContent = "Reproducir";
+  goToPose();
+
+  const url = URL.createObjectURL(result.blob);
+  const video = el("clip-video");
+  if (video.src) URL.revokeObjectURL(video.src);
+  video.src = url;
+  el("clip").hidden = false;
+  // Reproducir de inmediato, y no solo por comodidad: MediaRecorder no escribe la
+  // duracion en el contenedor (ffmpeg reporta "Duration: N/A"), asi que el <video> no
+  // pinta ningun frame hasta que empieza a reproducir y se ve un rectangulo negro. El
+  // usuario creeria que la grabacion fallo. Va despues de un gesto del usuario -el
+  // boton de detener-, asi que la politica de autoplay lo permite con audio.
+  el("clip-video").play().catch(() => {});
+  el("clip-meta").textContent =
+    `${(result.durationMs / 1000).toFixed(1)}s · ${(result.blob.size / 1e6).toFixed(1)} MB · ` +
+    `${result.mimeType.split(";")[0]}${recorder.micEnabled ? " · con micrófono" : " · sin audio"}` +
+    (CanvasRecorder.isAmbiguous(result.mimeType)
+      ? " · ojo: este navegador no declaró el códec, comprueba que el archivo abra fuera"
+      : "");
+
+  const ext = CanvasRecorder.extensionFor(result.mimeType);
+  el("clip-save").href = url;
+  el("clip-save").download = `raton-perez.${ext}`;
+  el("clip-share").hidden = !navigator.canShare;
+  el("clip-share").onclick = async () => {
+    const file = new File([result.blob], `raton-perez.${ext}`, { type: result.blob.type });
+    if (navigator.canShare?.({ files: [file] })) await navigator.share({ files: [file] });
+  };
+}
+
+function toggleRecording() {
+  if (recorder?.isRecording) stopRecording();
+  else startRecording();
+}
+
 function capturePhoto() {
   el("stage").toBlob((blob) => {
     if (!blob) return fail("No pude capturar el lienzo.");
@@ -281,7 +366,18 @@ function capturePhoto() {
 function setupControls() {
   el("play").onclick = play;
   el("photo").onclick = capturePhoto;
+  el("record").onclick = toggleRecording;
   el("shot-close").onclick = () => { el("shot").hidden = true; };
+  el("clip-close").onclick = () => { el("clip").hidden = true; el("clip-video").pause(); };
+  el("s-mic").checked = state.cfg.mic;
+  el("s-mic").onchange = async (e) => {
+    state.cfg.mic = e.target.checked;
+    if (!state.cfg.mic) recorder?.disableMic();
+    else if (recorder && !(await recorder.enableMic())) {
+      e.target.checked = state.cfg.mic = false;
+      fail("El navegador negó el micrófono.");
+    }
+  };
   el("dbg-toggle").onclick = () => { el("panel").hidden = !el("panel").hidden; };
 
   for (const [id, key, fmt] of [

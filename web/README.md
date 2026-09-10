@@ -1,16 +1,17 @@
 # Prototipo web
 
-Cámara en vivo + composición del ratón + captura de foto, en el navegador del teléfono.
-Sin instalar nada.
+Cámara en vivo, composición del ratón, **grabación de video con micrófono** y captura de
+foto, en el navegador del teléfono. Sin instalar nada.
 
 **Qué es:** la forma más barata de tener la composición en las manos y en un cuarto real.
 El shader es literalmente el mismo archivo que va al nativo (`shaders/composite.frag`), y
 el asset es el mismo mp4 empaquetado que produce `tools/build_effect.py`.
 
-**Qué no es:** la app. No graba video con encoder de hardware (eso es MediaCodec /
-AVAssetWriter), y el rendimiento en gama baja dentro de un navegador es peor que el del
-nativo. Sirve para decidir dirección de arte y para validar la matemática de composición,
-no para medir fps de producción.
+**Qué no es:** la app. Graba con `MediaRecorder`, no con encoder de hardware sobre una
+input Surface (eso es MediaCodec / AVAssetWriter), y el rendimiento en gama baja dentro de
+un navegador es peor que el del nativo. Tampoco hace detección de planos: WebXR depende
+igualmente de ARCore, así que la colocación es por toque. Sirve para decidir dirección de
+arte y validar la composición, no para medir fps de producción.
 
 ## Cómo abrirlo en el teléfono
 
@@ -40,7 +41,9 @@ python3 -m http.server 8000     # desde la raíz del repo
 | Mover | Arrastrar |
 | Escalar | Pellizcar |
 | Reproducir la animación | Botón *Reproducir* |
-| Capturar | Botón *Foto* → Guardar o Compartir |
+| Grabar video | Botón *Grabar*. Arranca la animación y se detiene solo al terminarla |
+| Capturar foto | Botón *Foto* → Guardar o Compartir |
+| Narrar con tu voz | Casilla *Micrófono* en *Ajustes*, activada por defecto |
 | Ver y ajustar los uniforms | Botón *Ajustes* |
 | Igualar la dominante de color del cuarto | Deslizador *Balance color* en *Ajustes* |
 
@@ -80,7 +83,25 @@ Son dos, y están acotadas en `toWebGL()` de `compositor.js`:
 Cualquier otra divergencia sería un bug: si la matemática deja de ser la misma, el
 prototipo deja de valer como referencia del nativo.
 
-## Sobre el `.webm`
+## Sobre el formato de grabación
+
+El orden de preferencia de `recorder.js` pone los códecs **explícitos** primero y
+`video/mp4` a secas al final. No es cosmético: Chromium acepta `MediaRecorder` con
+`video/mp4` y produce **VP9 dentro de un contenedor mp4**. Ese archivo se llama `.mp4`,
+no lo abre Fotos de iOS, ni QuickTime, ni WhatsApp, y el usuario acaba con un video que no
+puede compartir — que es justo el punto del producto. Verificado con ffmpeg sobre la
+salida real: `Stream #0:0 Video: vp9 (Profile 0) (vp09)`.
+
+Con el orden actual, Chrome real y Safari caen en mp4/H.264 y un Chromium sin códecs
+propietarios cae en webm/VP9, que al menos es honesto sobre lo que contiene. Si aun así se
+acaba en el `video/mp4` ambiguo, la línea de metadatos del clip lo advierte.
+
+Limitación conocida: `MediaRecorder` no escribe la duración en el contenedor (`ffmpeg`
+reporta `Duration: N/A`), así que la barra de progreso del reproductor no funciona. Por eso
+la previsualización arranca reproduciendo sola: si no, se ve un rectángulo negro y parece
+que la grabación falló.
+
+## Sobre el `.webm` del asset
 
 `build_effect.py --webm` emite un VP9 hermano del mp4. **Ningún teléfono lo necesita**:
 Safari en iOS y Chrome en Android decodifican H.264 por hardware. Existe porque hay builds

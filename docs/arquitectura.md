@@ -99,6 +99,14 @@ complica, porque es la mitad del valor percibido a una décima parte del costo.
 
 ## 1. El riesgo más grande (entregable 5, primero)
 
+> **Corrección (ver `plan-de-trabajo.md`, hallazgo 7).** Esta sección está calibrada para
+> un personaje **foto-realista**. El de la app de referencia es una caricatura 3D, y sus
+> propias imágenes de marketing componen sin ningún grading y funcionan igual: a un dibujo
+> nadie le exige coherencia fotométrica. Con esa dirección de arte, el grading baja de
+> existencial a pulido, y el riesgo mayor pasa a la ingeniería —colocación AR y pipeline
+> de grabación—. El análisis que sigue conserva su valor si el personaje se vuelve
+> realista.
+
 **No es el shader. No es la grabación. Es que el resultado no se vea creíble de noche.**
 
 El feed de cámara en un cuarto oscuro a las 11pm es: ISO altísimo, ruido cromático denso,
