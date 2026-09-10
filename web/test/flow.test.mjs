@@ -196,6 +196,66 @@ await page.click('#home');
 const atHome = await page.isVisible('#ui-inicio');
 check('inicio vuelve al principio', () => assert(atHome));
 
+console.log('foto con el ratón');
+// El modo FOTO no pasa por el shader: el ratón es un PNG con alfa encima de la cámara y
+// la captura lo compone en 2D. Lo que hay que demostrar es justo eso — que el personaje
+// acaba DENTRO del archivo guardado, no solo dibujado en la pantalla.
+await page.click('#go-photo');
+const foto = await page.textContent('#step-title');
+check('paso FOTO', () => assert.equal(foto, 'FOTO'));
+const stickerVisible = await page.isVisible('#sticker');
+const editorVisible = await page.isVisible('#ui-editar');
+check('el ratón está a la vista', () => assert(stickerVisible));
+check('el catálogo de animaciones no pinta aquí', () => assert(!editorVisible));
+
+await page.mouse.click(206, 640);     // los pies del ratón, a media pantalla
+await page.click('#flip');            // cambiar de cámara y seguir vivo
+await page.waitForTimeout(1200);
+const camaraViva = await page.evaluate(() =>
+  document.getElementById('camera').readyState >= 2);
+check('la cámara sigue dando imagen tras cambiarla', () => assert(camaraViva));
+await shot('7_foto');
+
+await page.click('#snap');
+await page.waitForSelector('#shot:not([hidden])', { timeout: 15_000 });
+await shot('8_foto_resultado');
+
+const captura = await page.evaluate(async () => {
+  const img = document.getElementById('shot-img');
+  await img.decode();
+  const stage = document.getElementById('stage');
+  const c = document.createElement('canvas');
+  c.width = img.naturalWidth;
+  c.height = img.naturalHeight;
+  const ctx = c.getContext('2d');
+  // Caja donde quedó el ratón: anclado por los pies en (0.5, 0.717) y con una altura de
+  // 0.45 de la pantalla, el cuerpo cae en el tercio central.
+  const box = [Math.round(c.width * 0.36), Math.round(c.height * 0.40),
+               Math.round(c.width * 0.28), Math.round(c.height * 0.25)];
+  ctx.drawImage(img, 0, 0);
+  const conRaton = ctx.getImageData(...box).data;
+  ctx.drawImage(stage, 0, 0);          // el lienzo NO lleva el ratón: es solo la cámara
+  const sinRaton = ctx.getImageData(...box).data;
+  let acc = 0;
+  for (let i = 0; i < conRaton.length; i += 4) {
+    acc += Math.abs(conRaton[i] - sinRaton[i]) +
+           Math.abs(conRaton[i + 1] - sinRaton[i + 1]) +
+           Math.abs(conRaton[i + 2] - sinRaton[i + 2]);
+  }
+  return { w: img.naturalWidth, h: img.naturalHeight, diff: acc / (conRaton.length / 4 * 3) };
+});
+console.log(`  foto ${captura.w}x${captura.h} · diferencia media ${captura.diff.toFixed(1)}/255`);
+check('la foto guardada tiene el tamaño del lienzo', () =>
+  assert(captura.w > 0 && captura.h > 0, 'foto sin dimensiones'));
+check('el ratón está DENTRO de la foto, no solo en pantalla', () =>
+  assert(captura.diff > 12,
+    `la zona del ratón es casi idéntica a la cámara sola: ${captura.diff.toFixed(1)}/255`));
+
+await page.click('#shot-close');
+await page.click('#home');
+const deFotoAInicio = await page.isVisible('#ui-inicio');
+check('foto vuelve al principio', () => assert(deFotoAInicio));
+
 await browser.close();
 
 console.log();
