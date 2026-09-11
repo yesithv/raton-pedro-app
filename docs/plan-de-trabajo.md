@@ -419,9 +419,14 @@ arregla con una paleta nueva. La identidad es el personaje sobre la habitación 
 cualquier color que compita con eso resta. Por eso el sistema es casi monocromo y el único
 acento fuerte es el amarillo de su sudadera.
 
-**Dos decisiones siguen abiertas**, a propósito, y el prototipo existe para cerrarlas:
-inicio mínimo (`1a`) o guiado (`1b`), y paso 1 con hoja inferior (`1c`) o sin paneles
-(`1d`). No se deciden mirando un PDF: se deciden de noche, en el cuarto, con una mano.
+**Inicio: decidido `1b`, el guiado.** Las dos tarjetas que dicen qué sale y cuánto tarda,
+frente al obturador desnudo de `1a`. Cuesta una lectura la primera noche y a cambio la
+primera decisión deja de tomarse a ciegas, que era el problema 1 del brief.
+
+**Paso 1 sigue abierto**: hoja inferior (`1c`) o sin paneles (`1d`). Es la decisión más
+cara de las dos, porque `1d` cambia cómo se descubre la función —se toca al propio
+personaje para cambiar lo que hace— y eso no se juzga leyendo: se juzga de noche, en el
+cuarto, con una mano.
 
 Lo que el diseño todavía **no** cubre y la app necesita: permiso denegado, navegador sin
 grabación, clip en formato que el carrete no acepta y aviso de luz fuera de rango. Esa es

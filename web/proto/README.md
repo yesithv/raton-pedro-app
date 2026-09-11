@@ -19,8 +19,11 @@ móvil en la mano, de noche, que mirando un PDF:
 
 | Decisión | Opción A | Opción B |
 |---|---|---|
-| **Inicio** | `1a` **mínima** — un obturador y un conmutador VÍDEO/FOTO. Cero lectura a partir de la segunda noche. | `1b` **guiada** — dos tarjetas que dicen qué sale y cuánto tarda. Cuesta una lectura la primera vez. |
-| **Paso 1** | `1c` **hoja inferior** — panel con el título, las tres animaciones y el botón. Ocupa el tercio de abajo. | `1d` **sin paneles** — una línea que se desvanece a los 3 s y se toca al ratón para cambiar lo que hace. Nada tapa la cama, pero hay que descubrir el gesto. |
+| **Inicio** — *decidido: `1b`* | `1a` **mínima** — un obturador y un conmutador VÍDEO/FOTO. Cero lectura a partir de la segunda noche. | ✅ `1b` **guiada** — dos tarjetas que dicen qué sale y cuánto tarda. Cuesta una lectura la primera vez. |
+| **Paso 1** — *abierto* | `1c` **hoja inferior** — panel con el título, las tres animaciones y el botón. Ocupa el tercio de abajo. | `1d` **sin paneles** — una línea que se desvanece a los 3 s y se toca al ratón para cambiar lo que hace. Nada tapa la cama, pero hay que descubrir el gesto. |
+
+El prototipo arranca ya en `1b`. El conmutador sigue ahí para volver a comparar: una
+decisión tomada de noche conviene poder revisarla.
 
 La barra negra de arriba conmuta entre las cuatro. **No es parte del diseño**: se quita
 con *ocultar* (o abriendo con `?limpio`), y vuelve con siete toques sobre el título del
