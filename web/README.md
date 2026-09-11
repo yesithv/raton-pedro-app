@@ -54,6 +54,33 @@ Reproduce paso por paso el asistente de la app de referencia:
 | **FOTO** | Cámara frontal + ratón encima, para la foto con el niño | Arrastrar y pellizcar |
 | **CERTIFICADO** | El documento que deja el Ratón, para imprimir o dejar bajo la almohada | Rellenar |
 
+## Dos temas, y la app no elige por su cuenta
+
+Claro y oscuro, con **tres estados**: sigue al sistema (lo de fábrica), siempre claro, o
+siempre oscuro. Se cambia con el botón de la pantalla de arranque, y la elección se guarda.
+
+No es indecisión. El diseño de la ronda 1 pedía oscuro fijo porque la app se usa de noche
+junto a un niño dormido y la pantalla es casi la única luz del cuarto; el claro se lee
+mejor a cualquier otra hora y es lo que la mayoría espera. Los dos motivos son buenos y se
+contradicen, así que decide quien sabe qué hora es y dónde está.
+
+Tres cosas que conviene saber si se tocan los estilos:
+
+- **Nada de colores escritos a mano fuera del bloque `:root`.** Si un color difiere entre
+  temas es un token; si no, no lo es. Cada valor escrito en una regla suelta es un fallo
+  de tema esperando a que alguien lo vea.
+- **Sobre el vídeo en vivo la interfaz se apoya en velos degradados, no en planchas
+  opacas.** Una plancha blanca a pantalla completa de noche es una linterna, y además
+  taparía la cama, que es lo único que hay que ver. Los velos se desvanecen hacia el
+  centro.
+- **Los tokens del tema oscuro están duplicados** —uno para «el sistema está en oscuro» y
+  otro para «el usuario lo eligió»— porque sin preprocesador no hay forma de evitarlo. La
+  prueba del asistente compara los dos bloques y falla si alguien toca uno y olvida el
+  otro.
+
+El **certificado no sigue el tema**: es papel y se imprime. Un documento oscuro se lee mal
+en papel y se come un cartucho.
+
 ## La paleta es el personaje
 
 Los colores de la interfaz están **medidos sobre el render del personaje**

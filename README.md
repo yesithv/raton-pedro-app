@@ -19,7 +19,8 @@ Fase de validación. El prototipo web reproduce los **dos modos** de la app de r
   española (nombre, fecha, qué diente, estado del diente y recompensa). Se rellena viendo
   la vista previa, y se guarda en el carrete o se manda a la impresora en A4.
 
-Más la cadena de herramientas offline.
+Más la cadena de herramientas offline. La interfaz tiene **tema claro y oscuro**, con un
+conmutador de tres estados que por defecto sigue al teléfono.
 
 Falta lo que sólo existe en nativo: **detección de planos** (ARCore/ARKit) y **guardado
 automático en la galería** — ninguna página web puede escribir en el carrete, no hay API,

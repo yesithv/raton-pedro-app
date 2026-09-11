@@ -454,6 +454,23 @@ Lo que sigue pendiente, por orden:
 4. Los estados que el diseño aún no cubre: permiso denegado, navegador sin grabación,
    formato que el carrete no acepta, luz fuera de rango. Es la ronda 2.
 
+### El tema oscuro fijo deja de serlo
+
+El diseño de la ronda 1 listaba *«tema oscuro fijo, sin modo claro»* entre lo que no
+tocaría, y la razón era buena: la app se usa de noche junto a un niño dormido y la
+pantalla es casi la única luz del cuarto. Un blanco a pantalla completa a esa hora
+deslumbra.
+
+**Decisión de producto: hay dos temas.** El claro se lee mejor a cualquier otra hora y es
+lo que la mayoría espera; el oscuro sigue siendo el bueno de noche. Los dos motivos son
+válidos y se contradicen, así que elige quien sabe qué hora es: el conmutador del arranque
+tiene tres estados —sigue al sistema, siempre claro, siempre oscuro— y por defecto hace
+caso al teléfono, que ya cambia solo al anochecer.
+
+El riesgo que el diseño señalaba no desaparece, se acota: sobre el vídeo en vivo la
+interfaz se apoya en **velos degradados** y no en planchas opacas, así que ni siquiera en
+claro el móvil se convierte en una linterna, y la cama sigue viéndose.
+
 ### La paleta sale del personaje, y está medida
 
 Los tokens de `web/app.css` no se eligieron a ojo: se **midieron** sobre el render,
