@@ -570,7 +570,6 @@ const cert = {
   nombre: "", fecha: hoyISO(), diente: "primero", estado: "super", premio: "", nota: "",
 };
 let certRaton;          // el PNG del personaje, ya decodificado
-let certPendiente;      // temporizador: redibujar en cada tecla es tirar trabajo
 
 function hoyISO() {
   const d = new Date();
@@ -591,24 +590,32 @@ function pintarChips(contenedor, opciones, campo) {
       for (const otro of contenedor.children) {
         otro.setAttribute("aria-pressed", String(otro === b));
       }
-      redibujarCert();
     };
     contenedor.appendChild(b);
   }
 }
 
 /**
- * Redibuja la vista previa, que ES el archivo: el mismo canvas que luego se guarda.
+ * Genera el documento y pasa al segundo paso.
  *
- * Se agrupa con un temporizador corto porque el certificado se redibuja entero -grano
- * del papel incluido- y hacerlo en cada pulsación de tecla se nota en un teléfono viejo.
+ * El certificado se dibuja UNA VEZ, al pulsar. La versión anterior lo redibujaba en cada
+ * tecla para enseñar una vista previa en vivo; separado en dos pasos eso deja de hacer
+ * falta, y de paso se ahorra redibujar entero -grano del papel incluido- treinta veces
+ * mientras se escribe un nombre.
  */
-function redibujarCert() {
-  clearTimeout(certPendiente);
-  certPendiente = setTimeout(() => {
-    drawCertificate(el("cert-canvas"), cert, certRaton);
-    prepararGuardadoCert();
-  }, 60);
+function generarCertificado() {
+  drawCertificate(el("cert-canvas"), cert, certRaton);
+  prepararGuardadoCert();
+  el("cert").dataset.paso = "documento";
+  el("cert-scroll").scrollTo(0, 0);
+  el("cert-doc-titulo").textContent = `Ya está firmado`;
+}
+
+/** El nombre es lo único que no se puede dejar en blanco: sin él no hay certificado. */
+function revisarNombre() {
+  const hay = cert.nombre.trim().length > 0;
+  el("cert-generar").disabled = !hay;
+  return hay;
 }
 
 /** Deja listos guardar y compartir con la imagen actual. */
@@ -639,9 +646,10 @@ async function abrirCertificado() {
   el("cert-nota").value = cert.nota;
   pintarChips(el("cert-diente"), DIENTES, "diente");
   pintarChips(el("cert-estado"), ESTADOS, "estado");
+  revisarNombre();
+  el("cert").dataset.paso = "datos";     // siempre se entra por los datos
   el("cert").hidden = false;
-  drawCertificate(el("cert-canvas"), cert, certRaton);
-  prepararGuardadoCert();
+  el("cert-scroll").scrollTo(0, 0);
 }
 
 function setupCertificado() {
@@ -649,10 +657,16 @@ function setupCertificado() {
                              ["cert-premio", "premio"], ["cert-nota", "nota"]]) {
     el(id).oninput = (e) => {
       cert[campo] = e.target.value;
-      redibujarCert();
+      if (campo === "nombre") revisarNombre();
     };
   }
   el("go-cert").onclick = abrirCertificado;
+  el("cert-generar").onclick = () => { if (revisarNombre()) generarCertificado(); };
+  // Volver a los datos conserva lo escrito: se corrige una errata sin repetirlo todo.
+  el("cert-volver").onclick = () => {
+    el("cert").dataset.paso = "datos";
+    el("cert-scroll").scrollTo(0, 0);
+  };
   el("cert-close").onclick = () => { el("cert").hidden = true; };
   el("cert-print").onclick = () => window.print();
 }

@@ -503,6 +503,17 @@ puede confundirse con una acción, y en rojo se confundiría con los botones.
 El contraste está comprobado, no supuesto: texto sobre fondo 15:1, texto tenue 6:1, y el
 texto blanco sobre el botón rojo 5,2:1 — por encima del 4,5:1 que pide WCAG AA.
 
+### El certificado: los datos primero, el documento al final
+
+Va en dos pasos. La primera versión enseñaba el documento mientras se rellenaba, con la
+idea de que ver el nombre del peque aparecer en el papel fuera el momento emotivo. En
+pantalla de móvil las dos cosas se estorban: el formulario se ve a medias y el documento
+también.
+
+Separado, cada uno ocupa lo que necesita y el certificado llega como lo que es, el
+resultado. El nombre pasa a ser obligatorio —sin él no hay certificado— y *Editar*
+conserva lo escrito.
+
 ### El certificado, y por qué sus campos son esos
 
 La convención española del Ratoncito Pérez está más cerrada de lo que parece, y no

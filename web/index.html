@@ -185,53 +185,73 @@
   <div id="shot-tip" class="tip"></div>
 </div>
 
-<!-- Certificado del Ratón -->
-<div id="cert" hidden>
+<!-- Certificado del Ratón: primero los datos, y el documento al final -->
+<div id="cert" data-paso="datos" hidden>
+  <!-- Cerrar vive fuera de los dos pasos: en el paso del documento no había salida. -->
+  <button id="cert-close" class="icon" aria-label="Cerrar el certificado" title="Cerrar">✕</button>
+
   <div id="cert-scroll">
-    <div id="cert-preview">
-      <canvas id="cert-canvas" aria-label="Vista previa del certificado"></canvas>
+
+    <!-- Paso 1: los datos -->
+    <div id="cert-datos">
+      <h2 class="titulo-hoja">El certificado del Ratón</h2>
+      <p class="fine texto-hoja">Rellena lo que sepas. Lo único imprescindible es el
+         nombre; el resto lo puedes dejar como está.</p>
+
+      <div id="cert-form">
+        <label class="field">
+          <span>¿Cómo se llama?</span>
+          <input id="cert-nombre" type="text" maxlength="28" autocomplete="off"
+                 enterkeyhint="done" placeholder="Su nombre">
+        </label>
+
+        <label class="field">
+          <span>¿Qué día se le cayó?</span>
+          <input id="cert-fecha" type="date">
+        </label>
+
+        <div class="field">
+          <span>¿Cuál se llevó el Ratón?</span>
+          <div id="cert-diente" class="chips" role="group" aria-label="Qué diente"></div>
+        </div>
+
+        <div class="field">
+          <span>¿Cómo estaba el diente?</span>
+          <div id="cert-estado" class="chips" role="group" aria-label="Estado del diente"></div>
+        </div>
+
+        <label class="field">
+          <span>¿Qué le dejó a cambio? <i>opcional</i></span>
+          <input id="cert-premio" type="text" maxlength="24" autocomplete="off"
+                 placeholder="Una moneda">
+        </label>
+
+        <label class="field">
+          <span>Unas palabras del Ratón <i>opcional</i></span>
+          <input id="cert-nota" type="text" maxlength="90" autocomplete="off"
+                 placeholder="Eres muy valiente, Lucía.">
+        </label>
+      </div>
     </div>
 
-    <div id="cert-form">
-      <label class="field">
-        <span>¿Cómo se llama?</span>
-        <input id="cert-nombre" type="text" maxlength="28" autocomplete="off"
-               enterkeyhint="done" placeholder="Su nombre">
-      </label>
-
-      <label class="field">
-        <span>¿Qué día se le cayó?</span>
-        <input id="cert-fecha" type="date">
-      </label>
-
-      <div class="field">
-        <span>¿Cuál se llevó el Ratón?</span>
-        <div id="cert-diente" class="chips" role="group" aria-label="Qué diente"></div>
+    <!-- Paso 2: el documento -->
+    <div id="cert-doc">
+      <h2 class="titulo-hoja" id="cert-doc-titulo">Ya está firmado</h2>
+      <p class="fine texto-hoja">Guárdalo en el carrete o mándalo a la impresora.</p>
+      <div id="cert-preview">
+        <canvas id="cert-canvas" aria-label="El certificado"></canvas>
       </div>
-
-      <div class="field">
-        <span>¿Cómo estaba el diente?</span>
-        <div id="cert-estado" class="chips" role="group" aria-label="Estado del diente"></div>
-      </div>
-
-      <label class="field">
-        <span>¿Qué le dejó a cambio? <i>opcional</i></span>
-        <input id="cert-premio" type="text" maxlength="24" autocomplete="off"
-               placeholder="Una moneda">
-      </label>
-
-      <label class="field">
-        <span>Unas palabras del Ratón <i>opcional</i></span>
-        <input id="cert-nota" type="text" maxlength="90" autocomplete="off"
-               placeholder="Eres muy valiente, Lucía.">
-      </label>
     </div>
   </div>
 
   <div id="cert-actions">
+    <!-- Paso 1 -->
+    <button id="cert-generar" class="primary">Crear el certificado</button>
+
+    <!-- Paso 2 -->
     <button id="cert-share" hidden class="primary">Guardar en Fotos</button>
-    <div class="actions">
-      <button id="cert-close">Cerrar</button>
+    <div class="actions" id="cert-acciones-doc">
+      <button id="cert-volver">Editar</button>
       <button id="cert-print" class="btn">Imprimir</button>
       <a id="cert-save" class="btn" download="certificado-raton-perez.png">Descargar</a>
     </div>
