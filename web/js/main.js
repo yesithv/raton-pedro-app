@@ -95,6 +95,7 @@ function setStep(name) {
   el("hint").hidden = !step.hint;
   el("reticle").hidden = !step.reticle;
   el("chrome").hidden = name === "inicio";
+  el("inicio-head").hidden = name !== "inicio";   // el titular solo vive en INICIO
   el("back").hidden = !step.back;
 
   for (const k of Object.keys(STEPS)) el(`ui-${k}`).hidden = k !== name;

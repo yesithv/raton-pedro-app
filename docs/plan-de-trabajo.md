@@ -423,10 +423,25 @@ acento fuerte es el amarillo de su sudadera.
 frente al obturador desnudo de `1a`. Cuesta una lectura la primera noche y a cambio la
 primera decisión deja de tomarse a ciegas, que era el problema 1 del brief.
 
-**Paso 1 sigue abierto**: hoja inferior (`1c`) o sin paneles (`1d`). Es la decisión más
-cara de las dos, porque `1d` cambia cómo se descubre la función —se toca al propio
-personaje para cambiar lo que hace— y eso no se juzga leyendo: se juzga de noche, en el
-cuarto, con una mano.
+**Paso 1: decidido `1c`, la hoja inferior.** Frente a `1d`, que no tapaba nada pero exigía
+descubrir que al personaje se le toca para cambiar lo que hace. Gana tener todo a la vista
+al precio del tercio inferior de la pantalla — un gesto que hay que descubrir es un gesto
+que la mitad de los padres no descubre.
+
+### Estado de la implementación
+
+`web/` ya lleva **el arranque y el inicio guiado**, además del sistema visual entero
+(paleta, radios, tipografía). El asistente conserva su estructura de cinco pasos: fundirlo
+en dos es el siguiente encargo, y es cambio de máquina de estados, no de piel.
+
+Lo que sigue pendiente, por orden:
+
+1. Fundir POSICIÓN y TAMAÑO en *Colócalo*, meter el retículo dentro del primer paso y
+   bajar EDITAR a una fila de la hoja.
+2. Pantalla de recompensa tras guardar.
+3. Sacar *Ajustes* de la interfaz (siete toques o `?dev=1`).
+4. Los estados que el diseño aún no cubre: permiso denegado, navegador sin grabación,
+   formato que el carrete no acepta, luz fuera de rango. Es la ronda 2.
 
 Lo que el diseño todavía **no** cubre y la app necesita: permiso denegado, navegador sin
 grabación, clip en formato que el carrete no acepta y aviso de luz fuera de rango. Esa es

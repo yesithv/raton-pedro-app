@@ -14,16 +14,16 @@ En local, desde la raíz del repo: `python3 -m http.server 8000` →
 
 ## Para qué existe
 
-El diseño dejó **dos decisiones abiertas** a propósito, y las dos se toman mejor con el
-móvil en la mano, de noche, que mirando un PDF:
+El diseño dejó **dos decisiones abiertas** a propósito. Las dos están tomadas —`1b` y
+`1c`—, y el prototipo se queda como registro de lo que se descartó y por qué:
 
 | Decisión | Opción A | Opción B |
 |---|---|---|
 | **Inicio** — *decidido: `1b`* | `1a` **mínima** — un obturador y un conmutador VÍDEO/FOTO. Cero lectura a partir de la segunda noche. | ✅ `1b` **guiada** — dos tarjetas que dicen qué sale y cuánto tarda. Cuesta una lectura la primera vez. |
-| **Paso 1** — *abierto* | `1c` **hoja inferior** — panel con el título, las tres animaciones y el botón. Ocupa el tercio de abajo. | `1d` **sin paneles** — una línea que se desvanece a los 3 s y se toca al ratón para cambiar lo que hace. Nada tapa la cama, pero hay que descubrir el gesto. |
+| **Paso 1** — *decidido: `1c`* | ✅ `1c` **hoja inferior** — panel con el título, las tres animaciones y el botón. Ocupa el tercio de abajo. | `1d` **sin paneles** — una línea que se desvanece a los 3 s y se toca al ratón para cambiar lo que hace. Nada tapa la cama, pero hay que descubrir el gesto. |
 
-El prototipo arranca ya en `1b`. El conmutador sigue ahí para volver a comparar: una
-decisión tomada de noche conviene poder revisarla.
+El prototipo arranca ya en `1b` + `1c`. El conmutador sigue ahí para volver a comparar:
+una decisión tomada de noche conviene poder revisarla.
 
 La barra negra de arriba conmuta entre las cuatro. **No es parte del diseño**: se quita
 con *ocultar* (o abriendo con `?limpio`), y vuelve con siete toques sobre el título del
