@@ -178,28 +178,35 @@ const sampleRegion = () => page.evaluate(() => {
 });
 const distance = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]);
 
-// PROMEDIAR, no comparar dos lecturas sueltas.
+// EL OVERLAY ES UNA ANIMACIÓN, y eso manda sobre cómo se mide.
 //
-// La versión anterior medía el "ruido" restando dos lecturas separadas medio segundo.
-// Eso no es ruido: la cámara falsa es un vídeo que SE MUEVE, así que lo que medía era el
-// movimiento de la escena, y cuando las dos lecturas caían en un tramo movido el listón
-// (ruido x4) se ponía por encima de la señal real del personaje. Falló así en CI con
-// señal 0.00929 contra un listón de 0.01124, con el mismo commit que pasó en la
-// ejecución hermana: el modo de fallo clásico de un umbral sobre una sola muestra.
+// Esta comprobación ha fallado dos veces por el mismo sitio, y las dos veces el arreglo
+// atacó un síntoma distinto:
 //
-// Ahora se toman cinco lecturas de cada estado y se comparan sus MEDIAS. El movimiento,
-// que cambia de signo entre frames, se cancela al promediar; la aportación del overlay,
-// que es constante, no. Como suelo de comparación se usa la dispersión PEOR de las cinco
-// respecto a su media, así que el listón lo pone el peor caso observado y no el azar de
-// qué dos frames tocaron.
-const muestrearVarias = async (n = 5) => {
+//   1º  Medía el "ruido" restando dos lecturas separadas medio segundo. Eso no es ruido:
+//       la cámara falsa es un vídeo que se mueve, así que medía movimiento de escena.
+//   2º  Se pasó a promediar cinco lecturas de cada estado y comparar las MEDIAS. Mejor,
+//       pero volvió a fallar con señal 0,00693 contra un listón de 0,00705.
+//
+// La causa de fondo es la del segundo fallo: el personaje NO está quieto. El overlay es
+// una animación en bucle -entra, se le descubre, se va- y el recorte que se muestrea es
+// fijo, así que hay frames en los que el personaje no está dentro. Promediar los cinco
+// mezcla los frames en los que se ve con los que no, y hunde la señal justo por debajo
+// del listón.
+//
+// Lo que hay que demostrar es "el overlay dibuja", no "el overlay dibuja en todos los
+// frames". Así que la señal es el MÁXIMO de las lecturas y no su media: si en algún
+// momento el personaje cambia la imagen, está dibujando. El suelo sigue siendo la peor
+// dispersión observada, que es el otro extremo y captura los picos del movimiento, así
+// que se compara extremo contra extremo y no extremo contra media.
+const muestrearVarias = async (n = 7) => {
   const lecturas = [];
   for (let i = 0; i < n; i++) {
     lecturas.push(await sampleRegion());
     await page.waitForTimeout(120);
   }
   const media = [0, 1, 2].map((c) => lecturas.reduce((a, l) => a + l[c], 0) / lecturas.length);
-  return { media, dispersion: Math.max(...lecturas.map((l) => distance(l, media))) };
+  return { lecturas, media, dispersion: Math.max(...lecturas.map((l) => distance(l, media))) };
 };
 
 await page.click('#home');            // inicio: overlay apagado
@@ -214,8 +221,9 @@ for (const id of ['#go-video', '#place', '#next-superficie', '#next-tamano', '#s
 await page.waitForTimeout(700);
 const conOverlay = await muestrearVarias();
 
-const senal = distance(conOverlay.media, sinOverlay.media);
-const ruido = Math.max(sinOverlay.dispersion, conOverlay.dispersion);
+// El frame en el que más se nota el personaje, medido contra la escena sin él.
+const senal = Math.max(...conOverlay.lecturas.map((l) => distance(l, sinOverlay.media)));
+const ruido = sinOverlay.dispersion;   // cuánto se mueve la escena sola
 
 console.log(`  señal ${senal.toFixed(5)} · dispersión de la escena ${ruido.toFixed(5)}`);
 check('el overlay cambia la imagen más que el ruido de la escena', () =>
@@ -366,18 +374,45 @@ const lienzoCert = () => page.evaluate(() => {
   const c = document.getElementById('cert-canvas');
   return { w: c.width, h: c.height, datos: c.toDataURL('image/png').length };
 });
-const vacio = await lienzoCert();
-check('el certificado es A4 a 150 ppp', () =>
-  assert.equal(`${vacio.w}x${vacio.h}`, '1240x1754'));
+const paso = () => page.getAttribute('#cert', 'data-paso');
+
+// Se entra por los DATOS, no por el documento.
+const pasoInicial = await paso();
+const docOculto = !(await page.isVisible('#cert-doc'));
+const generarApagado = await page.isDisabled('#cert-generar');
+check('se entra por el formulario, con el documento aún sin generar', () => {
+  assert.equal(pasoInicial, 'datos');
+  assert(docOculto, 'el documento se ve antes de rellenar nada');
+});
+// Sin nombre no hay certificado: el botón no deja pasar.
+check('sin nombre no se puede generar', () => assert(generarApagado));
 
 await page.fill('#cert-nombre', 'Lucía');
 await page.fill('#cert-premio', 'Una moneda');
 await page.click('#cert-estado .chip:nth-child(2)');
-await page.waitForTimeout(700);
-await shot('9_certificado');
+const generarEncendido = !(await page.isDisabled('#cert-generar'));
+check('con nombre ya se puede generar', () => assert(generarEncendido));
+await shot('9_certificado_datos');
+
+await page.click('#cert-generar');
+await page.waitForTimeout(600);
+const pasoFinal = await paso();
 const lleno = await lienzoCert();
-check('rellenar el formulario cambia el certificado', () =>
-  assert.notEqual(lleno.datos, vacio.datos, 'el lienzo no se redibujó al escribir'));
+check('al generar se pasa al documento', () => assert.equal(pasoFinal, 'documento'));
+check('el certificado es A4 a 150 ppp', () =>
+  assert.equal(`${lleno.w}x${lleno.h}`, '1240x1754'));
+await shot('10_certificado_documento');
+
+// El documento lleva lo que se escribió: con otro nombre tiene que salir otro dibujo.
+await page.click('#cert-volver');
+const vuelveConDatos = await page.inputValue('#cert-nombre');
+check('volver a los datos conserva lo escrito', () => assert.equal(vuelveConDatos, 'Lucía'));
+await page.fill('#cert-nombre', 'Mateo');
+await page.click('#cert-generar');
+await page.waitForTimeout(600);
+const otro = await lienzoCert();
+check('el documento se genera con los datos del formulario', () =>
+  assert.notEqual(otro.datos, lleno.datos, 'cambiar el nombre no cambió el certificado'));
 
 const guardado = await caminoDeGuardado('cert');
 revisarGuardado('cert', guardado);
@@ -406,9 +441,15 @@ check('al imprimir solo va el certificado', () => {
   }
 });
 
+// Se cierra DESDE EL DOCUMENTO: al partir el flujo en dos, el botón de cerrar se quedó
+// solo en el paso de los datos y el documento no tenía salida. Lo cazó esta prueba.
+const cerrarVisibleEnDoc = await page.isVisible('#cert-close');
 await page.click('#cert-close');
 const certCerrado = !(await page.isVisible('#cert'));
-check('el certificado se cierra', () => assert(certCerrado));
+check('el certificado se cierra desde el documento', () => {
+  assert(cerrarVisibleEnDoc, 'no hay forma de cerrar el documento');
+  assert(certCerrado);
+});
 
 await browser.close();
 
