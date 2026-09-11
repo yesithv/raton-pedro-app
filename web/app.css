@@ -1,17 +1,25 @@
 :root {
-  /* Sistema de la ronda 1 de interfaz (docs/diseno-ronda-1.pdf). El ámbar sigue siendo
-     el único acento fuerte y viene de la sudadera del personaje: la identidad es él
-     sobre la habitación real, y cualquier color que compita con eso resta. */
-  --bg: #0A0B10;
-  --surface: #111218;
-  --fg: #EDE9E0;
-  --dim: #9E9A91;
-  --accent: #F0BE3C;
-  --accent-ink: #241A02;
-  --warn: #E8B563;
-  --rec: #E0473D;
-  --moon: #6E76C8;        /* luz de luna; ambiente, nunca un control */
-  --panel: rgba(17, 18, 24, 0.92);
+  /* Paleta del personaje: chándal rojo y negro con rayas blancas, riñonera gris,
+     zapatillas magenta, gafas de cristal azulado. Los valores están MEDIDOS sobre el
+     render (matiz y saturación reales; la luminosidad subida, porque en la imagen el
+     chándal está en penumbra y un botón tiene que brillar sobre la cámara a oscuras).
+     El principio de la ronda 1 no cambia: un solo acento fuerte, y sale de él. */
+  --bg: #0D0C0F;          /* el negro del chándal, en sombra */
+  --surface: #1A1719;     /* el negro del chándal */
+  --fg: #E7E2DE;          /* el blanco de las rayas — 15:1 sobre el fondo */
+  --dim: #9A8E80;         /* el gris del pelaje, aclarado hasta 6:1 */
+  --accent: #B22420;      /* el rojo del chándal — 5,2:1 con el texto de encima */
+  --accent-ink: #FFF4F2;
+  /* El mismo rojo, encendido. Que "grabando" se distinga del acento por LUMINOSIDAD y no
+     por matiz es lo que deja usar el rojo del personaje en los botones sin romper la
+     convención de que el círculo rojo intenso significa que está grabando. */
+  --rec: #E02E29;
+  --magenta: #C63A6C;     /* las zapatillas: celebración, nunca una acción corriente */
+  --lente: #B9BEE8;       /* el cristal de las gafas: ambiente, nunca un control */
+  /* El aviso conserva ámbar a propósito: un aviso que fuera rojo se confundiría con los
+     botones, y es lo único que no puede confundirse con una acción. */
+  --warn: #D9A441;
+  --panel: rgba(26, 23, 25, 0.92);
 
   --r-btn: 18px;
   --r-pill: 16px;
@@ -110,6 +118,17 @@ button:disabled { opacity: 0.5; cursor: default; }
   font-size: 17px; font-weight: 800; padding: 17px 20px;
 }
 
+/* --- Las rayas del chándal ---
+   Tres líneas blancas: es literalmente lo que lleva puesto el personaje, y da una marca
+   que no depende de una fuente de pago ni de un logotipo que todavía no existe. */
+.rayas { display: flex; gap: 5px; }
+.rayas i {
+  width: 26px; height: 4px; border-radius: 2px;
+  background: var(--fg);
+  opacity: 0.9;
+}
+.rayas i:nth-child(2) { background: var(--accent); opacity: 1; }
+
 /* --- Inicio: titular sobre la escena ---
    Va arriba y en el aire, sin caja: el diseño prohíbe superficies opacas en el centro
    de la pantalla, que es justo donde está la cama. */
@@ -141,13 +160,13 @@ button:disabled { opacity: 0.5; cursor: default; }
   display: grid; place-items: center;
   background: rgba(255, 255, 255, 0.07);
 }
-.card.on .ic { background: rgba(36, 26, 2, 0.13); }
+.card.on .ic { background: rgba(255, 244, 242, 0.16); }
 /* min-width:0 en el bloque de texto: sin él, el flex no le deja encoger y la segunda
    línea de la tarjeta ("Cámara frontal · unos 10 segundos") se parte en dos. */
 .card > span:not(.ic):not(.chev) { min-width: 0; }
 .card b { display: block; font-size: 17px; font-weight: 800; letter-spacing: -0.01em; }
 .card em { display: block; font-style: normal; font-size: 12.5px; font-weight: 600; color: var(--dim); margin-top: 2px; }
-.card.on em { color: rgba(36, 26, 2, 0.72); }
+.card.on em { color: rgba(255, 244, 242, 0.82); }
 .card .chev { margin-left: auto; opacity: 0.5; }
 .card svg { display: block; }
 #ui-inicio .fine { margin: 2px 0 0; }
@@ -212,7 +231,7 @@ button:disabled { opacity: 0.5; cursor: default; }
   width: 132px; height: 52px;                  /* elipse: sugiere el plano del suelo */
   border: 3px solid var(--accent);
   border-radius: 50%;
-  box-shadow: 0 0 22px rgba(232, 185, 48, 0.35);
+  box-shadow: 0 0 22px rgba(178, 36, 32, 0.45);
   animation: breathe 1.8s ease-in-out infinite;
 }
 #reticle .arrow {
@@ -287,7 +306,7 @@ button:disabled { opacity: 0.5; cursor: default; }
   border-left: 3px solid var(--warn);
   padding: 8px 10px; border-radius: 6px;
   color: var(--warn); font-size: 12px;
-  background: rgba(232, 181, 99, 0.08);
+  background: rgba(217, 164, 65, 0.08);
 }
 
 /* --- Resultados --- */

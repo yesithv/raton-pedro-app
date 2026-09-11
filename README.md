@@ -23,8 +23,10 @@ Más la cadena de herramientas offline.
 
 Falta lo que sólo existe en nativo: **detección de planos** (ARCore/ARKit) y **guardado
 automático en la galería** — ninguna página web puede escribir en el carrete, no hay API,
-así que el prototipo empuja a la hoja de compartir del sistema. Y el personaje real: los
-tres efectos de vídeo son placeholders.
+así que el prototipo empuja a la hoja de compartir del sistema. Los tres efectos de vídeo siguen siendo placeholders
+sintéticos, pero **el personaje ya es el definitivo y de autoría propia**: la rata de
+gafas y chándal rojo de `web/assets/raton_perez.png`, que además es de donde sale la
+paleta de toda la interfaz.
 
 La app nativa está escrita en `app/` pero **sin compilar**: este entorno no tiene Flutter
 SDK ni Android SDK.

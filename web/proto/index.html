@@ -14,14 +14,16 @@
    =========================================================================== */
 
 :root {
-  --bg: #0A0B10;
-  --surface: #111218;
-  --text: #EDE9E0;
-  --dim: #9E9A91;
-  --accent: #F0BE3C;
-  --accent-ink: #241A02;
-  --rec: #E0473D;
-  --moon: #6E76C8;
+  /* Misma paleta del personaje que la app (ver web/app.css) */
+  --bg: #0D0C0F;
+  --surface: #1A1719;
+  --text: #E7E2DE;
+  --dim: #9A8E80;
+  --accent: #B22420;
+  --accent-ink: #FFF4F2;
+  --rec: #E02E29;
+  --magenta: #C63A6C;
+  --lente: #B9BEE8;
 
   --s1: 4px; --s2: 8px; --s3: 12px; --s4: 20px; --s5: 28px; --s6: 44px;
   --gutter: 20px;
@@ -77,10 +79,10 @@ html, body {
 #cam.on + #room { display: none; }
 #room {
   background:
-    radial-gradient(120% 60% at 50% 84%, rgba(240,190,60,.10), transparent 60%),
-    radial-gradient(90% 55% at 78% 12%, rgba(110,118,200,.16), transparent 65%),
+    radial-gradient(120% 60% at 50% 84%, rgba(178,36,32,.12), transparent 60%),
+    radial-gradient(90% 55% at 78% 12%, rgba(185,190,232,.12), transparent 65%),
     repeating-linear-gradient(115deg, rgba(255,255,255,.016) 0 2px, transparent 2px 22px),
-    linear-gradient(168deg, #16171f, #0A0B10 62%);
+    linear-gradient(168deg, #1A1719, #0D0C0F 62%);
 }
 /* Viñeta: hunde las esquinas para que los controles floten sobre algo oscuro */
 #vignette {
@@ -108,7 +110,7 @@ html, body {
 #dropzone {
   position: absolute; z-index: 2; pointer-events: none;
   translate: -50% -50%;
-  border: 1.5px dashed rgba(240,190,60,.55);
+  border: 1.5px dashed rgba(178,36,32,.75);
   border-radius: var(--r-card);
 }
 
@@ -140,7 +142,7 @@ button, .btn {
 }
 button:active, .btn:active { transform: scale(.96); opacity: .85; }
 button:disabled { opacity: .35; }
-:focus-visible { outline: 2px solid rgba(240,190,60,.4); outline-offset: 3px; }
+:focus-visible { outline: 2px solid rgba(178,36,32,.55); outline-offset: 3px; }
 
 .primary {
   width: 100%;
@@ -236,7 +238,7 @@ svg { display: block; }
   width: 82px; height: 82px; border-radius: 50%;
   align-self: center; display: grid; place-items: center;
   background: var(--accent); color: var(--accent-ink);
-  box-shadow: 0 0 0 6px rgba(240,190,60,.14), 0 10px 30px rgba(0,0,0,.5);
+  box-shadow: 0 0 0 6px rgba(178,36,32,.18), 0 10px 30px rgba(0,0,0,.5);
 }
 .shutter.white { background: #EFEBE2; color: #16171d; }
 .shutter.rec {
@@ -300,7 +302,7 @@ svg { display: block; }
 }
 .check {
   width: 64px; height: 64px; border-radius: 50%; align-self: center;
-  background: rgba(240,190,60,.14); color: var(--accent);
+  background: rgba(198,58,108,.16); color: var(--magenta);
   display: grid; place-items: center;
 }
 

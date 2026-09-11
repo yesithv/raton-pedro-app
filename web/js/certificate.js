@@ -16,11 +16,16 @@
 
 export const SIZE = { w: 1240, h: 1754 };
 
-const PAPEL = "#FBF6EA";
-const TINTA = "#2A2118";
-const ORO = "#C8952F";
-const ORO_CLARO = "#E8C777";
-const SUAVE = "#8A7A5F";
+// Paleta del personaje llevada al papel. El oro se va: el rojo del chándal funciona mejor
+// aquí porque es el color del LACRE, y un certificado sellado en rojo se lee como
+// documento sin que haya que explicarlo. El magenta de las zapatillas queda para los
+// detalles pequeños, que es donde está en el personaje.
+const PAPEL = "#FAF5EE";
+const TINTA = "#221B1C";
+const ORO = "#B22420";        // el rojo del chándal: marcos, sello y firma
+const ORO_CLARO = "#D98C86";  // el mismo rojo rebajado, para los filetes finos
+const MAGENTA = "#C63A6C";    // las zapatillas: el diente y los rombos
+const SUAVE = "#8A7F72";      // el gris del pelaje
 
 const SERIF = 'Georgia, "Times New Roman", "Iowan Old Style", serif';
 const SANS = '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
@@ -134,7 +139,7 @@ function filete(ctx, cx, y, ancho) {
   ctx.moveTo(cx + 16, y);
   ctx.lineTo(cx + ancho / 2, y);
   ctx.stroke();
-  rombo(ctx, cx, y, 5, ORO);
+  rombo(ctx, cx, y, 5, MAGENTA);
 }
 
 /** Un diente de leche, dibujado a mano: dos lóbulos arriba y dos raíces abajo. */
@@ -213,7 +218,7 @@ function sello(ctx, cx, cy, r) {
   textoEnArco(ctx, "MUSEO DE LOS DIENTES", cx, cy, r - 24, -Math.PI / 2, false, 2.5);
   textoEnArco(ctx, "RATÓN PÉREZ", cx, cy, r - 24, Math.PI / 2, true, 3);
 
-  diente(ctx, cx, cy, 1.05, "transparent", ORO);
+  diente(ctx, cx, cy, 1.05, "transparent", MAGENTA);
   ctx.restore();
   ctx.textBaseline = "alphabetic";
 }
@@ -393,16 +398,18 @@ export function drawCertificate(canvas, datos, raton) {
 
   if (raton?.naturalWidth) {
     // Abajo del todo y pegado al margen: por encima chocaba con la dedicatoria.
-    const altoR = 250;
+    // El personaje es de cuerpo entero y estrecho (relación ~0,48 frente al 0,86 del
+    // anterior), así que a la misma altura ocupa la mitad de ancho y admite más.
+    const altoR = 330;
     const anchoR = altoR * (raton.naturalWidth / raton.naturalHeight);
     ctx.save();
     ctx.globalAlpha = 0.97;
-    ctx.drawImage(raton, 100, h - 215 - altoR, anchoR, altoR);
+    ctx.drawImage(raton, 118, h - 205 - altoR, anchoR, altoR);
     ctx.restore();
   }
 
   // --- Pie -----------------------------------------------------------------
-  diente(ctx, cx, h - 222, 1.15, "#FFFFFF", ORO);
+  diente(ctx, cx, h - 222, 1.15, "#FFFFFF", MAGENTA);
   ctx.fillStyle = ORO;
   ctx.font = `italic 700 40px ${SERIF}`;
   ctx.fillText("¡Sigue cuidando tus dientes!", cx, h - 148);
