@@ -51,6 +51,21 @@ EDITAR → GRABAR) con tres animaciones y grabación de video con micrófono, m�
 FOTO (cámara frontal + ratón PNG encima), en el navegador del teléfono y sin instalar
 nada. Ver [`web/README.md`](web/README.md) para abrirlo con GitHub Pages.
 
+## Prototipo de interfaz (ronda 1)
+
+`web/proto/` — el rediseño de [`docs/diseno-ronda-1.pdf`](docs/diseno-ronda-1.pdf) como
+**flujo navegable y falso**: se recorre entero en el teléfono, pero no compone, no graba y
+no guarda. Existe para tomar las dos decisiones que el diseño dejó abiertas —inicio mínimo
+o guiado, paso 1 con hoja o sin paneles—, que se deciden mejor con el móvil en la mano y
+de noche que mirando un PDF.
+
+```
+https://yesithv.github.io/raton-pedro-app/web/proto/
+```
+
+No toca `web/`: la app que funciona sigue igual hasta que el diseño esté decidido. Ver
+[`web/proto/README.md`](web/proto/README.md).
+
 ## App nativa
 
 `app/` — Flutter + capa nativa Android. El Dart pasa `flutter analyze` y sus pruebas; el
@@ -86,6 +101,9 @@ Ver [`tools/README.md`](tools/README.md).
 - [`docs/prompt-rediseno-ui.md`](docs/prompt-rediseno-ui.md) — brief listo para pegar en
   una herramienta de diseño: inventario de pantallas, restricciones reales de uso (de
   noche, una mano, sin despertar al niño) y qué se puede cambiar sin tocar el pipeline.
+- [`docs/diseno-ronda-1.pdf`](docs/diseno-ronda-1.pdf) — lo que devolvió ese brief:
+  diagnóstico, pantallas, el sistema visual (paleta, tipografía, espaciado, iconos) y dos
+  alternativas sin decidir. Es la fuente del prototipo de `web/proto/`.
 
 ## Por dónde empezar
 
