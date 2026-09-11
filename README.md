@@ -45,10 +45,24 @@ compositor offline, antes de escribir la primera línea de Kotlin.
 
 ## CI
 
-| Workflow | Qué hace |
-|---|---|
-| `.github/workflows/ci.yml` | `flutter analyze` + tests; **construye el APK** (lo único que valida AGP, AndroidX y la API real de ARCore); recorre el asistente web sobre una cámara falsa y sube las capturas |
-| `.github/workflows/pages.yml` | Publica el prototipo web con HTTPS, que es lo que exige `getUserMedia` |
+| Workflow | Qué hace | Cuándo corre |
+|---|---|---|
+| `ci-web.yml` | Recorre el asistente sobre una cámara falsa y sube las capturas | `web/` · `shaders/` · `tools/` |
+| `ci-android.yml` | `flutter analyze` + tests; **construye el APK** (lo único que valida AGP, AndroidX y la API real de ARCore); lo arranca en un emulador y comprueba que no revienta | `app/` · `shaders/` |
+| `pages.yml` | Publica el prototipo web con HTTPS, que es lo que exige `getUserMedia` | `web/` en `main` |
+| `limpieza.yml` | Borra la rama cuando su PR se fusiona | siempre |
+
+**Cada workflow corre solo cuando cambia algo que puede romperlo**, y `shaders/` dispara
+los dos porque el fragment shader es una sola fuente de verdad compartida. Antes todo
+corría en cada commit: de los últimos 20, doce tocaban la web y **ninguno** el nativo, y
+los veinte compilaron un APK y arrancaron un Android virtual.
+
+Y corre **una vez por commit**, no dos. `push` escuchaba `branches: ["**"]` además de
+`pull_request`, y como el `concurrency` agrupa por ref —que es distinto en cada caso— no
+se cancelaban entre ellos: cada commit de una rama con PR abierto lanzaba el CI entero por
+duplicado. Ahora `push` solo mira `main`.
+
+Entre las dos cosas, un cambio de web pasa de ~18 minutos de runner y 6 de espera a ~2,5.
 
 El APK queda como artefacto descargable de cada ejecución, instalable en un teléfono sin
 montar ningún toolchain.
