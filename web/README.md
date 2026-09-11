@@ -132,10 +132,18 @@ rectángulo con píxeles opacos y le deja un margen para la sombra.
 
 ### El certificado se dibuja en un lienzo, no en HTML
 
-*Certificado del Ratón* abre un formulario —nombre, fecha, qué diente, cómo estaba y qué
-dejó a cambio— y encima, fija, la vista previa del documento, que se redibuja mientras se
-escribe. Ver el nombre del peque aparecer en el papel **es** la función; si hubiera que
-desplazarse para comprobarlo, se pierde.
+*Certificado del Ratón* va en **dos pasos**: primero los datos —nombre, fecha, qué diente,
+cómo estaba y qué dejó a cambio— y el documento al final, al pulsar *Crear el
+certificado*.
+
+Antes se enseñaba una vista previa que se redibujaba mientras se escribía. Compitiendo por
+la pantalla, el formulario se veía a medias y el documento también; separados, cada uno
+ocupa lo que necesita y el certificado llega como lo que es: el resultado. De paso se deja
+de redibujar el papel entero —grano incluido— una vez por tecla.
+
+El nombre es lo único obligatorio: sin él el botón no deja pasar, porque un certificado
+sin nombre no es un certificado. *Editar* vuelve a los datos conservando lo escrito, para
+corregir una errata sin repetirlo todo.
 
 Los campos no son inventados: son los de la convención española del Ratoncito Pérez
 —nombre, fecha, qué diente, **estado del diente** y recompensa—, que es más específica

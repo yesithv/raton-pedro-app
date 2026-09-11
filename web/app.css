@@ -459,27 +459,37 @@ button:disabled { opacity: 0.5; cursor: default; }
 }
 #cert-scroll {
   overflow-y: auto; -webkit-overflow-scrolling: touch;
-  padding: max(16px, env(safe-area-inset-top)) 16px 8px;
+  padding: calc(max(16px, env(safe-area-inset-top)) + 44px) 16px 8px;
 }
-/* La vista previa se queda pegada arriba mientras se rellena el formulario. Ver el
-   nombre del peque aparecer en el certificado según se escribe ES la función; si hay que
-   subir para comprobarlo, se pierde. Por eso también va limitada en alto: tiene que
-   caber junto a los campos, no en vez de ellos. */
-#cert-preview {
-  position: sticky; top: 0; z-index: 1;
-  padding-bottom: 14px;
-  margin-bottom: 6px;
-  background: var(--bg);      /* sólido: con degradado, los chips asomaban a medias */
-  text-align: center;
+/* Dos pasos: primero los datos, y el documento al final.
+   El certificado NO se enseña mientras se rellena. Compitiendo por la pantalla, el
+   formulario se veía a medias y el documento también; separados, cada uno ocupa lo que
+   necesita y el certificado llega como lo que es: el resultado. */
+#cert[data-paso="datos"] #cert-doc,
+#cert[data-paso="datos"] #cert-share,
+#cert[data-paso="datos"] #cert-acciones-doc,
+#cert[data-paso="documento"] #cert-datos,
+#cert[data-paso="documento"] #cert-generar { display: none; }
+
+#cert-close {
+  position: absolute; z-index: 2;
+  top: max(10px, env(safe-area-inset-top)); right: 14px;
 }
+
+.titulo-hoja {
+  margin: 0 0 6px;
+  font-size: 26px; font-weight: 800; letter-spacing: -0.02em; line-height: 1.1;
+}
+.texto-hoja { text-align: left; margin: 0 0 20px; max-width: 34rem; }
+
+#cert-preview { text-align: center; padding-bottom: 8px; }
 #cert-canvas {
   display: inline-block;
-  max-width: 100%; max-height: 42vh; width: auto; height: auto;
+  max-width: 100%; width: auto; height: auto;
   border-radius: 10px;
   background: #fff;
   box-shadow: 0 14px 34px var(--sombra);
 }
-@media (max-height: 700px) { #cert-canvas { max-height: 34vh; } }
 
 #cert-form { display: grid; gap: 14px; padding-bottom: 8px; }
 .field { display: grid; gap: 7px; }
