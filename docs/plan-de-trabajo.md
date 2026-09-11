@@ -394,6 +394,41 @@ validar la composición sobre cámaras reales, que es justo el riesgo número un
 
 ---
 
+## Ronda 1 de interfaz
+
+`docs/diseno-ronda-1.pdf` es lo que devolvió el brief de `prompt-rediseno-ui.md`, y
+`web/proto/` lo convierte en un flujo navegable para tocarlo en el teléfono.
+
+Lo que propone, en una línea: **la escena manda y la interfaz se retira**. Nada opaco en el
+centro de la pantalla, un botón grande bajo el pulgar, y el texto que se gana su sitio
+desaparece cuando ya no hace falta.
+
+Los tres cambios estructurales, que valen más que la piel nueva:
+
+1. **Cinco pasos pasan a dos.** POSICIÓN y TAMAÑO eran el mismo gesto sobre el mismo
+   objeto: se funden en *Colócalo*. ESCANEAR deja de ser un paso propio (el retículo vive
+   dentro del primero) y EDITAR baja a una fila. Quedan colocar y grabar.
+2. **El final del recorrido cambia de forma.** Una sola acción de guardado real
+   —«Guardar en Fotos»— y la descarga a Archivos degradada a enlace de texto. Detrás, una
+   pantalla de recompensa que hoy no existe: *«Guardado. Mañana se lo enseñas.»*
+3. **Ajustes sale de la interfaz.** Se abre con siete toques sobre el título o con
+   `?dev=1`. Sigue existiendo para nosotros y deja de existir para el padre.
+
+Y una discrepancia razonada que conviene conservar: el problema de identidad **no** se
+arregla con una paleta nueva. La identidad es el personaje sobre la habitación real;
+cualquier color que compita con eso resta. Por eso el sistema es casi monocromo y el único
+acento fuerte es el amarillo de su sudadera.
+
+**Dos decisiones siguen abiertas**, a propósito, y el prototipo existe para cerrarlas:
+inicio mínimo (`1a`) o guiado (`1b`), y paso 1 con hoja inferior (`1c`) o sin paneles
+(`1d`). No se deciden mirando un PDF: se deciden de noche, en el cuarto, con una mano.
+
+Lo que el diseño todavía **no** cubre y la app necesita: permiso denegado, navegador sin
+grabación, clip en formato que el carrete no acepta y aviso de luz fuera de rango. Esa es
+la ronda 2.
+
+---
+
 ## Herramientas ya disponibles
 
 El día 1 no arranca en blanco. En `tools/` está la cadena de la fase de validación,
