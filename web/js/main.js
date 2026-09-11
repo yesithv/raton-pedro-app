@@ -661,6 +661,52 @@ function setupCertificado() {
 // Controles
 // ---------------------------------------------------------------------------
 
+// ---------------------------------------------------------------------------
+// Tema
+// ---------------------------------------------------------------------------
+
+/**
+ * Tres estados, no dos: claro, oscuro y "el que diga el sistema".
+ *
+ * El tercero es el que importa y el que casi todas las apps se saltan: un teléfono que
+ * cambia solo al anochecer ya sabe qué hora es, y esta app se usa de noche. Por eso el
+ * ciclo del botón vuelve a pasar por "automático" en vez de alternar entre dos.
+ */
+const TEMAS = [
+  { id: "auto", icono: "◐", nombre: "Sigue al sistema" },
+  { id: "claro", icono: "☀", nombre: "Siempre claro" },
+  { id: "oscuro", icono: "☾", nombre: "Siempre oscuro" },
+];
+
+function temaActual() {
+  return document.documentElement.dataset.tema || "auto";
+}
+
+function aplicarTema(id) {
+  if (id === "auto") delete document.documentElement.dataset.tema;
+  else document.documentElement.dataset.tema = id;
+  try {
+    if (id === "auto") localStorage.removeItem("tema");
+    else localStorage.setItem("tema", id);
+  } catch (e) { /* en privado no se puede guardar; el tema vale para esta sesión */ }
+
+  const t = TEMAS.find((x) => x.id === id);
+  const boton = el("tema");
+  boton.textContent = t.icono;
+  boton.setAttribute("aria-label", `Tema: ${t.nombre}. Tocar para cambiar.`);
+  boton.title = t.nombre;
+}
+
+function setupTema() {
+  aplicarTema(temaActual());
+  el("tema").onclick = () => {
+    const i = TEMAS.findIndex((t) => t.id === temaActual());
+    const siguiente = TEMAS[(i + 1) % TEMAS.length];
+    aplicarTema(siguiente.id);
+    toast(siguiente.nombre);
+  };
+}
+
 function setupControls() {
   el("go-video").onclick = () => setStep("escanear");
   el("go-photo").onclick = () => setStep("foto");
@@ -719,6 +765,8 @@ function setupControls() {
     if (STEPS[state.step].sticker) positionSticker();
   });
 }
+
+setupTema();
 
 el("start").onclick = async () => {
   el("start").disabled = true;

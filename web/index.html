@@ -6,6 +6,17 @@
 <title>Ratón Pérez AR — prototipo</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ctext y='26' font-size='26'%3E%F0%9F%90%AD%3C/text%3E%3C/svg%3E">
 <link rel="stylesheet" href="app.css">
+<script>
+  // En línea y antes de la hoja de estilos a propósito: si el tema guardado se aplicara
+  // desde el módulo, la página pintaría primero el tema del sistema y saltaría al otro a
+  // la vista del usuario. Un destello blanco a las dos de la mañana no es un detalle.
+  try {
+    const guardado = localStorage.getItem("tema");
+    if (guardado === "claro" || guardado === "oscuro") {
+      document.documentElement.dataset.tema = guardado;
+    }
+  } catch (e) { /* sin almacenamiento, manda el sistema */ }
+</script>
 </head>
 <body>
 
@@ -20,6 +31,7 @@
 <!-- Arranque: permiso de cámara -->
 <div id="boot">
   <img id="boot-hero" src="assets/raton_perez.png" alt="">
+  <button id="tema" class="icon" aria-label="Cambiar entre claro y oscuro" title="Claro u oscuro"></button>
   <div class="rayas" aria-hidden="true"><i></i><i></i><i></i></div>
   <h1>Ratón Pérez<br>en su cuarto</h1>
   <p>Apunta el móvil a la cama y grábale mientras el peque duerme. Mañana se lo enseñas.</p>

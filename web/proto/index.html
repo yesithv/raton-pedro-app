@@ -14,16 +14,21 @@
    =========================================================================== */
 
 :root {
-  /* Misma paleta del personaje que la app (ver web/app.css) */
-  --bg: #0D0C0F;
-  --surface: #1A1719;
-  --text: #E7E2DE;
-  --dim: #9A8E80;
+  /* Misma paleta y mismos dos temas que la app (ver web/app.css). Claro por defecto;
+     oscuro si el sistema lo pide. El prototipo no lleva conmutador: es una maqueta, y
+     para juzgarla basta con cambiar el tema del teléfono. */
+  --bg: #FFFFFF;
+  --surface: #F4F0EA;
+  --text: #1A1719;
+  --dim: #6E6357;
   --accent: #B22420;
   --accent-ink: #FFF4F2;
   --rec: #E02E29;
   --magenta: #C63A6C;
   --lente: #B9BEE8;
+  --borde: rgba(26, 23, 25, 0.12);
+  --velo: rgba(255, 255, 255, 0.92);
+  --sombra: rgba(26, 23, 25, 0.18);
 
   --s1: 4px; --s2: 8px; --s3: 12px; --s4: 20px; --s5: 28px; --s6: 44px;
   --gutter: 20px;
@@ -35,12 +40,25 @@
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, system-ui, sans-serif;
 }
 
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0D0C0F;
+    --surface: #1A1719;
+    --text: #E7E2DE;
+    --dim: #9A8E80;
+    --borde: rgba(231, 226, 222, 0.10);
+    --velo: rgba(13, 12, 15, 0.90);
+    --sombra: rgba(0, 0, 0, 0.55);
+    color-scheme: dark;
+  }
+}
+
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
 [hidden] { display: none !important; }
 
 html, body {
   margin: 0; height: 100%;
-  background: #05060a; color: var(--text);
+  background: var(--bg); color: var(--text);
   -webkit-user-select: none; user-select: none;
   overscroll-behavior: none;
 }
@@ -82,7 +100,7 @@ html, body {
     radial-gradient(120% 60% at 50% 84%, rgba(178,36,32,.12), transparent 60%),
     radial-gradient(90% 55% at 78% 12%, rgba(185,190,232,.12), transparent 65%),
     repeating-linear-gradient(115deg, rgba(255,255,255,.016) 0 2px, transparent 2px 22px),
-    linear-gradient(168deg, #1A1719, #0D0C0F 62%);
+    linear-gradient(168deg, #2A2528, #14121A 62%);
 }
 /* Viñeta: hunde las esquinas para que los controles floten sobre algo oscuro */
 #vignette {
@@ -157,17 +175,17 @@ button:disabled { opacity: .35; }
   background: var(--surface); color: var(--text);
   font-size: 17px; font-weight: 800;
   border-radius: var(--r-btn); padding: 15px var(--s4);
-  border: 1px solid rgba(255,255,255,.07);
+  border: 1px solid var(--borde);
 }
 .ghost { width: 100%; padding: 14px; font-size: 17px; font-weight: 800; color: var(--dim); }
 .link { color: var(--text); text-decoration: underline; font: inherit; padding: 0; }
 
 .icon-btn {
   width: 44px; height: 44px; border-radius: 50%;
-  background: rgba(17,18,24,.66);
+  background: var(--panel, var(--surface));
   backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
   display: grid; place-items: center;
-  border: 1px solid rgba(255,255,255,.07);
+  border: 1px solid var(--borde);
 }
 .icon-btn.lg { width: 52px; height: 52px; }
 .icon-label { display: grid; justify-items: center; gap: 6px; width: 88px; }

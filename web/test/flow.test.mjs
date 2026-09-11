@@ -58,6 +58,57 @@ const check = (label, fn) => {
 
 console.log('arranque');
 await page.goto(`${BASE}/web/index.html`, { waitUntil: 'networkidle' });
+
+console.log('temas');
+// Se prueba ANTES de encender la cámara porque ahí es donde vive el conmutador y donde
+// el usuario lo usa: eligiendo con qué luz quiere la app antes de empezar.
+// Dos temas y tres estados. Lo que hay que demostrar es que el tema CAMBIA de verdad
+// (no solo que el atributo se pone), que el ciclo vuelve a "automático" y que la elección
+// sobrevive a recargar, que es lo que un usuario nota si falla.
+const estadoTema = () => page.evaluate(() => ({
+  tema: document.documentElement.dataset.tema || 'auto',
+  fondo: getComputedStyle(document.body).backgroundColor,
+  texto: getComputedStyle(document.body).color,
+}));
+
+const ciclo = [];
+for (let i = 0; i < 4; i++) {
+  ciclo.push(await estadoTema());
+  await page.click('#tema');
+  await page.waitForTimeout(120);
+}
+
+console.log(`  ciclo: ${ciclo.map((e) => `${e.tema}=${e.fondo}`).join(' → ')}`);
+check('el conmutador recorre automático, claro y oscuro', () =>
+  assert.deepEqual(ciclo.map((e) => e.tema), ['auto', 'claro', 'oscuro', 'auto']));
+check('el tema oscuro cambia los colores de verdad', () => {
+  const claro = ciclo.find((e) => e.tema === 'claro');
+  const oscuro = ciclo.find((e) => e.tema === 'oscuro');
+  assert.notEqual(claro.fondo, oscuro.fondo, 'el fondo no cambió entre temas');
+  assert.notEqual(claro.texto, oscuro.texto, 'el texto no cambió entre temas');
+});
+
+// Los tokens del tema oscuro están DUPLICADOS en el CSS -uno para el sistema y otro para
+// la elección explícita- porque sin preprocesador no hay forma de evitarlo. Si alguien
+// toca uno y olvida el otro, la app se comporta distinto según cómo llegaste al oscuro.
+const duplicado = await page.evaluate(async () => {
+  const css = await (await fetch('app.css')).text();
+  const bloque = (inicio, fin) => {
+    const a = css.indexOf(inicio);
+    const b = fin ? css.indexOf(fin) : css.length;
+    return Object.fromEntries([...css.slice(a, b).matchAll(/(--[a-z-]+):\s*([^;]+);/g)]
+      .map((m) => [m[1], m[2].trim()]));
+  };
+  const porSistema = bloque('@media (prefers-color-scheme: dark)', ':root[data-tema="oscuro"]');
+  const porEleccion = bloque(':root[data-tema="oscuro"] {', '/* Que los controles nativos');
+  return { sistema: porSistema, eleccion: porEleccion };
+});
+check('los dos bloques del tema oscuro siguen siendo iguales', () => {
+  assert(Object.keys(duplicado.sistema).length > 10, 'no se encontraron los tokens oscuros');
+  assert.deepEqual(duplicado.sistema, duplicado.eleccion,
+    'los dos bloques del tema oscuro se han separado: tocaron uno y no el otro');
+});
+
 await page.click('#start');
 await page.waitForSelector('#bar:not([hidden])', { timeout: 30_000 });
 await page.waitForTimeout(2000);
