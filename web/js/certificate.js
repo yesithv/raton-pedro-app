@@ -87,28 +87,61 @@ export const ESTADOS = [
 ];
 
 /**
- * Cuántos caracteres caben en las palabras del padre.
+ * Los límites de los campos, en un solo sitio.
  *
- * MEDIDO contra el dibujo de verdad, no calculado a ojo. El primer número que puse fue
- * 340 "porque quedan seis líneas libres", y estaba mal: en el peor caso -una muela, que
- * lleva la frase más larga, con la frase de estado más larga y un premio de 24
- * caracteres- no quedaba sitio ni para una línea.
+ * Viven AQUÍ y no en el HTML porque quien decide cuánto cabe es el papel, no el
+ * formulario. Dos números escritos a mano se separan en cuanto alguien toca un tamaño
+ * del dibujo, y el que se queda corto siempre es el del HTML.
  *
- * Midiendo, el techo antes de que la carta se salga es de 562 caracteres en ese peor
- * caso y 618 en uno corriente. 300 deja un margen de la mitad, y a cambio:
+ * `nota`: MEDIDO contra el dibujo de verdad, no calculado a ojo. El primer número que
+ * puse fue 340 "porque quedan seis líneas libres", y estaba mal: en el peor caso -una
+ * muela, que lleva la frase más larga, con la frase de estado más larga y un premio del
+ * largo máximo- no quedaba sitio ni para una línea. Midiendo, el techo antes de que la
+ * carta se salga es de 562 caracteres en ese peor caso y 618 en uno corriente; 300 deja
+ * un margen de la mitad, y a cambio la carta se escribe a 32 px en un caso corriente y a
+ * 30 px en el peor, que sigue siendo cómodo de leer impreso.
  *
- *   - en un caso corriente la carta se escribe a 32 px, casi sin apretar;
- *   - en el peor caso baja a 30 px, que sigue siendo cómodo de leer impreso.
+ * `dias`: una carta del Ratón se escribe la noche que se cayó el diente o al día
+ * siguiente. Un año de margen sobra para quien la rellene tarde, y hacia delante no hay
+ * nada que permitir: un diente no se cae mañana.
  *
- * El ejemplo que hay que poder escribir -"felicidades, te portaste muy bien en el
- * colegio, te he visto haciendo las tareas..."- son unos 160 caracteres: cabe con el
- * doble de sitio.
- *
- * La comprobación de `web/test/` dibuja una nota de exactamente este largo en el peor
- * caso y falla si el texto alcanza la despedida, así que el número no puede quedarse
+ * La comprobación de `web/test/` dibuja una nota de exactamente `nota` caracteres en el
+ * peor caso y falla si el texto alcanza la despedida, así que el número no puede quedarse
  * obsoleto en silencio.
  */
-export const LIMITE_NOTA = 300;
+export const LIMITES = {
+  nombre: 28,
+  premio: 24,
+  nota: 300,
+  dias: 365,
+};
+
+/** Se mantiene el nombre viejo: la prueba y `main.js` ya lo usaban. */
+export const LIMITE_NOTA = LIMITES.nota;
+
+/**
+ * Deja un texto en condiciones de ser dibujado.
+ *
+ * Recorta al límite, quita los espacios de los bordes, junta los seguidos y se lleva por
+ * delante los saltos de línea y los caracteres de control. Los saltos importan: el
+ * `textarea` los deja escribir, y en una carta que se reparte en párrafos medidos un
+ * salto suelto descuadraría la cuenta de lo que cabe.
+ *
+ * El recorte se hace aquí y no solo con `maxlength` porque `maxlength` no se aplica a un
+ * valor puesto desde el código ni, en algunos navegadores, a lo que se pega. El dibujo
+ * es la última línea de defensa y no puede fiarse del formulario.
+ */
+export function limpiar(texto, limite) {
+  return [...String(texto ?? "")]
+    // Los caracteres de control se cambian por un ESPACIO, no se borran: borrándolos,
+    // un texto pegado con saltos de línea sale con las palabras pegadas ("holaqué tal").
+    .map((c) => (c.codePointAt(0) >= 32 ? c : " "))
+    .join("")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, limite)
+    .trim();          // el recorte puede dejar un espacio suelto al final
+}
 
 /**
  * Tamaños a los que se puede escribir la carta, del holgado al apretado.
@@ -128,8 +161,8 @@ const TOPE = 1330;
 function parrafosDeLaCarta(datos) {
   const d = DIENTES.find((x) => x.id === datos.diente) ?? DIENTES[0];
   const e = ESTADOS.find((x) => x.id === datos.estado) ?? ESTADOS[0];
-  const premio = (datos.premio || "").trim();
-  const nota = (datos.nota || "").trim();
+  const premio = limpiar(datos.premio, LIMITES.premio);
+  const nota = limpiar(datos.nota, LIMITES.nota);
 
   const ps = [
     "Anoche entré en tu cuarto de puntillas. Estabas durmiendo tan a gusto que no quise " +
@@ -554,7 +587,7 @@ export function drawCertificate(canvas, datos, raton) {
   // "Hola, X:" y no "Querida X": la carta no marca género en ningún sitio, y aquí es
   // donde más cantaría. La misma razón por la que dice "estabas durmiendo".
   ctx.textAlign = "left";
-  const nombre = (datos.nombre || "").trim();
+  const nombre = limpiar(datos.nombre, LIMITES.nombre);
   if (nombre) {
     const tam = ajustar(ctx, `Hola, ${nombre}:`, COLUMNA, 54, 32,
                         (t) => `700 ${t}px ${REDONDA}`);

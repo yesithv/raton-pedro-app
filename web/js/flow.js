@@ -71,8 +71,9 @@ export const STEPS = {
   // codecs, decodificadores ocupados). Para una imagen fija, un <img> siempre pinta.
   foto: {
     title: "FOTO",
-    hint: "Arrastra al ratón donde quieras y pellizca para cambiar su tamaño.\n" +
-          "Pulsa el botón blanco para tomar la foto.",
+    // Corto a proposito: en FOTO esto no es una caja de instrucciones, es una pastilla
+    // que se va sola a los cuatro segundos, como los avisos de la camara del telefono.
+    hint: "Arrastra al ratón y pellízcalo para cambiar su tamaño.",
     overlay: false,
     sticker: true,
     reticle: false,
