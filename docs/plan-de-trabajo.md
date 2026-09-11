@@ -329,13 +329,21 @@ decisión es que la foto **no lleva grading**: el ratón no adopta la exposició
 dominante del cuarto. Para el nativo la salida no es volver al vídeo, es dar al shader un
 matte a partir del alfa del PNG.
 
-### 9. Sobre el personaje
+### 9. Sobre el personaje — **resuelto**
 
-El flujo, las funciones y el concepto son terreno libre. El personaje concreto —ese ratón
-gris de sudadera amarilla con logo de diente— y los textos son diseño propio de ellos. El
-brief al animador de la sección 6 de la arquitectura tiene que producir un personaje
-original. Hace falta de todos modos: no hay forma de enviar a producción sin un personaje
-propio.
+El flujo, las funciones y el concepto son terreno libre. El personaje concreto de la app
+de referencia —ese ratón gris de sudadera amarilla con logo de diente— y sus textos son
+diseño propio de ellos, así que hacía falta un personaje original de todos modos: no hay
+forma de enviar a producción sin él.
+
+**Ya existe, y es de autoría propia**: rata gris de pelaje corto, con gafas de pasta
+negras, chándal rojo y negro con rayas blancas, riñonera cruzada y zapatillas magenta.
+Nada que ver con el de la referencia, que iba de amarillo. Está en
+`web/assets/raton_perez.png` y es la fuente de la paleta de toda la interfaz (ver abajo).
+
+Deja de ser un riesgo abierto y pasa a ser un activo: el personaje ya no se parece al de
+nadie, y el brief al animador de la sección 6 de la arquitectura tiene por fin una
+referencia concreta que seguir en vez de una descripción.
 
 ### 10. UI observada
 
@@ -417,7 +425,7 @@ Los tres cambios estructurales, que valen más que la piel nueva:
 Y una discrepancia razonada que conviene conservar: el problema de identidad **no** se
 arregla con una paleta nueva. La identidad es el personaje sobre la habitación real;
 cualquier color que compita con eso resta. Por eso el sistema es casi monocromo y el único
-acento fuerte es el amarillo de su sudadera.
+acento fuerte sale de su ropa — hoy, el rojo del chándal.
 
 **Inicio: decidido `1b`, el guiado.** Las dos tarjetas que dicen qué sale y cuánto tarda,
 frente al obturador desnudo de `1a`. Cuesta una lectura la primera noche y a cambio la
@@ -446,6 +454,38 @@ Lo que sigue pendiente, por orden:
 4. Los estados que el diseño aún no cubre: permiso denegado, navegador sin grabación,
    formato que el carrete no acepta, luz fuera de rango. Es la ronda 2.
 
+### La paleta sale del personaje, y está medida
+
+Los tokens de `web/app.css` no se eligieron a ojo: se **midieron** sobre el render,
+agrupando los píxeles por matiz y quedándose con el representativo de cada familia. Lo que
+salió:
+
+| Token | Valor | De dónde |
+|---|---|---|
+| `--bg` / `--surface` | `#0D0C0F` / `#1A1719` | el negro del chándal |
+| `--fg` | `#E7E2DE` | el blanco de las rayas |
+| `--dim` | `#9A8E80` | el gris del pelaje, aclarado hasta 6:1 |
+| `--accent` | `#B22420` | el rojo del chándal |
+| `--rec` | `#E02E29` | el mismo rojo, encendido |
+| `--magenta` | `#C63A6C` | las zapatillas |
+| `--lente` | `#B9BEE8` | el cristal de las gafas |
+
+Dos decisiones que conviene no deshacer sin pensarlo:
+
+**El rojo de grabar y el rojo de los botones son el mismo matiz, y se separan por
+luminosidad.** Con un acento rojo, el círculo rojo de grabación podría perder su
+significado. No lo pierde por tres razones: nunca coinciden en pantalla —el paso GRABAR no
+tiene botones principales—, la forma es distinta —un círculo grande frente a un rectángulo
+con texto— y el estado activo es más luminoso (`--rec` sobre `--accent`) y va con marco y
+pulso. La alternativa era meter un color ajeno al personaje solo para grabar, y eso sí
+rompía la identidad.
+
+**El aviso de exposición se queda en ámbar** (`--warn`). Es lo único de la interfaz que no
+puede confundirse con una acción, y en rojo se confundiría con los botones.
+
+El contraste está comprobado, no supuesto: texto sobre fondo 15:1, texto tenue 6:1, y el
+texto blanco sobre el botón rojo 5,2:1 — por encima del 4,5:1 que pide WCAG AA.
+
 ### El certificado, y por qué sus campos son esos
 
 La convención española del Ratoncito Pérez está más cerrada de lo que parece, y no
@@ -461,6 +501,11 @@ Los dos campos que no hay que perder son los que no son obvios:
   higiene dental. Es lo que convierte el papel en algo que los dentistas reparten.
 - **La recompensa** es lo primero que el niño pregunta, y dejarlo escrito de puño del
   Ratón evita la conversación incómoda del día siguiente.
+
+El certificado pasó del oro al **rojo del chándal**, que además es el color del lacre: un
+documento sellado en rojo se lee como documento sin que haya que explicarlo. El magenta de
+las zapatillas queda para los detalles pequeños —el diente y los rombos—, que es donde
+está en el propio personaje.
 
 Decisión de redacción: el mensaje va en primera persona y **sin marcas de género**. Un
 «dormido/a» en un documento que el niño va a guardar años se lee como un formulario, y la

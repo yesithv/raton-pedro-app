@@ -54,6 +54,22 @@ Reproduce paso por paso el asistente de la app de referencia:
 | **FOTO** | Cámara frontal + ratón encima, para la foto con el niño | Arrastrar y pellizcar |
 | **CERTIFICADO** | El documento que deja el Ratón, para imprimir o dejar bajo la almohada | Rellenar |
 
+## La paleta es el personaje
+
+Los colores de la interfaz están **medidos sobre el render del personaje**
+(`assets/raton_perez.png`), no elegidos a ojo: se agruparon los píxeles por matiz y se
+tomó el representativo de cada familia. El chándal rojo y negro da el fondo y el acento,
+las rayas blancas dan el texto, el pelaje da el gris tenue, las zapatillas dan el magenta
+de celebración y el cristal de las gafas da el azul de ambiente. Los valores y el porqué
+de cada decisión están en la sección *La paleta sale del personaje* de
+[`docs/plan-de-trabajo.md`](../docs/plan-de-trabajo.md).
+
+Lo único que no sale de él es el ámbar del aviso de exposición: es lo único que no puede
+confundirse con una acción, y en rojo se confundiría con los botones.
+
+Las **tres rayas** del arranque (`.rayas`) son las del chándal. Dan marca sin depender de
+un logotipo que todavía no existe ni de una fuente externa, que la CSP bloquea.
+
 El punto que colocas es el **punto de contacto** con la superficie (`anchorPoint` del
 asset), no el centro del cuadro: el ratón queda parado ahí y no flotando.
 
