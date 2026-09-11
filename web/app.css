@@ -584,8 +584,31 @@ button:disabled { opacity: 0.5; cursor: default; }
   width: 100%;
   -webkit-user-select: text; user-select: text;
 }
-.field input::placeholder { color: rgba(158, 154, 145, 0.55); }
-.field input:focus { outline: none; border-color: var(--accent); }
+/* El textarea de la carta comparte todo con los campos de una línea menos el alto y el
+   poder estirarse a lo ancho, que en un móvil rompe la columna. */
+.field textarea {
+  font: inherit; font-size: 16px;          /* 16px o iOS hace zoom al enfocar */
+  color: var(--fg);
+  background: var(--surface);
+  border: 1px solid var(--borde);
+  border-radius: 14px;
+  padding: 13px 14px;
+  width: 100%;
+  resize: vertical;
+  line-height: 1.45;
+  -webkit-user-select: text; user-select: text;
+}
+.field input::placeholder,
+.field textarea::placeholder { color: rgba(158, 154, 145, 0.55); }
+.field input:focus,
+.field textarea:focus { outline: none; border-color: var(--accent); }
+
+/* La línea de ayuda y su cuenta atrás. Solo se pone en rojo en el último tramo: un
+   contador que grita desde el primer carácter deja de mirarse. */
+/* `.field > span` pone negrita porque es el rótulo del campo; esta línea no lo es. */
+.field > span.ayuda { font-size: 12.5px; font-weight: 400; color: var(--dim); line-height: 1.35; }
+.ayuda output { font-variant-numeric: tabular-nums; }
+.ayuda output.apurado { color: var(--accent); font-weight: 600; }
 /* El selector de fecha nativo de iOS se pinta claro si no se le dice lo contrario */
 
 

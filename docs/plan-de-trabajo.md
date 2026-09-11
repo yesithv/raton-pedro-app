@@ -442,7 +442,7 @@ que la mitad de los padres no descubre.
 (paleta, radios, tipografía). El asistente conserva su estructura de cinco pasos: fundirlo
 en dos es el siguiente encargo, y es cambio de máquina de estados, no de piel.
 
-También lleva el **certificado**, que en el diseño era solo una tarjeta de entrada, y la
+También lleva la **carta del Ratón**, que en el diseño era solo una tarjeta de entrada, y la
 **hoja de ajustes**, que resuelve el punto 3 de arriba — con un matiz que conviene dejar
 escrito, porque no es lo que decía el diseño.
 
@@ -462,7 +462,7 @@ Lo que sigue pendiente, por orden:
 
 1. Fundir POSICIÓN y TAMAÑO en *Colócalo*, meter el retículo dentro del primer paso y
    bajar EDITAR a una fila de la hoja.
-2. Pantalla de recompensa tras guardar, con la entrada al certificado desde ahí: hoy se
+2. Pantalla de recompensa tras guardar, con la entrada a la carta desde ahí: hoy se
    llega por INICIO, y el remate natural es justo después de guardar el vídeo.
 3. Los estados que el diseño aún no cubre: permiso denegado, navegador sin grabación,
    formato que el carrete no acepta, luz fuera de rango. Es la ronda 2.
@@ -520,18 +520,75 @@ puede confundirse con una acción, y en rojo se confundiría con los botones.
 El contraste está comprobado, no supuesto: texto sobre fondo 15:1, texto tenue 6:1, y el
 texto blanco sobre el botón rojo 5,2:1 — por encima del 4,5:1 que pide WCAG AA.
 
-### El certificado: los datos primero, el documento al final
+### De certificado a carta
+
+El documento dejó de ser un diploma. Un diploma reconoce un mérito ante terceros; lo que
+aquí hace falta es que un padre le diga algo a su hijo, y eso es una carta. El cambio no es
+de adorno, y se nota en cuatro sitios:
+
+1. **El texto se alinea a la izquierda y va en párrafos.** Centrado se lee como un título;
+   alineado, como algo que alguien te ha escrito.
+2. **Los datos se cuentan dentro del texto** en vez de ir en casillas. Una tabla dentro de
+   una carta es un formulario. El precio es la concordancia: *una muela* obliga a llevar
+   pronombre, posesivo y terminación por cada opción, porque si no la carta dice «lo
+   envolví» y «el tuyo» de una muela.
+3. **Las palabras del padre son un párrafo más**, sin comillas, sin cursiva y sin color
+   propio. En cuanto se marcan como cita dejan de ser del Ratón y pasan a ser un añadido,
+   que es justo lo contrario de lo que se busca. Antes iban entre comillas angulares y en
+   rojo: se veía a la legua que las había escrito otro.
+4. **La letra cambia de registro.** La carta va en `ui-rounded` —redonda y joven, la del
+   personaje—, y la firma al revés: cursiva inglesa con la P de bucle y la R con vuelo,
+   que es lo clásico. El contraste entre las dos es el que hay entre quien escribe y quien
+   firma.
+
+#### El límite de la nota salió de medir, no de calcular
+
+Primero puse 340 caracteres «porque quedan seis líneas libres». Era falso: en el peor caso
+—una muela, con la frase de estado más larga y un premio de 24 caracteres— no cabía **ni
+una línea**. La cuenta a ojo no había restado lo que el texto fijo ya ocupa.
+
+Midiendo contra el dibujo real, el techo antes de que la carta se salga son 562 caracteres
+en ese peor caso y 618 en uno corriente. El límite quedó en **300**: la mitad de margen, y
+en un caso corriente la carta apenas se aprieta. Y si aun así sobra, se aprieta un punto
+—34 → 32 → 30 → 28 px— en vez de escribir sobre la firma, igual que se apretaría una carta
+escrita a mano.
+
+Dos cosas que hicieron falta para que esto fuera cierto y no una intención:
+
+- La comprobación dibuja una nota de exactamente `LIMITE_NOTA` en el peor caso y falla si
+  el texto alcanza la despedida. El número no puede quedarse obsoleto en silencio.
+- El `maxlength` del formulario **lo pone el módulo del dibujo**, no el HTML. Dos números
+  escritos a mano se separan en cuanto alguien toca un tamaño.
+
+Al medir salió además un fallo que nadie habría visto mirando: el bucle que decide si el
+texto cabe restaba el hueco de después del último párrafo y el que lo dibujaba no, así que
+el cálculo era optimista por un hueco entero y la carta se pasaba de largo creyendo que
+cabía.
+
+#### La firma está trazada, no escrita
+
+No hay ninguna cursiva garantizada en los tres sitios donde esto se ve: Apple trae Snell
+Roundhand, Windows trae Segoe Script, Android no trae ninguna, y la CSP prohíbe cargar
+una. Escrita con `font`, cada teléfono firmaría distinto y en la mitad caería en la Arial
+de respaldo, que es exactamente lo contrario de una firma. Trazada con curvas sale igual
+en todas partes, escala sin pixelarse y se imprime bien.
+
+El grosor se finge repartiendo los trazos —descendentes gruesos, uniones finas—, que es de
+donde sale el contraste de la pluma, y la inclinación es una cizalla sobre el conjunto y
+no punto a punto.
+
+### Los datos primero, el documento al final
 
 Va en dos pasos. La primera versión enseñaba el documento mientras se rellenaba, con la
 idea de que ver el nombre del peque aparecer en el papel fuera el momento emotivo. En
 pantalla de móvil las dos cosas se estorban: el formulario se ve a medias y el documento
 también.
 
-Separado, cada uno ocupa lo que necesita y el certificado llega como lo que es, el
-resultado. El nombre pasa a ser obligatorio —sin él no hay certificado— y *Editar*
-conserva lo escrito.
+Separado, cada uno ocupa lo que necesita y la carta llega como lo que es, el resultado. El
+nombre pasa a ser obligatorio —sin él no hay a quién escribirle— y *Editar* conserva lo
+escrito.
 
-### El certificado, y por qué sus campos son esos
+### Por qué sus campos son esos
 
 La convención española del Ratoncito Pérez está más cerrada de lo que parece, y no
 coincide con la del *tooth fairy* anglosajón. Los certificados que circulan —los de las
@@ -547,7 +604,7 @@ Los dos campos que no hay que perder son los que no son obvios:
 - **La recompensa** es lo primero que el niño pregunta, y dejarlo escrito de puño del
   Ratón evita la conversación incómoda del día siguiente.
 
-El certificado pasó del oro al **rojo del chándal**, que además es el color del lacre: un
+La carta pasó del oro al **rojo del chándal**, que además es el color del lacre: un
 documento sellado en rojo se lee como documento sin que haya que explicarlo. El magenta de
 las zapatillas queda para los detalles pequeños —el diente y los rombos—, que es donde
 está en el propio personaje.

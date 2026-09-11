@@ -438,10 +438,10 @@ await page.click('#home');
 const deFotoAInicio = await page.isVisible('#ui-inicio');
 check('foto vuelve al principio', () => assert(deFotoAInicio));
 
-console.log('certificado');
-// Lo que hay que demostrar es que el certificado se RELLENA y sale del formulario
-// convertido en un archivo: el nombre del peque tiene que acabar dibujado en el lienzo,
-// y la hoja que se manda a la impresora no puede llevar interfaz encima.
+console.log('carta del Ratón');
+// Lo que hay que demostrar es que la carta se RELLENA y sale del formulario convertida
+// en un archivo: el nombre del peque tiene que acabar dibujado en el lienzo, y la hoja
+// que se manda a la impresora no puede llevar interfaz encima.
 await page.click('#go-cert');
 await page.waitForSelector('#cert:not([hidden])', { timeout: 10_000 });
 
@@ -474,7 +474,7 @@ await page.waitForTimeout(600);
 const pasoFinal = await paso();
 const lleno = await lienzoCert();
 check('al generar se pasa al documento', () => assert.equal(pasoFinal, 'documento'));
-check('el certificado es A4 a 150 ppp', () =>
+check('la carta es A4 a 150 ppp', () =>
   assert.equal(`${lleno.w}x${lleno.h}`, '1240x1754'));
 await shot('10_certificado_documento');
 
@@ -487,12 +487,70 @@ await page.click('#cert-generar');
 await page.waitForTimeout(600);
 const otro = await lienzoCert();
 check('el documento se genera con los datos del formulario', () =>
-  assert.notEqual(otro.datos, lleno.datos, 'cambiar el nombre no cambió el certificado'));
+  assert.notEqual(otro.datos, lleno.datos, 'cambiar el nombre no cambió la carta'));
+
+// ---------------------------------------------------------------------------
+// Las palabras del padre
+// ---------------------------------------------------------------------------
+// Dos cosas distintas que comprobar: que se ESCRIBEN dentro de la carta como un párrafo
+// más, y que el LÍMITE de caracteres es de verdad -que una nota de exactamente ese largo
+// cabe en el papel sin llegar a la despedida-. El límite salió de medir, y esta
+// comprobación es lo que impide que se quede obsoleto cuando alguien toque un tamaño.
+await page.click('#cert-volver');
+
+const limite = await page.evaluate(async () =>
+  (await import('./js/certificate.js')).LIMITE_NOTA);
+const maxCampo = await page.getAttribute('#cert-nota', 'maxlength');
+check('el formulario limita la nota a lo que cabe en el papel', () => {
+  assert(limite >= 200, `el límite se ha quedado en nada: ${limite}`);
+  assert.equal(Number(maxCampo), limite,
+    'el formulario y el papel no dicen lo mismo sobre cuánto cabe');
+});
+
+// El peor caso: la muela lleva la frase más larga, y el premio va al máximo del campo.
+const PEOR = {
+  nombre: 'Maximiliano', diente: 'muela', estado: 'super', premio: 'M'.repeat(24),
+};
+const caja = await page.evaluate(async ({ datos, n }) => {
+  const { drawCertificate, LIMITE_NOTA } = await import('./js/certificate.js');
+  const palabras = ('felicidades te portaste muy bien en el colegio este trimestre te he ' +
+    'visto haciendo las tareas aprendiendo inglés continúa así orgulloso lograr').split(' ');
+  let nota = '';
+  while (nota.length < n) nota += (nota ? ' ' : '') + palabras[nota.length % palabras.length];
+  const lienzo = document.createElement('canvas');
+  const sin = drawCertificate(lienzo, { ...datos, fecha: '2026-09-11', nota: '' }).__caja;
+  const con = drawCertificate(lienzo, { ...datos, fecha: '2026-09-11',
+                                        nota: nota.slice(0, LIMITE_NOTA) }).__caja;
+  return { sin, con };
+}, { datos: PEOR, n: limite + 40 });
+
+console.log(`  peor caso: sin nota acaba en ${caja.sin.fin}, con ${limite} acaba en ${caja.con.fin}`);
+check('una nota del largo máximo sigue cabiendo en el peor caso', () => {
+  assert(caja.con.cabe,
+    `con ${limite} caracteres la carta se sale: la posdata cae en ${caja.con.fin}`);
+  assert(caja.con.tam >= 28, `la letra se encogió por debajo del suelo: ${caja.con.tam}px`);
+  assert(caja.con.fin > caja.sin.fin, 'la nota no ha alargado la carta: ¿se está dibujando?');
+});
+
+// Que la nota salga DENTRO de la carta y no como una cita aparte no se puede afirmar
+// mirando píxeles, pero sí se puede comprobar lo que la delataría: que el dibujo cambia
+// al escribirla, y que no se le añaden comillas por el camino.
+const fuenteDelDibujo = await page.evaluate(async () =>
+  (await fetch('js/certificate.js')).text());
+check('las palabras del padre van sin comillas ni cursiva', () => {
+  assert(!/[«»]/.test(fuenteDelDibujo), 'el dibujo todavía mete comillas angulares');
+  assert(/if \(nota\) ps\.push\(nota\)/.test(fuenteDelDibujo),
+    'la nota ya no entra como un párrafo más de la carta');
+});
+
+await page.fill('#cert-nombre', 'Mateo');
+await page.click('#cert-generar');
+await page.waitForTimeout(600);
 
 const guardado = await caminoDeGuardado('cert');
 revisarGuardado('cert', guardado);
 const href = await page.getAttribute('#cert-save', 'href');
-check('el certificado se puede descargar', () =>
+check('la carta se puede descargar', () =>
   assert(href?.startsWith('blob:'), `href inesperado: ${href}`));
 
 // La hoja impresa: el certificado y nada más.
@@ -509,8 +567,8 @@ const impreso = await page.evaluate(() => {
            acciones: visible('#cert-actions'), barra: visible('#bar') };
 });
 await page.emulateMedia({ media: 'screen' });
-check('al imprimir solo va el certificado', () => {
-  assert(impreso.canvas, 'el certificado no se imprime');
+check('al imprimir solo va la carta', () => {
+  assert(impreso.canvas, 'la carta no se imprime');
   for (const [k, v] of Object.entries(impreso)) {
     if (k !== 'canvas') assert(!v, `"${k}" se cuela en el papel`);
   }
@@ -521,7 +579,7 @@ check('al imprimir solo va el certificado', () => {
 const cerrarVisibleEnDoc = await page.isVisible('#cert-close');
 await page.click('#cert-close');
 const certCerrado = !(await page.isVisible('#cert'));
-check('el certificado se cierra desde el documento', () => {
+check('la carta se cierra desde el documento', () => {
   assert(cerrarVisibleEnDoc, 'no hay forma de cerrar el documento');
   assert(certCerrado);
 });

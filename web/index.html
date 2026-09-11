@@ -109,7 +109,7 @@
           <path d="M5.5 3.5h13v17l-6.5-3.2-6.5 3.2z"/><path d="M9 8.5h6M9 12h6"/>
         </svg>
       </span>
-      <span><b>Certificado del Ratón</b><em>Para dejar bajo la almohada</em></span>
+      <span><b>Carta del Ratón Pérez</b><em>Para dejar bajo la almohada</em></span>
       <span class="chev">
         <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor"
              stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m10 6 6 6-6 6"/></svg>
@@ -251,18 +251,18 @@
   <div id="shot-tip" class="tip"></div>
 </div>
 
-<!-- Certificado del Ratón: primero los datos, y el documento al final -->
+<!-- La carta del Ratón: primero los datos, y la carta al final -->
 <div id="cert" data-paso="datos" hidden>
   <!-- Cerrar vive fuera de los dos pasos: en el paso del documento no había salida. -->
-  <button id="cert-close" class="icon" aria-label="Cerrar el certificado" title="Cerrar">✕</button>
+  <button id="cert-close" class="icon" aria-label="Cerrar la carta" title="Cerrar">✕</button>
 
   <div id="cert-scroll">
 
     <!-- Paso 1: los datos -->
     <div id="cert-datos">
-      <h2 class="titulo-hoja">El certificado del Ratón</h2>
-      <p class="fine texto-hoja">Rellena lo que sepas. Lo único imprescindible es el
-         nombre; el resto lo puedes dejar como está.</p>
+      <h2 class="titulo-hoja">La carta del Ratón</h2>
+      <p class="fine texto-hoja">Rellena lo que sepas y el Ratón escribe la
+         carta. Lo único imprescindible es el nombre.</p>
 
       <div id="cert-form">
         <label class="field">
@@ -292,34 +292,39 @@
                  placeholder="Una moneda">
         </label>
 
+        <!-- Textarea y no input: son varias frases, y en una línea de una sola altura no
+             se puede releer lo que se acaba de escribir. El maxlength lo pone el módulo
+             desde LIMITE_NOTA, que es quien sabe cuánto cabe en el papel. -->
         <label class="field">
-          <span>Unas palabras del Ratón <i>opcional</i></span>
-          <input id="cert-nota" type="text" maxlength="90" autocomplete="off"
-                 placeholder="Eres muy valiente, Lucía.">
+          <span>Lo que quieras decirle <i>opcional</i></span>
+          <textarea id="cert-nota" rows="4" autocomplete="off"
+                    placeholder="Te he visto haciendo las tareas sin que nadie te lo recuerde, y aprendiendo inglés con muchas ganas. Estoy muy orgulloso de ti."></textarea>
+          <span class="ayuda">Va dentro de la carta, con la letra del Ratón.
+            <output id="cert-nota-cuenta"></output></span>
         </label>
       </div>
     </div>
 
     <!-- Paso 2: el documento -->
     <div id="cert-doc">
-      <h2 class="titulo-hoja" id="cert-doc-titulo">Ya está firmado</h2>
-      <p class="fine texto-hoja">Guárdalo en el carrete o mándalo a la impresora.</p>
+      <h2 class="titulo-hoja" id="cert-doc-titulo">Ya está escrita</h2>
+      <p class="fine texto-hoja">Guárdala en el carrete o mándala a la impresora.</p>
       <div id="cert-preview">
-        <canvas id="cert-canvas" aria-label="El certificado"></canvas>
+        <canvas id="cert-canvas" aria-label="La carta del Ratón Pérez"></canvas>
       </div>
     </div>
   </div>
 
   <div id="cert-actions">
     <!-- Paso 1 -->
-    <button id="cert-generar" class="primary">Crear el certificado</button>
+    <button id="cert-generar" class="primary">Escribir la carta</button>
 
     <!-- Paso 2 -->
     <button id="cert-share" hidden class="primary">Guardar en Fotos</button>
     <div class="actions" id="cert-acciones-doc">
       <button id="cert-volver">Editar</button>
       <button id="cert-print" class="btn">Imprimir</button>
-      <a id="cert-save" class="btn" download="certificado-raton-perez.png">Descargar</a>
+      <a id="cert-save" class="btn" download="carta-del-raton-perez.png">Descargar</a>
     </div>
     <div id="cert-tip" class="tip"></div>
   </div>
