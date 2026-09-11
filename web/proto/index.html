@@ -337,10 +337,10 @@ svg { display: block; }
 
   <!-- Barra del prototipo: existe para comparar las dos variantes abiertas -->
   <div id="proto">
-    <b>INICIO</b>
-    <button data-var="inicio" data-val="min" aria-pressed="true">1a mínima</button>
-    <button data-var="inicio" data-val="guiada" aria-pressed="false">1b guiada</button>
-    <b style="margin-left:8px">PASO 1</b>
+    <b>INICIO ✓</b>
+    <button data-var="inicio" data-val="min" aria-pressed="false">1a mínima</button>
+    <button data-var="inicio" data-val="guiada" aria-pressed="true">1b guiada</button>
+    <b style="margin-left:8px">PASO 1 ✓</b>
     <button data-var="paso" data-val="hoja" aria-pressed="true">1c hoja</button>
     <button data-var="paso" data-val="libre" aria-pressed="false">1d libre</button>
     <button class="close" id="proto-hide">ocultar</button>
@@ -570,7 +570,7 @@ const dropzone = $('#dropzone');
 // Navegación. Cada pantalla declara de dónde se vuelve; el prototipo no guarda
 // historial de navegador para que el botón atrás del teléfono siga saliendo.
 // ---------------------------------------------------------------------------
-const variantes = { inicio: 'min', paso: 'hoja' };
+const variantes = { inicio: 'guiada', paso: 'hoja' };   // decididas: 1b y 1c
 const PANTALLAS = {
   arranque:   { mouse: false, atras: null },
   inicio:     { mouse: true,  atras: 'arranque' },   // alias: resuelve a la variante

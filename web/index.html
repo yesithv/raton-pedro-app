@@ -19,11 +19,18 @@
 
 <!-- Arranque: permiso de cámara -->
 <div id="boot">
-  <h1>Ratón Pérez AR</h1>
-  <p>Prototipo de composición. Coloca al Ratón Pérez en el cuarto, escoge la animación
-     y graba el video.</p>
-  <button id="start">Abrir cámara</button>
-  <p class="fine">Necesita HTTPS y permiso de cámara.</p>
+  <img id="boot-hero" src="assets/raton_perez.png" alt="">
+  <h1>Ratón Pérez<br>en su cuarto</h1>
+  <p>Apunta el móvil a la cama y grábale mientras el peque duerme. Mañana se lo enseñas.</p>
+  <button id="start">Encender la cámara</button>
+  <p class="fine">Solo usamos la cámara mientras la app está abierta.
+     Nada se sube a ningún sitio.</p>
+</div>
+
+<!-- Titular del paso INICIO, sobre la escena -->
+<div id="inicio-head" hidden>
+  <h2>Esta noche viene<br>el Ratón Pérez</h2>
+  <p>Apunta a la cama. Tú eliges qué se lleva.</p>
 </div>
 
 <!-- Retículo de colocación (paso ESCANEAR) -->
@@ -49,8 +56,34 @@
 <div id="bar" hidden>
 
   <div id="ui-inicio" class="pane" hidden>
-    <button id="go-video" class="primary">Crear video</button>
-    <button id="go-photo">Tomar foto</button>
+    <button id="go-video" class="card on">
+      <span class="ic">
+        <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor"
+             stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="3" y="6.5" width="12.5" height="11" rx="2.5"/><path d="M15.5 12.2 21 9v6l-5.5-3.2z"/>
+        </svg>
+      </span>
+      <span><b>Grabar su visita</b><em>Vídeo de 5 s · unos 40 segundos</em></span>
+      <span class="chev">
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor"
+             stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m10 6 6 6-6 6"/></svg>
+      </span>
+    </button>
+    <button id="go-photo" class="card">
+      <span class="ic">
+        <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor"
+             stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M3 8.5A1.5 1.5 0 0 1 4.5 7h2.2l1.2-2h8.2l1.2 2h2.2A1.5 1.5 0 0 1 21 8.5v9A1.5 1.5 0 0 1 19.5 19h-15A1.5 1.5 0 0 1 3 17.5z"/>
+          <circle cx="12" cy="13" r="3.4"/>
+        </svg>
+      </span>
+      <span><b>Foto con él</b><em>Cámara frontal · unos 10 segundos</em></span>
+      <span class="chev">
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor"
+             stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m10 6 6 6-6 6"/></svg>
+      </span>
+    </button>
+    <p class="fine">Nadie oye nada: la app no hace ruido.</p>
   </div>
 
   <div id="ui-foto" class="pane" hidden>

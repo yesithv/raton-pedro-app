@@ -1,12 +1,21 @@
 :root {
-  --bg: #0b0d10;
-  --fg: #e8eaed;
-  --dim: #9aa3ad;
-  --accent: #e8b930;      /* el ámbar de los botones del asistente de referencia */
-  --accent-ink: #2a1f04;
-  --warn: #e8b563;
-  --rec: #d8443c;
-  --panel: rgba(14, 17, 21, 0.9);
+  /* Sistema de la ronda 1 de interfaz (docs/diseno-ronda-1.pdf). El ámbar sigue siendo
+     el único acento fuerte y viene de la sudadera del personaje: la identidad es él
+     sobre la habitación real, y cualquier color que compita con eso resta. */
+  --bg: #0A0B10;
+  --surface: #111218;
+  --fg: #EDE9E0;
+  --dim: #9E9A91;
+  --accent: #F0BE3C;
+  --accent-ink: #241A02;
+  --warn: #E8B563;
+  --rec: #E0473D;
+  --moon: #6E76C8;        /* luz de luna; ambiente, nunca un control */
+  --panel: rgba(17, 18, 24, 0.92);
+
+  --r-btn: 18px;
+  --r-pill: 16px;
+  --r-card: 20px;
 }
 
 * { box-sizing: border-box; }
@@ -44,9 +53,9 @@ button, .btn {
   font: inherit;
   color: var(--fg);
   background: rgba(255, 255, 255, 0.10);
-  border: 1px solid rgba(255, 255, 255, 0.17);
-  border-radius: 10px;
-  padding: 11px 18px;
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  border-radius: var(--r-btn);
+  padding: 13px 18px;
   cursor: pointer;
   text-decoration: none;
   display: inline-block;
@@ -75,17 +84,79 @@ button:disabled { opacity: 0.5; cursor: default; }
 .icon.on { background: var(--accent); color: var(--accent-ink); border-color: transparent; }
 .tiny { padding: 5px 10px; font-size: 11px; opacity: 0.65; border-radius: 8px; }
 
-/* --- Arranque --- */
+/* --- Arranque ---
+   El personaje primero y el permiso al final: quien abre esto de noche necesita saber en
+   dos segundos qué va a pasar, no leer una declaración de intenciones. */
 #boot {
   position: fixed; inset: 0; z-index: 30;
-  display: grid; place-content: center; gap: 18px;
-  padding: 28px; text-align: center;
+  display: flex; flex-direction: column; justify-content: flex-end; gap: 14px;
+  padding: max(16px, env(safe-area-inset-top)) 20px max(16px, env(safe-area-inset-bottom));
   background: var(--bg);
 }
-#boot h1 { margin: 0; font-size: 22px; font-weight: 600; letter-spacing: -0.01em; }
-#boot p { margin: 0; color: var(--dim); max-width: 30ch; }
-#boot .fine { font-size: 12px; }
-#start { background: var(--accent); color: var(--accent-ink); border-color: transparent; font-weight: 700; }
+#boot-hero {
+  flex: 1; min-height: 0;
+  object-fit: contain; align-self: center; max-width: 84%;
+  filter: drop-shadow(0 14px 30px rgba(0, 0, 0, 0.6));
+}
+#boot h1 {
+  margin: 0;
+  font-size: 38px; font-weight: 800; letter-spacing: -0.035em; line-height: 1.05;
+}
+#boot p { margin: 0; color: var(--dim); max-width: 34ch; font-size: 15px; line-height: 1.45; }
+#boot .fine { font-size: 13px; text-align: center; max-width: none; }
+#start {
+  width: 100%;
+  background: var(--accent); color: var(--accent-ink); border-color: transparent;
+  font-size: 17px; font-weight: 800; padding: 17px 20px;
+}
+
+/* --- Inicio: titular sobre la escena ---
+   Va arriba y en el aire, sin caja: el diseño prohíbe superficies opacas en el centro
+   de la pantalla, que es justo donde está la cama. */
+#inicio-head {
+  position: fixed; z-index: 12;
+  top: max(12px, env(safe-area-inset-top)); left: 20px; right: 20px;
+  text-shadow: 0 2px 14px rgba(0, 0, 0, 0.9);
+}
+#inicio-head h2 {
+  margin: 0;
+  font-size: 26px; font-weight: 800; letter-spacing: -0.02em; line-height: 1.1;
+}
+#inicio-head p { margin: 6px 0 0; color: var(--dim); font-size: 15px; }
+
+/* --- Tarjetas del inicio ---
+   Sustituyen a los dos botones que no vendían nada: ahora dicen qué sale y cuánto tarda,
+   que era el problema 1 del brief de rediseño. */
+#ui-inicio { flex-direction: column; align-items: stretch; width: 100%; max-width: 34rem; gap: 10px; }
+.card {
+  display: flex; align-items: center; gap: 12px;
+  width: 100%; padding: 14px 12px;
+  background: var(--surface); border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: var(--r-card);
+  text-align: left;
+}
+.card.on { background: var(--accent); border-color: transparent; color: var(--accent-ink); }
+.card .ic {
+  width: 44px; height: 44px; border-radius: 14px; flex: none;
+  display: grid; place-items: center;
+  background: rgba(255, 255, 255, 0.07);
+}
+.card.on .ic { background: rgba(36, 26, 2, 0.13); }
+/* min-width:0 en el bloque de texto: sin él, el flex no le deja encoger y la segunda
+   línea de la tarjeta ("Cámara frontal · unos 10 segundos") se parte en dos. */
+.card > span:not(.ic):not(.chev) { min-width: 0; }
+.card b { display: block; font-size: 17px; font-weight: 800; letter-spacing: -0.01em; }
+.card em { display: block; font-style: normal; font-size: 12.5px; font-weight: 600; color: var(--dim); margin-top: 2px; }
+.card.on em { color: rgba(36, 26, 2, 0.72); }
+.card .chev { margin-left: auto; opacity: 0.5; }
+.card svg { display: block; }
+#ui-inicio .fine { margin: 2px 0 0; }
+
+/* Texto de apoyo: pequeño, tenue y centrado. Se usa en el arranque y bajo las tarjetas. */
+.fine {
+  font-size: 13px; line-height: 1.4;
+  color: var(--dim); text-align: center;
+}
 
 /* --- Cromo superior --- */
 #chrome {
@@ -278,4 +349,13 @@ button:disabled { opacity: 0.5; cursor: default; }
 @media (max-width: 420px) {
   #panel label { grid-template-columns: 7em 1fr 3.2em; }
   #fx-title { min-width: 9rem; }
+}
+
+/* Teléfonos estrechos (iPhone SE y Androids de 360): el subtítulo de las tarjetas se
+   parte en dos líneas. Medido, no supuesto — a 390 cabe, a 360 no. */
+@media (max-width: 380px) {
+  #bar { padding-left: 10px; padding-right: 10px; }
+  .card { padding: 13px 10px; gap: 10px; }
+  .card .ic { width: 40px; height: 40px; }
+  .card em { font-size: 12px; }
 }
