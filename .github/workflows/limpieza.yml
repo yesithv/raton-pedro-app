@@ -1,0 +1,65 @@
+name: Limpieza de ramas
+
+# Borra la rama de un pull request cuando SE FUSIONA. Cerrar un PR sin fusionarlo no
+# borra nada: ahí la rama suele seguir siendo el trabajo de alguien.
+#
+# GitHub trae esto de serie en Settings -> General -> "Automatically delete head
+# branches", que es un interruptor y no necesita workflow. Está aquí igualmente por dos
+# razones:
+#
+#   1. Ese interruptor exige permiso de ADMINISTRACIÓN del repositorio, que GITHUB_TOKEN
+#      no tiene — el mismo muro que obliga a activar Pages a mano (ver pages.yml). Con
+#      este workflow la limpieza queda versionada en el repo y funciona sin tocar ajustes.
+#   2. Versionado se puede leer y razonar: qué se borra, qué no, y por qué.
+#
+# Si algún día se activa el interruptor, esto no estorba: el paso encuentra la rama ya
+# borrada y termina en verde.
+
+on:
+  pull_request:
+    types: [closed]
+
+permissions:
+  contents: write        # borrar una referencia es escribir en el repositorio
+
+jobs:
+  borrar-rama:
+    name: Borrar la rama fusionada
+    # Dos condiciones, y las dos importan:
+    #   - merged: cerrar sin fusionar no es motivo para borrar el trabajo de nadie.
+    #   - mismo repositorio: la rama de un fork no es nuestra y no se toca.
+    if: >
+      github.event.pull_request.merged == true &&
+      github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    steps:
+      - name: Borrar la rama
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const rama = context.payload.pull_request.head.ref;
+
+            // Red de seguridad. El `if` del job ya impide llegar aquí desde un fork, pero
+            // una rama base nunca puede borrarse por un fallo de configuración futuro.
+            const intocables = ['main', 'master', context.payload.repository.default_branch];
+            if (intocables.includes(rama)) {
+              core.notice(`"${rama}" es una rama base: no se toca.`);
+              return;
+            }
+
+            try {
+              await github.rest.git.deleteRef({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                ref: `heads/${rama}`,
+              });
+              core.notice(`Rama "${rama}" borrada tras fusionarse.`);
+            } catch (error) {
+              // 422 y 404 son "ya no existe": alguien la borró a mano, o el interruptor
+              // nativo se adelantó. Eso no es un fallo del workflow.
+              if (error.status === 422 || error.status === 404) {
+                core.notice(`La rama "${rama}" ya no existía.`);
+                return;
+              }
+              throw error;
+            }
