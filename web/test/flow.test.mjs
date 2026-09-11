@@ -127,12 +127,33 @@ const sampleRegion = () => page.evaluate(() => {
 });
 const distance = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]);
 
+// PROMEDIAR, no comparar dos lecturas sueltas.
+//
+// La versión anterior medía el "ruido" restando dos lecturas separadas medio segundo.
+// Eso no es ruido: la cámara falsa es un vídeo que SE MUEVE, así que lo que medía era el
+// movimiento de la escena, y cuando las dos lecturas caían en un tramo movido el listón
+// (ruido x4) se ponía por encima de la señal real del personaje. Falló así en CI con
+// señal 0.00929 contra un listón de 0.01124, con el mismo commit que pasó en la
+// ejecución hermana: el modo de fallo clásico de un umbral sobre una sola muestra.
+//
+// Ahora se toman cinco lecturas de cada estado y se comparan sus MEDIAS. El movimiento,
+// que cambia de signo entre frames, se cancela al promediar; la aportación del overlay,
+// que es constante, no. Como suelo de comparación se usa la dispersión PEOR de las cinco
+// respecto a su media, así que el listón lo pone el peor caso observado y no el azar de
+// qué dos frames tocaron.
+const muestrearVarias = async (n = 5) => {
+  const lecturas = [];
+  for (let i = 0; i < n; i++) {
+    lecturas.push(await sampleRegion());
+    await page.waitForTimeout(120);
+  }
+  const media = [0, 1, 2].map((c) => lecturas.reduce((a, l) => a + l[c], 0) / lecturas.length);
+  return { media, dispersion: Math.max(...lecturas.map((l) => distance(l, media))) };
+};
+
 await page.click('#home');            // inicio: overlay apagado
 await page.waitForTimeout(700);
-const sinOverlayA = await sampleRegion();
-await page.waitForTimeout(500);
-const sinOverlayB = await sampleRegion();
-const ruido = distance(sinOverlayA, sinOverlayB);
+const sinOverlay = await muestrearVarias();
 
 // Volver a GRABAR por el mismo camino: la colocación y el tamaño se conservan.
 for (const id of ['#go-video', '#place', '#next-superficie', '#next-tamano', '#select-fx']) {
@@ -140,13 +161,15 @@ for (const id of ['#go-video', '#place', '#next-superficie', '#next-tamano', '#s
   await page.waitForTimeout(250);
 }
 await page.waitForTimeout(700);
-const conOverlay = await sampleRegion();
-const senal = distance(conOverlay, sinOverlayB);
+const conOverlay = await muestrearVarias();
 
-console.log(`  señal ${senal.toFixed(5)} · ruido de la escena ${ruido.toFixed(5)}`);
+const senal = distance(conOverlay.media, sinOverlay.media);
+const ruido = Math.max(sinOverlay.dispersion, conOverlay.dispersion);
+
+console.log(`  señal ${senal.toFixed(5)} · dispersión de la escena ${ruido.toFixed(5)}`);
 check('el overlay cambia la imagen más que el ruido de la escena', () =>
-  assert(senal > Math.max(ruido * 4, 0.002),
-    `el overlay no destaca sobre el ruido: señal ${senal.toFixed(5)}, ruido ${ruido.toFixed(5)}`));
+  assert(senal > Math.max(ruido * 3, 0.002),
+    `el overlay no destaca sobre el ruido: señal ${senal.toFixed(5)}, dispersión ${ruido.toFixed(5)}`));
 
 const hud = await page.evaluate(() => {
   document.getElementById('dbg-toggle').click();
@@ -280,6 +303,61 @@ await page.click('#shot-close');
 await page.click('#home');
 const deFotoAInicio = await page.isVisible('#ui-inicio');
 check('foto vuelve al principio', () => assert(deFotoAInicio));
+
+console.log('certificado');
+// Lo que hay que demostrar es que el certificado se RELLENA y sale del formulario
+// convertido en un archivo: el nombre del peque tiene que acabar dibujado en el lienzo,
+// y la hoja que se manda a la impresora no puede llevar interfaz encima.
+await page.click('#go-cert');
+await page.waitForSelector('#cert:not([hidden])', { timeout: 10_000 });
+
+const lienzoCert = () => page.evaluate(() => {
+  const c = document.getElementById('cert-canvas');
+  return { w: c.width, h: c.height, datos: c.toDataURL('image/png').length };
+});
+const vacio = await lienzoCert();
+check('el certificado es A4 a 150 ppp', () =>
+  assert.equal(`${vacio.w}x${vacio.h}`, '1240x1754'));
+
+await page.fill('#cert-nombre', 'Lucía');
+await page.fill('#cert-premio', 'Una moneda');
+await page.click('#cert-estado .chip:nth-child(2)');
+await page.waitForTimeout(700);
+await shot('9_certificado');
+const lleno = await lienzoCert();
+check('rellenar el formulario cambia el certificado', () =>
+  assert.notEqual(lleno.datos, vacio.datos, 'el lienzo no se redibujó al escribir'));
+
+const guardado = await caminoDeGuardado('cert');
+revisarGuardado('cert', guardado);
+const href = await page.getAttribute('#cert-save', 'href');
+check('el certificado se puede descargar', () =>
+  assert(href?.startsWith('blob:'), `href inesperado: ${href}`));
+
+// La hoja impresa: el certificado y nada más.
+await page.emulateMedia({ media: 'print' });
+await page.waitForTimeout(200);
+const impreso = await page.evaluate(() => {
+  const visible = (sel) => {
+    const e = document.querySelector(sel);
+    if (!e) return false;
+    const r = e.getBoundingClientRect();
+    return r.width > 0 && r.height > 0;
+  };
+  return { canvas: visible('#cert-canvas'), form: visible('#cert-form'),
+           acciones: visible('#cert-actions'), barra: visible('#bar') };
+});
+await page.emulateMedia({ media: 'screen' });
+check('al imprimir solo va el certificado', () => {
+  assert(impreso.canvas, 'el certificado no se imprime');
+  for (const [k, v] of Object.entries(impreso)) {
+    if (k !== 'canvas') assert(!v, `"${k}" se cuela en el papel`);
+  }
+});
+
+await page.click('#cert-close');
+const certCerrado = !(await page.isVisible('#cert'));
+check('el certificado se cierra', () => assert(certCerrado));
 
 await browser.close();
 
