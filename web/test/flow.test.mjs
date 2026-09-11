@@ -402,6 +402,8 @@ const cam = await page.evaluate(() => {
     visor: v, arriba: caja('#cam-arriba'), abajo: caja('#cam-abajo'),
     aro: caja('.disparador'), disco: caja('.disparador span'),
     velo: getComputedStyle(document.getElementById('cam-arriba')).backgroundColor,
+    botones: [...document.querySelectorAll('#ui-foto .cam-btn')]
+      .map((n) => Math.round(n.getBoundingClientRect().width)),
     // Cada línea, como fracción del lado del visor por el que corre.
     rejilla: [...document.querySelectorAll('#rejilla i')].map((n) => {
       const b = n.getBoundingClientRect();
@@ -435,6 +437,11 @@ check('las bandas son un velo y no negro opaco', () => {
 check('el obturador mide los 68 px de la cámara nativa, con su aro', () => {
   assert.equal(Math.round(cam.disco.w), 68, `el disco mide ${cam.disco.w}`);
   assert(cam.aro.w > cam.disco.w + 4, 'el disco no tiene aro alrededor');
+});
+check('los botones de icono son todos del mismo tamaño y se pueden tocar', () => {
+  const unico = [...new Set(cam.botones)];
+  assert.equal(unico.length, 1, `hay botones de tamaños distintos: ${unico.join(', ')}`);
+  assert(unico[0] >= 44, `${unico[0]} px se queda por debajo del mínimo táctil de 44`);
 });
 check('la cuadrícula cae en los tercios', () => {
   const esperado = [1 / 3, 2 / 3, 1 / 3, 2 / 3];
@@ -504,9 +511,71 @@ check('el ratón está DENTRO de la foto, no solo en pantalla', () =>
 
 revisarGuardado('shot', await caminoDeGuardado('shot'));
 
+// ---------------------------------------------------------------------------
+// Que el ratón SE PUEDA MOVER
+// ---------------------------------------------------------------------------
+// Con la pantalla del resultado todavía abierta, el toque cae en la foto y no en el
+// visor: hay que volver a la cámara antes de probar los gestos.
+await page.click('#shot-close');
+await page.waitForTimeout(200);
+
+// Esto se colaba entero: la prueba tocaba la pantalla para colocar al ratón pero nunca
+// comprobaba que se hubiera movido, así que cuando el contenedor de la cámara empezó a
+// tragarse los toques -ocupa la pantalla entera por encima del lienzo- el ratón se quedó
+// clavado y la suite siguió en verde. Un gesto que no se comprueba es un gesto que no
+// está probado.
+const dondeCaeElToque = await page.evaluate(() => {
+  const b = document.getElementById('visor').getBoundingClientRect();
+  return document.elementFromPoint(b.x + b.width / 2, b.y + b.height / 2).id;
+});
+check('el toque en el visor llega al lienzo, no al cromo de la cámara', () =>
+  assert.equal(dondeCaeElToque, 'stage',
+    `el toque se lo queda "${dondeCaeElToque}": el ratón no se va a poder arrastrar`));
+
+const donde = () => page.evaluate(() => {
+  const s = document.getElementById('sticker');
+  return { x: parseFloat(s.style.left), y: parseFloat(s.style.top),
+           alto: parseFloat(s.style.height) };
+});
+const visorCaja = await page.evaluate(() => {
+  const b = document.getElementById('visor').getBoundingClientRect();
+  return { x: b.x, y: b.y, w: b.width, h: b.height };
+});
+const centroX = Math.round(visorCaja.x + visorCaja.w / 2);
+const centroY = Math.round(visorCaja.y + visorCaja.h / 2);
+
+const antesDeArrastrar = await donde();
+await page.mouse.move(centroX, centroY);
+await page.mouse.down();
+await page.mouse.move(centroX - 90, centroY - 70, { steps: 8 });
+await page.mouse.up();
+const trasArrastrar = await donde();
+check('arrastrar mueve al ratón', () => {
+  assert(Math.abs(trasArrastrar.x - antesDeArrastrar.x) > 40,
+    `no se movió en horizontal: ${antesDeArrastrar.x} → ${trasArrastrar.x}`);
+  assert(Math.abs(trasArrastrar.y - antesDeArrastrar.y) > 40,
+    `no se movió en vertical: ${antesDeArrastrar.y} → ${trasArrastrar.y}`);
+});
+
+// El pellizco a mano: Playwright no tiene gesto de dos dedos, así que se mandan los dos
+// punteros al lienzo, que es exactamente lo que hace el navegador.
+await page.evaluate(([x, y]) => {
+  const stage = document.getElementById('stage');
+  stage.setPointerCapture = () => {};
+  const ev = (t, id, cx, cy) => stage.dispatchEvent(new PointerEvent(t, {
+    pointerId: id, clientX: cx, clientY: cy, bubbles: true, pointerType: 'touch' }));
+  ev('pointerdown', 1, x - 40, y); ev('pointerdown', 2, x + 40, y);
+  ev('pointermove', 1, x - 100, y); ev('pointermove', 2, x + 100, y);
+  ev('pointerup', 1, x - 100, y); ev('pointerup', 2, x + 100, y);
+}, [centroX, centroY]);
+await page.waitForTimeout(150);
+const trasPellizcar = await donde();
+check('pellizcar cambia el tamaño del ratón', () =>
+  assert(trasPellizcar.alto > trasArrastrar.alto * 1.3,
+    `el tamaño no cambió: ${trasArrastrar.alto} → ${trasPellizcar.alto}`));
+
 // Se sale por la ✕ de la cámara y no por el botón de casa de la app: en FOTO el cromo
 // de la app no existe, que es precisamente lo que la hace parecer una cámara.
-await page.click('#shot-close');
 await page.click('#foto-salir');
 const deFotoAInicio = await page.isVisible('#ui-inicio');
 check('foto vuelve al principio por la salida de la cámara', () => assert(deFotoAInicio));
