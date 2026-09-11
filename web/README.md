@@ -52,6 +52,7 @@ Reproduce paso por paso el asistente de la app de referencia:
 | **EDITAR** | Escoger entre las tres animaciones | ‹ › |
 | **GRABAR** | Linterna, grabar, foto | Botón rojo |
 | **FOTO** | Cámara frontal + ratón encima, para la foto con el niño | Arrastrar y pellizcar |
+| **CERTIFICADO** | El documento que deja el Ratón, para imprimir o dejar bajo la almohada | Rellenar |
 
 El punto que colocas es el **punto de contacto** con la superficie (`anchorPoint` del
 asset), no el centro del cuadro: el ratón queda parado ahí y no flotando.
@@ -85,6 +86,35 @@ este paso con el shader dándole un matte a partir del alfa del PNG, no volver a
 
 El PNG sale del render original con `python3 tools/crop_alpha.py`, que lo recorta al
 rectángulo con píxeles opacos y le deja un margen para la sombra.
+
+### El certificado se dibuja en un lienzo, no en HTML
+
+*Certificado del Ratón* abre un formulario —nombre, fecha, qué diente, cómo estaba y qué
+dejó a cambio— y encima, fija, la vista previa del documento, que se redibuja mientras se
+escribe. Ver el nombre del peque aparecer en el papel **es** la función; si hubiera que
+desplazarse para comprobarlo, se pierde.
+
+Los campos no son inventados: son los de la convención española del Ratoncito Pérez
+—nombre, fecha, qué diente, **estado del diente** y recompensa—, que es más específica
+que la del *tooth fairy* anglosajón, donde solo se registran nombre y fecha. El estado
+del diente (*súper limpio · limpio · se puede mejorar*) es el guiño de higiene dental que
+llevan los certificados que reparten las clínicas, y la recompensa es lo primero que el
+niño va a preguntar.
+
+Está dibujado en un **canvas 2D** (`js/certificate.js`) y no maquetado en HTML por la
+misma razón que el modo FOTO compone en 2D: el certificado tiene que poder **guardarse y
+compartirse como imagen**, igual que la foto y el vídeo. Maquetarlo en DOM obligaría a
+mantener dos implementaciones del mismo diseño —una para ver y otra para exportar— y a la
+segunda se le olvida siempre algún cambio. Aquí **la vista previa es el archivo**.
+
+Dos consecuencias que conviene saber:
+
+- Es el único sitio de la app con **fondo claro**, a propósito: se imprime. Un documento
+  oscuro se lee mal en papel y se come un cartucho.
+- El tamaño es **A4 vertical a 150 ppp** (1240x1754), y la hoja impresa lleva solo el
+  certificado: la regla `@media print` apaga el formulario, los botones y la cámara. Sin
+  limitar también el **alto**, el certificado desbordaba el A4 y salía una segunda página
+  en blanco; está comprobado en la prueba.
 
 ### Lo que no hace, y no puede hacer
 
@@ -132,6 +162,7 @@ js/compositor.js    WebGL2. Carga shaders/composite.{vert,frag} y los reescribe 
 js/analyzer.js      SceneAnalyzer: color de un mip, ruido de un recorte nativo, EMA
 js/recorder.js      canvas.captureStream + MediaRecorder, con micrófono
 js/main.js          máquina de estados, gestos, grabación, foto
+js/certificate.js   el certificado: se dibuja en canvas, se guarda y se imprime
 assets/             catálogo, assets empaquetados y metadata (tools/build_effect.py)
 assets/raton_perez.png  el ratón del modo FOTO: PNG con alfa, sin vídeo ni shader
 ```

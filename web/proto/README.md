@@ -46,7 +46,8 @@ Atrezo:
 - La grabación cuenta cinco segundos y salta al resultado. No hay vídeo.
 - *Guardar en Fotos* lleva a la pantalla de recompensa sin guardar nada.
 - La linterna, el cambio de cámara y *Compartir* solo se encienden o avisan.
-- El certificado no existe: es de la ronda 2.
+- El certificado, aquí, no existe. En la app de verdad **sí**: `../index.html` lo genera,
+  lo guarda y lo imprime.
 
 ## Qué falta antes de implementarlo de verdad
 

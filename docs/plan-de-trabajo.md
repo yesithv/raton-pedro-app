@@ -434,14 +434,37 @@ que la mitad de los padres no descubre.
 (paleta, radios, tipografía). El asistente conserva su estructura de cinco pasos: fundirlo
 en dos es el siguiente encargo, y es cambio de máquina de estados, no de piel.
 
+También lleva el **certificado**, que en el diseño era solo una tarjeta de entrada.
+
 Lo que sigue pendiente, por orden:
 
 1. Fundir POSICIÓN y TAMAÑO en *Colócalo*, meter el retículo dentro del primer paso y
    bajar EDITAR a una fila de la hoja.
-2. Pantalla de recompensa tras guardar.
+2. Pantalla de recompensa tras guardar, con la entrada al certificado desde ahí: hoy se
+   llega por INICIO, y el remate natural es justo después de guardar el vídeo.
 3. Sacar *Ajustes* de la interfaz (siete toques o `?dev=1`).
 4. Los estados que el diseño aún no cubre: permiso denegado, navegador sin grabación,
    formato que el carrete no acepta, luz fuera de rango. Es la ronda 2.
+
+### El certificado, y por qué sus campos son esos
+
+La convención española del Ratoncito Pérez está más cerrada de lo que parece, y no
+coincide con la del *tooth fairy* anglosajón. Los certificados que circulan —los de las
+clínicas dentales incluidas— registran **nombre, fecha, qué diente, estado del diente y
+recompensa**, van firmados y sellados por él, y cierran con un «¡Sigue cuidando tus
+dientes!». El anglosajón se queda en nombre y fecha, con variantes de *bravery* y
+*first tooth*.
+
+Los dos campos que no hay que perder son los que no son obvios:
+
+- **El estado del diente** (*súper limpio · limpio · se puede mejorar*) es el guiño de
+  higiene dental. Es lo que convierte el papel en algo que los dentistas reparten.
+- **La recompensa** es lo primero que el niño pregunta, y dejarlo escrito de puño del
+  Ratón evita la conversación incómoda del día siguiente.
+
+Decisión de redacción: el mensaje va en primera persona y **sin marcas de género**. Un
+«dormido/a» en un documento que el niño va a guardar años se lee como un formulario, y la
+mitad de las veces está mal. «Estabas durmiendo» vale para todos y no cuesta nada.
 
 Lo que el diseño todavía **no** cubre y la app necesita: permiso denegado, navegador sin
 grabación, clip en formato que el carrete no acepta y aviso de luz fuera de rango. Esa es
