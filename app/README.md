@@ -14,9 +14,16 @@
 | Que el shader componga algo | ❌ nadie lo ha visto todavía |
 | Anclaje ARCore, cámara real, MediaCodec de gama baja | ❌ un emulador no los tiene |
 
-`.github/workflows/ci.yml` construye el APK en cada push. Ahí sí se alcanza Google Maven,
-así que valida el Android Gradle Plugin, AndroidX y la API real de ARCore — todo lo que
-un entorno con la salida de red restringida deja sin comprobar.
+`.github/workflows/ci-android.yml` construye el APK. Ahí sí se alcanza Google Maven, así
+que valida el Android Gradle Plugin, AndroidX y la API real de ARCore — todo lo que un
+entorno con la salida de red restringida deja sin comprobar.
+
+Corre **cuando cambia `app/` o `shaders/`**, no en cada commit del repo. No se ha quitado
+nada: el emulador sigue siendo lo único que demuestra que la app ARRANCA, y como el
+nativo no se ha ejecutado nunca en un teléfono de verdad, sin él no quedaría ninguna
+prueba de que la capa nativa funciona. Lo que se ha quitado es compilar un APK porque
+alguien tocó una hoja de estilos. Para lanzarlo a mano: *Actions → CI Android → Run
+workflow*.
 
 **Nunca se ha ejecutado en un dispositivo real.** Arranca en un emulador sin reventar, y
 el logcat muestra un contexto EGL ES 3.0 creado y activo — como `Compositor.init()` corre

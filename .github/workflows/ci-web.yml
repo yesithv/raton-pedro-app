@@ -1,0 +1,74 @@
+name: CI web
+
+# El prototipo web. Corre SOLO cuando cambia algo que puede romperlo.
+#
+# `shaders/` está aquí y en el CI de Android a propósito: el fragment shader es UNA sola
+# fuente de verdad compartida por los dos, y tocarlo tiene que probar los dos.
+#
+# `tools/` también: la prueba genera el material sintético con make_placeholder.py,
+# build_effect.py y compose.py, así que un cambio ahí puede tumbarla sin tocar web/.
+on:
+  # En `push` solo main, y en `pull_request` todo lo demás. Antes escuchaba
+  # `branches: ["**"]` además de pull_request, y como el `concurrency` agrupa por ref -que
+  # es distinto en cada caso- no se cancelaban entre ellos: cada commit de una rama con PR
+  # abierto lanzaba el CI ENTERO DOS VECES.
+  push:
+    branches: [main]
+    paths:
+      - "web/**"
+      - "shaders/**"
+      - "tools/**"
+      - ".github/workflows/ci-web.yml"
+  pull_request:
+    paths:
+      - "web/**"
+      - "shaders/**"
+      - "tools/**"
+      - ".github/workflows/ci-web.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  web:
+    name: Web · asistente sobre cámara falsa
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - run: pip install -r tools/requirements.txt
+      - run: npm ci || npm install --no-fund --no-audit
+        working-directory: web/test
+      - run: npx playwright install --with-deps chromium
+        working-directory: web/test
+
+      - name: Cadena de assets
+        run: |
+          python3 tools/make_placeholder.py --outdir /tmp/ph --effect-frames 45 \
+            --room-frames 60 --size 720x1280
+          python3 tools/build_effect.py /tmp/ph/frames -o /tmp/ph/efecto.mp4 \
+            --track-size 480x848
+          python3 tools/compose.py /tmp/ph/cuarto_sintetico.mp4 /tmp/ph/efecto.mp4 \
+            -o /tmp/ph/graded.mp4
+
+      - name: Recorrido del asistente
+        run: SHOT_DIR=/tmp/shots ./web/test/run.sh
+        env:
+          WORK_DIR: /tmp/webtest
+
+      # Las capturas son la mitad del valor: dejan ver si la composición se rompió
+      # visualmente aunque las aserciones pasen.
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: capturas-asistente
+          path: /tmp/shots
+          if-no-files-found: warn
