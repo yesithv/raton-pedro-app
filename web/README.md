@@ -166,6 +166,17 @@ Dos diferencias deliberadas:
   pierde calidad, que es justo lo contrario de lo que hace el nativo. Antes de fingirlo,
   mejor no ponerlo.
 
+**El contenedor de la cámara no captura toques** (`pointer-events: none`), y eso no es un
+detalle: ocupa la pantalla entera por encima del lienzo. Con el valor por defecto, un toque
+sobre el visor —que sí los deja pasar— se lo queda el **padre**, y el ratón se queda
+clavado: ni se arrastra ni se pellizca. Los toques los recogen solo las bandas, que son lo
+único que lleva controles.
+
+Pasó de verdad, y se coló porque la prueba **tocaba la pantalla para colocar al ratón pero
+nunca comprobaba que se hubiera movido**. Ahora comprueba las tres cosas: que
+`elementFromPoint` en mitad del visor devuelve el lienzo, que arrastrar lo mueve y que
+pellizcar lo escala. Un gesto que no se comprueba es un gesto que no está probado.
+
 Esta pantalla va **oscura en los dos temas**, y no es un descuido: no hay ninguna cámara
 con el marco blanco. Aquí el tema del sistema no pinta nada, porque lo que manda es el
 vídeo que hay debajo.
