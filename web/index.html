@@ -31,7 +31,13 @@
 <!-- Arranque: permiso de cámara -->
 <div id="boot">
   <img id="boot-hero" src="assets/raton_perez.png" alt="">
-  <button id="tema" class="icon" aria-label="Cambiar entre claro y oscuro" title="Claro u oscuro"></button>
+  <button id="ajustes-abrir" class="icon" aria-label="Ajustes" title="Ajustes">
+    <svg viewBox="0 0 24 24" width="21" height="21" fill="none" stroke="currentColor"
+         stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <circle cx="12" cy="12" r="3.1"/>
+      <path d="M12 2.6v2.2M12 19.2v2.2M4.36 4.36l1.56 1.56M18.08 18.08l1.56 1.56M2.6 12h2.2M19.2 12h2.2M4.36 19.64l1.56-1.56M18.08 5.92l1.56-1.56"/>
+    </svg>
+  </button>
   <div class="rayas" aria-hidden="true"><i></i><i></i><i></i></div>
   <h1>Ratón Pérez<br>en su cuarto</h1>
   <p>Apunta el móvil a la cama y grábale mientras el peque duerme. Mañana se lo enseñas.</p>
@@ -145,21 +151,81 @@
     <button id="photo" class="icon" title="Foto" aria-label="Foto">◎</button>
   </div>
 
-  <button id="dbg-toggle" class="tiny">Ajustes</button>
+  <button id="ajustes-bar" class="tiny">Ajustes</button>
 </div>
 
-<!-- Panel de ajustes / depuración -->
-<div id="panel" hidden>
-  <div id="dbg"></div>
-  <label>Exposición mín <input id="s-exp-min" type="range" min="0.1" max="1.5" step="0.01"><output id="s-exp-min-v"></output></label>
-  <label>Exposición máx <input id="s-exp-max" type="range" min="0.5" max="2.5" step="0.01"><output id="s-exp-max-v"></output></label>
-  <label>Key <input id="s-key" type="range" min="0.5" max="2" step="0.01"><output id="s-key-v"></output></label>
-  <label>Balance color <input id="s-wb" type="range" min="0" max="1" step="0.01"><output id="s-wb-v"></output></label>
-  <label>Softness <input id="s-softness" type="range" min="0" max="2.5" step="0.05"><output id="s-softness-v"></output></label>
-  <label>Grano máx <input id="s-grain-max" type="range" min="0" max="0.2" step="0.005"><output id="s-grain-max-v"></output></label>
-  <label class="check">Rango limitado <input id="s-limited" type="checkbox"></label>
-  <label class="check">Micrófono <input id="s-mic" type="checkbox" checked></label>
-  <div id="clamp-warn" hidden></div>
+<!-- Ajustes: una hoja, un solo sitio donde se configura la app.
+     Es una hoja INFERIOR y no una pantalla entera a propósito: los deslizadores del
+     ajuste fino solo sirven si se ve la escena mientras se mueven. -->
+<div id="ajustes" hidden>
+  <div id="ajustes-hoja" role="dialog" aria-modal="true" aria-labelledby="ajustes-titulo">
+
+    <div id="ajustes-head">
+      <h2 class="titulo-hoja" id="ajustes-titulo">Ajustes</h2>
+      <button id="ajustes-close" class="icon" aria-label="Cerrar los ajustes" title="Cerrar">✕</button>
+    </div>
+
+    <div id="ajustes-scroll">
+
+      <section class="grupo">
+        <h3>Tema</h3>
+        <div id="tema" class="segmento" role="group" aria-label="Tema"></div>
+        <p class="fine texto-hoja" id="tema-pie"></p>
+      </section>
+
+      <section class="grupo">
+        <h3>Al grabar</h3>
+        <label class="fila">
+          <span>
+            <b>Grabar también tu voz</b>
+            <em>Lo que digas mientras grabas entra en el vídeo.</em>
+          </span>
+          <input id="s-mic" type="checkbox" checked>
+        </label>
+      </section>
+
+      <!-- Todo lo que antes estaba a un toque del usuario vive aquí, doblado.
+           No se esconde: se aparta. Quien lo abra tiene que poder deshacerlo, y por eso
+           "Restablecer" está dentro y no en otra pantalla. -->
+      <details id="avanzado" class="grupo">
+        <summary>Ajuste fino de la imagen</summary>
+
+        <p class="fine texto-hoja">Cómo se funde el ratón con la luz del cuarto. La app lo
+           calcula sola mirando la escena; esto es para llevarle la contraria. Si algo se
+           tuerce, <b>Restablecer</b> lo deja como estaba.</p>
+
+        <label><span>Luz sobre el ratón</span><output id="s-key-v"></output><input id="s-key" type="range" min="0.5" max="2" step="0.01"></label>
+        <label><span>Toma el color del cuarto</span><output id="s-wb-v"></output><input id="s-wb" type="range" min="0" max="1" step="0.01"></label>
+        <label><span>Oscurecer, como mucho</span><output id="s-exp-min-v"></output><input id="s-exp-min" type="range" min="0.1" max="1.5" step="0.01"></label>
+        <label><span>Aclarar, como mucho</span><output id="s-exp-max-v"></output><input id="s-exp-max" type="range" min="0.5" max="2.5" step="0.01"></label>
+        <label><span>Bordes suaves</span><output id="s-softness-v"></output><input id="s-softness" type="range" min="0" max="2.5" step="0.05"></label>
+        <label><span>Grano, como mucho</span><output id="s-grain-max-v"></output><input id="s-grain-max" type="range" min="0" max="0.2" step="0.005"></label>
+
+        <label class="fila">
+          <span>
+            <b>Rango de color limitado</b>
+            <em>Para cámaras que entregan el vídeo de 16 a 235 en vez de 0 a 255.</em>
+          </span>
+          <input id="s-limited" type="checkbox">
+        </label>
+
+        <div id="clamp-warn" hidden></div>
+        <button id="ajustes-reset">Restablecer</button>
+      </details>
+
+      <!-- Diagnóstico: números crudos, para quien desarrolla. Se abre con ?dev=1 o con
+           siete toques en el título de esta hoja. -->
+      <section class="grupo" id="diagnostico" hidden>
+        <h3>Diagnóstico</h3>
+        <div id="dbg"></div>
+      </section>
+
+    </div>
+
+    <div id="ajustes-pie">
+      <button id="ajustes-listo" class="primary">Listo</button>
+    </div>
+  </div>
 </div>
 
 <!-- Resultado: video -->

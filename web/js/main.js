@@ -9,6 +9,22 @@ const OFFSCREEN = 10.0;     // origen del overlay cuando no debe verse: el shade
 
 const el = (id) => document.getElementById(id);
 
+// Valores de fabrica. Estan aqui y no dentro de `state` porque "Restablecer" necesita
+// poder volver a ellos, y un objeto que se muta no se acuerda de como empezo.
+const CFG_DEFECTO = {
+  // Arranque pensado para un cuarto CON algo de luz (lamparita, tira LED, pasillo).
+  key: 1.15,
+  whiteBalance: 0.5,
+  exposureMin: 0.5, exposureMax: 1.4,
+  grainMin: 0.015, grainMax: 0.09,
+  softness: 0.8,
+  smoothing: 0.15,
+  limitedRange: false,
+  mic: true,          // la narracion en vivo del padre es funcion, no ruido
+  manual: false,
+  manualExposure: 1.0, manualGrain: 0.03,
+};
+
 const state = {
   step: "inicio",
   catalog: [],
@@ -23,19 +39,7 @@ const state = {
   sticker: { x: 0.5, y: 0.94, h: 0.45, mirror: false },
   frame: 0,
   fps: 0,
-  cfg: {
-    // Arranque pensado para un cuarto CON algo de luz (lamparita, tira LED, pasillo).
-    key: 1.15,
-    whiteBalance: 0.5,
-    exposureMin: 0.5, exposureMax: 1.4,
-    grainMin: 0.015, grainMax: 0.09,
-    softness: 0.8,
-    smoothing: 0.15,
-    limitedRange: false,
-    mic: true,          // la narracion en vivo del padre es funcion, no ruido
-    manual: false,
-    manualExposure: 1.0, manualGrain: 0.03,
-  },
+  cfg: { ...CFG_DEFECTO },
 };
 
 let compositor, analyzer, solver, recorder, cameraVideo, overlayVideo, cameraTrack;
@@ -303,7 +307,7 @@ function loop(now) {
     state.fps = (frames * 1000) / (now - fpsT);
     frames = 0;
     fpsT = now;
-    if (!el("panel").hidden) updateHud(params);
+    if (!el("ajustes").hidden && !el("diagnostico").hidden) updateHud(params);
   }
 }
 
@@ -676,20 +680,26 @@ function setupCertificado() {
 // ---------------------------------------------------------------------------
 
 // ---------------------------------------------------------------------------
-// Tema
+// Ajustes
 // ---------------------------------------------------------------------------
 
 /**
  * Tres estados, no dos: claro, oscuro y "el que diga el sistema".
  *
- * El tercero es el que importa y el que casi todas las apps se saltan: un teléfono que
- * cambia solo al anochecer ya sabe qué hora es, y esta app se usa de noche. Por eso el
- * ciclo del botón vuelve a pasar por "automático" en vez de alternar entre dos.
+ * El tercero es el que importa y el que casi todas las apps se saltan: un telefono que
+ * cambia solo al anochecer ya sabe que hora es, y esta app se usa de noche.
+ *
+ * Y se presentan LOS TRES A LA VEZ, no como un boton que rota. Un icono que cambia al
+ * tocarlo obliga a dar toques hasta acertar y nunca dice cuantas opciones hay; el tema es
+ * de las poquisimas cosas que un usuario quiere elegir, y elegir necesita ver la lista.
  */
 const TEMAS = [
-  { id: "auto", icono: "◐", nombre: "Sigue al sistema" },
-  { id: "claro", icono: "☀", nombre: "Siempre claro" },
-  { id: "oscuro", icono: "☾", nombre: "Siempre oscuro" },
+  { id: "auto", glifo: "\u25D0", nombre: "Automático",
+    pie: "Sigue al teléfono: se pone oscuro cuando el teléfono se pone oscuro." },
+  { id: "claro", glifo: "\u2600", nombre: "Claro",
+    pie: "Siempre claro, sea la hora que sea." },
+  { id: "oscuro", glifo: "\u263E", nombre: "Oscuro",
+    pie: "Siempre oscuro. De noche, junto a un niño dormido, es el que menos molesta." },
 ];
 
 function temaActual() {
@@ -704,20 +714,121 @@ function aplicarTema(id) {
     else localStorage.setItem("tema", id);
   } catch (e) { /* en privado no se puede guardar; el tema vale para esta sesión */ }
 
-  const t = TEMAS.find((x) => x.id === id);
-  const boton = el("tema");
-  boton.textContent = t.icono;
-  boton.setAttribute("aria-label", `Tema: ${t.nombre}. Tocar para cambiar.`);
-  boton.title = t.nombre;
+  for (const boton of el("tema").children) {
+    boton.setAttribute("aria-pressed", String(boton.dataset.tema === id));
+  }
+  el("tema-pie").textContent = TEMAS.find((t) => t.id === id).pie;
 }
 
 function setupTema() {
+  el("tema").replaceChildren(...TEMAS.map((t) => {
+    const b = document.createElement("button");
+    b.type = "button";
+    b.dataset.tema = t.id;
+    b.setAttribute("aria-pressed", "false");
+    b.innerHTML = `<span class="glifo" aria-hidden="true"></span><span></span>`;
+    b.firstChild.textContent = t.glifo;
+    b.lastChild.textContent = t.nombre;
+    b.onclick = () => aplicarTema(t.id);
+    return b;
+  }));
   aplicarTema(temaActual());
-  el("tema").onclick = () => {
-    const i = TEMAS.findIndex((t) => t.id === temaActual());
-    const siguiente = TEMAS[(i + 1) % TEMAS.length];
-    aplicarTema(siguiente.id);
-    toast(siguiente.nombre);
+}
+
+/**
+ * La hoja de ajustes. Un solo sitio donde se configura la app, en vez de un conmutador
+ * de tema en el arranque y un panel de deslizadores colgando de la barra.
+ *
+ * El ajuste fino sigue estando -no se le quita nada a nadie- pero doblado y con un
+ * "Restablecer" al lado, que es lo que faltaba: hasta ahora se podia dejar la imagen
+ * inservible sin forma de volver salvo recargar.
+ */
+
+const DESLIZADORES = [
+  ["s-key", "key", 2], ["s-wb", "whiteBalance", 2],
+  ["s-exp-min", "exposureMin", 2], ["s-exp-max", "exposureMax", 2],
+  ["s-softness", "softness", 2], ["s-grain-max", "grainMax", 3],
+];
+
+/** Lleva `state.cfg` a los controles. Lo usan el arranque y "Restablecer". */
+function sincronizarAjustes() {
+  for (const [id, key, digits] of DESLIZADORES) {
+    el(id).value = state.cfg[key];
+    el(`${id}-v`).textContent = state.cfg[key].toFixed(digits);
+  }
+  el("s-limited").checked = state.cfg.limitedRange;
+  el("s-mic").checked = state.cfg.mic;
+}
+
+function abrirAjustes() {
+  el("ajustes").hidden = false;
+  el("ajustes-scroll").scrollTo(0, 0);
+}
+
+function setupAjustes() {
+  // El microfono es una PREFERENCIA y sobrevive a cerrar la app; el ajuste fino no, que
+  // es afinado de una escena concreta y lo contrario seria heredar de noche el arreglo
+  // que se hizo ayer en otro cuarto.
+  try {
+    if (localStorage.getItem("mic") === "no") state.cfg.mic = false;
+  } catch (e) { /* sin almacenamiento, el valor de fabrica */ }
+
+  setupTema();
+  sincronizarAjustes();
+
+  el("ajustes-abrir").onclick = abrirAjustes;
+  el("ajustes-bar").onclick = abrirAjustes;
+
+  const cerrar = () => { el("ajustes").hidden = true; };
+  el("ajustes-close").onclick = cerrar;
+  el("ajustes-listo").onclick = cerrar;
+  // Tocar fuera de la hoja cierra; dentro, no. El velo ES #ajustes, asi que basta con
+  // comprobar que el toque no venia de un hijo.
+  el("ajustes").onclick = (e) => { if (e.target === el("ajustes")) cerrar(); };
+  addEventListener("keydown", (e) => { if (e.key === "Escape" && !el("ajustes").hidden) cerrar(); });
+
+  for (const [id, key, digits] of DESLIZADORES) {
+    el(id).oninput = () => {
+      state.cfg[key] = parseFloat(el(id).value);
+      el(`${id}-v`).textContent = state.cfg[key].toFixed(digits);
+    };
+  }
+
+  el("s-limited").onchange = (e) => { state.cfg.limitedRange = e.target.checked; };
+
+  el("s-mic").onchange = async (e) => {
+    state.cfg.mic = e.target.checked;
+    if (!state.cfg.mic) recorder?.disableMic();
+    else if (recorder && !(await recorder.enableMic())) {
+      e.target.checked = state.cfg.mic = false;
+      fail("El navegador negó el micrófono.");
+    }
+    try { localStorage.setItem("mic", state.cfg.mic ? "si" : "no"); } catch (err) { /* da igual */ }
+  };
+
+  el("ajustes-reset").onclick = () => {
+    // Se MUTA en el sitio en vez de reasignar: `state.cfg` viaja por referencia (el
+    // ParamSolver se lo queda), y sustituir el objeto dejaria a quien lo guardo mirando
+    // el de antes. El microfono no es ajuste fino y no se toca desde aqui.
+    const { mic } = state.cfg;
+    Object.assign(state.cfg, CFG_DEFECTO, { mic });
+    solver = new ParamSolver(state.cfg);   // y ademas reinicia el EMA, que venia sesgado
+    sincronizarAjustes();
+    toast("Ajuste fino, como de fábrica");
+  };
+
+  // Diagnostico: numeros crudos, para quien desarrolla. Con ?dev=1 o con siete toques en
+  // el titulo -el mismo gesto de toda la vida, y el unico que no descubre nadie por
+  // accidente-. El usuario final no tiene que ver un uExposureMatch en su vida.
+  let toques = 0;
+  const abrirDiagnostico = () => {
+    el("diagnostico").hidden = false;
+    el("avanzado").open = true;
+    toast("Diagnóstico activado");
+  };
+  if (new URLSearchParams(location.search).has("dev")) el("diagnostico").hidden = false;
+  el("ajustes-titulo").onclick = () => {
+    if (++toques >= 7 && el("diagnostico").hidden) abrirDiagnostico();
   };
 }
 
@@ -748,31 +859,6 @@ function setupControls() {
 
   el("clip-close").onclick = () => { el("clip").hidden = true; el("clip-video").pause(); };
   el("shot-close").onclick = () => { el("shot").hidden = true; };
-  el("dbg-toggle").onclick = () => { el("panel").hidden = !el("panel").hidden; };
-
-  for (const [id, key, digits] of [
-    ["s-exp-min", "exposureMin", 2], ["s-exp-max", "exposureMax", 2],
-    ["s-key", "key", 2], ["s-wb", "whiteBalance", 2],
-    ["s-softness", "softness", 2], ["s-grain-max", "grainMax", 3],
-  ]) {
-    const input = el(id), out = el(`${id}-v`);
-    input.value = state.cfg[key];
-    out.textContent = state.cfg[key].toFixed(digits);
-    input.oninput = () => {
-      state.cfg[key] = parseFloat(input.value);
-      out.textContent = state.cfg[key].toFixed(digits);
-    };
-  }
-  el("s-limited").onchange = (e) => { state.cfg.limitedRange = e.target.checked; };
-  el("s-mic").checked = state.cfg.mic;
-  el("s-mic").onchange = async (e) => {
-    state.cfg.mic = e.target.checked;
-    if (!state.cfg.mic) recorder?.disableMic();
-    else if (recorder && !(await recorder.enableMic())) {
-      e.target.checked = state.cfg.mic = false;
-      fail("El navegador negó el micrófono.");
-    }
-  };
 
   addEventListener("resize", () => {
     if (STEPS[state.step].reticle) positionReticle();
@@ -780,7 +866,7 @@ function setupControls() {
   });
 }
 
-setupTema();
+setupAjustes();
 
 el("start").onclick = async () => {
   el("start").disabled = true;

@@ -43,7 +43,12 @@ const page = await ctx.newPage();
 const problems = [];
 page.on('pageerror', (e) => problems.push(`pageerror: ${e.message}`));
 page.on('console', (m) => { if (m.type() === 'error') problems.push(`console: ${m.text()}`); });
-page.on('response', (r) => { if (!r.ok()) problems.push(`http ${r.status()}: ${r.url()}`); });
+// 304 es "no ha cambiado, usa tu copia": la respuesta correcta a una revalidación de
+// caché, y la que da el servidor al recargar. ok() solo acepta 200-299, así que hay que
+// dejarla pasar a mano o la prueba se cae por un acierto del servidor.
+page.on('response', (r) => {
+  if (!r.ok() && r.status() !== 304) problems.push(`http ${r.status()}: ${r.url()}`);
+});
 
 const shot = async (name) => {
   await page.waitForTimeout(400);
@@ -59,34 +64,104 @@ const check = (label, fn) => {
 console.log('arranque');
 await page.goto(`${BASE}/web/index.html`, { waitUntil: 'networkidle' });
 
-console.log('temas');
-// Se prueba ANTES de encender la cámara porque ahí es donde vive el conmutador y donde
-// el usuario lo usa: eligiendo con qué luz quiere la app antes de empezar.
-// Dos temas y tres estados. Lo que hay que demostrar es que el tema CAMBIA de verdad
-// (no solo que el atributo se pone), que el ciclo vuelve a "automático" y que la elección
-// sobrevive a recargar, que es lo que un usuario nota si falla.
+console.log('ajustes y temas');
+// Se prueban ANTES de encender la cámara porque ahí es donde vive el botón de ajustes y
+// donde el usuario lo usa: eligiendo con qué luz quiere la app antes de empezar.
+//
+// Lo que hay que demostrar del tema es que CAMBIA de verdad (no solo que el atributo se
+// pone), que las tres opciones están a la vista, y que la elección sobrevive a recargar,
+// que es lo que un usuario nota si falla.
 const estadoTema = () => page.evaluate(() => ({
   tema: document.documentElement.dataset.tema || 'auto',
   fondo: getComputedStyle(document.body).backgroundColor,
   texto: getComputedStyle(document.body).color,
+  marcada: [...document.getElementById('tema').children]
+    .filter((b) => b.getAttribute('aria-pressed') === 'true').map((b) => b.dataset.tema),
 }));
 
-const ciclo = [];
-for (let i = 0; i < 4; i++) {
-  ciclo.push(await estadoTema());
-  await page.click('#tema');
+const ajustesAlEmpezar = await page.getAttribute('#ajustes', 'hidden');
+check('la hoja de ajustes empieza cerrada', () => assert.equal(ajustesAlEmpezar, ''));
+
+await page.click('#ajustes-abrir');
+await page.waitForSelector('#ajustes:not([hidden])', { timeout: 5_000 });
+await shot('0_ajustes');
+
+const opciones = await page.$$eval('#tema button', (bs) => bs.map((b) => b.dataset.tema));
+check('las tres opciones de tema están a la vista a la vez', () =>
+  assert.deepEqual(opciones, ['auto', 'claro', 'oscuro']));
+
+const porTema = {};
+for (const id of ['claro', 'oscuro', 'auto']) {
+  await page.click(`#tema button[data-tema="${id}"]`);
   await page.waitForTimeout(120);
+  porTema[id] = await estadoTema();
 }
 
-console.log(`  ciclo: ${ciclo.map((e) => `${e.tema}=${e.fondo}`).join(' → ')}`);
-check('el conmutador recorre automático, claro y oscuro', () =>
-  assert.deepEqual(ciclo.map((e) => e.tema), ['auto', 'claro', 'oscuro', 'auto']));
-check('el tema oscuro cambia los colores de verdad', () => {
-  const claro = ciclo.find((e) => e.tema === 'claro');
-  const oscuro = ciclo.find((e) => e.tema === 'oscuro');
-  assert.notEqual(claro.fondo, oscuro.fondo, 'el fondo no cambió entre temas');
-  assert.notEqual(claro.texto, oscuro.texto, 'el texto no cambió entre temas');
+console.log(`  temas: ${Object.values(porTema).map((e) => `${e.tema}=${e.fondo}`).join(' · ')}`);
+check('elegir un tema lo deja elegido, y solo a él', () => {
+  for (const [id, e] of Object.entries(porTema)) {
+    assert.equal(e.tema, id, `pedí "${id}" y quedó "${e.tema}"`);
+    assert.deepEqual(e.marcada, [id], `marcadas ${e.marcada.join()} habiendo pedido ${id}`);
+  }
 });
+check('el tema oscuro cambia los colores de verdad', () => {
+  assert.notEqual(porTema.claro.fondo, porTema.oscuro.fondo, 'el fondo no cambió entre temas');
+  assert.notEqual(porTema.claro.texto, porTema.oscuro.texto, 'el texto no cambió entre temas');
+});
+
+// Recargar con el tema elegido: el guardado se aplica en un script EN LINEA antes de la
+// hoja de estilos justo para que no haya destello, y las tres opciones tienen que volver
+// marcadas donde tocaba. Es la parte que solo se rompe en la recarga, nunca en el clic.
+await page.click('#tema button[data-tema="oscuro"]');
+await page.reload({ waitUntil: 'networkidle' });
+const trasRecargar = await page.evaluate(() => ({
+  tema: document.documentElement.dataset.tema || 'auto',
+  fondo: getComputedStyle(document.body).backgroundColor,
+}));
+await page.click('#ajustes-abrir');
+await page.waitForSelector('#ajustes:not([hidden])', { timeout: 5_000 });
+const marcadaTrasRecargar = await page.$$eval('#tema button[aria-pressed="true"]',
+  (bs) => bs.map((b) => b.dataset.tema));
+check('el tema elegido sobrevive a recargar', () => {
+  assert.equal(trasRecargar.tema, 'oscuro', 'la página volvió sin el tema guardado');
+  assert.equal(trasRecargar.fondo, porTema.oscuro.fondo, 'volvió el atributo pero no los colores');
+  assert.deepEqual(marcadaTrasRecargar, ['oscuro'], 'la opción no volvió marcada');
+});
+await page.click('#tema button[data-tema="auto"]');
+
+// El ajuste fino puede dejar la imagen inservible; "Restablecer" es la salida, y hasta
+// ahora no existía. Se mueve un deslizador, se comprueba que se movió, y se restablece.
+const leerKey = () => page.evaluate(() => ({
+  input: Number(document.getElementById('s-key').value),
+  visible: document.getElementById('s-key-v').textContent,
+}));
+await page.click('#avanzado summary');
+const keyDeFabrica = await leerKey();
+await page.$eval('#s-key', (i) => {
+  i.value = i.max;
+  i.dispatchEvent(new Event('input', { bubbles: true }));
+});
+const keyTocado = await leerKey();
+await page.click('#ajustes-reset');
+const keyRestablecido = await leerKey();
+check('el ajuste fino se mueve y "Restablecer" lo devuelve', () => {
+  assert.notEqual(keyTocado.input, keyDeFabrica.input, 'el deslizador no se movió');
+  assert.equal(keyTocado.visible, String(keyTocado.input.toFixed(2)),
+    'el número de al lado no sigue al deslizador');
+  assert.deepEqual(keyRestablecido, keyDeFabrica, 'Restablecer no volvió a los valores de fábrica');
+});
+
+// El diagnóstico son números crudos y no tiene por qué verlos un padre a las dos de la
+// mañana: siete toques en el título, el gesto de siempre.
+const dxAlEmpezar = await page.getAttribute('#diagnostico', 'hidden');
+for (let i = 0; i < 7; i++) await page.click('#ajustes-titulo');
+const dxTrasSieteToques = await page.getAttribute('#diagnostico', 'hidden');
+check('el diagnóstico no está a la vista de entrada', () => assert.equal(dxAlEmpezar, ''));
+check('siete toques en el título lo destapan', () => assert.equal(dxTrasSieteToques, null));
+
+await page.click('#ajustes-listo');
+const ajustesTrasListo = await page.getAttribute('#ajustes', 'hidden');
+check('"Listo" cierra la hoja', () => assert.equal(ajustesTrasListo, ''));
 
 // Los tokens del tema oscuro están DUPLICADOS en el CSS -uno para el sistema y otro para
 // la elección explícita- porque sin preprocesador no hay forma de evitarlo. Si alguien
@@ -231,7 +306,7 @@ check('el overlay cambia la imagen más que el ruido de la escena', () =>
     `el overlay no destaca sobre el ruido: señal ${senal.toFixed(5)}, dispersión ${ruido.toFixed(5)}`));
 
 const hud = await page.evaluate(() => {
-  document.getElementById('dbg-toggle').click();
+  document.getElementById('ajustes-bar').click();
   return new Promise((r) => setTimeout(() => r(document.getElementById('dbg').textContent), 900));
 });
 const exposure = hud.match(/uExposureMatch ([\d.]+) ([\d.]+) ([\d.]+)/);
@@ -265,7 +340,7 @@ const revisarGuardado = (kind, guardado) => check(
   });
 
 console.log('grabación');
-await page.click('#dbg-toggle');
+await page.click('#ajustes-listo');
 await page.click('#record');
 await page.waitForSelector('#rec-badge:not([hidden])', { timeout: 10_000 });
 await shot('5_grabando');
