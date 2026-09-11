@@ -15,6 +15,9 @@ Fase de validación. El prototipo web reproduce los **dos modos** de la app de r
 - **Foto** — cámara frontal con el ratón encima, para la foto con el niño dormido. Aquí el
   ratón es un PNG con alfa, no el vídeo empaquetado, y por eso no lleva grading; el porqué
   está en la sección 0.5 de la arquitectura.
+- **Certificado** — el documento que deja el Ratón, con los campos de la convención
+  española (nombre, fecha, qué diente, estado del diente y recompensa). Se rellena viendo
+  la vista previa, y se guarda en el carrete o se manda a la impresora en A4.
 
 Más la cadena de herramientas offline.
 

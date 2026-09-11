@@ -83,6 +83,19 @@
              stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m10 6 6 6-6 6"/></svg>
       </span>
     </button>
+    <button id="go-cert" class="card">
+      <span class="ic">
+        <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor"
+             stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M5.5 3.5h13v17l-6.5-3.2-6.5 3.2z"/><path d="M9 8.5h6M9 12h6"/>
+        </svg>
+      </span>
+      <span><b>Certificado del Ratón</b><em>Para imprimir o dejar bajo la almohada</em></span>
+      <span class="chev">
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor"
+             stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m10 6 6 6-6 6"/></svg>
+      </span>
+    </button>
     <p class="fine">Nadie oye nada: la app no hace ruido.</p>
   </div>
 
@@ -157,6 +170,60 @@
     <a id="shot-save" class="btn" download="raton-perez.png">Descargar archivo</a>
   </div>
   <div id="shot-tip" class="tip"></div>
+</div>
+
+<!-- Certificado del Ratón -->
+<div id="cert" hidden>
+  <div id="cert-scroll">
+    <div id="cert-preview">
+      <canvas id="cert-canvas" aria-label="Vista previa del certificado"></canvas>
+    </div>
+
+    <div id="cert-form">
+      <label class="field">
+        <span>¿Cómo se llama?</span>
+        <input id="cert-nombre" type="text" maxlength="28" autocomplete="off"
+               enterkeyhint="done" placeholder="Su nombre">
+      </label>
+
+      <label class="field">
+        <span>¿Qué día se le cayó?</span>
+        <input id="cert-fecha" type="date">
+      </label>
+
+      <div class="field">
+        <span>¿Cuál se llevó el Ratón?</span>
+        <div id="cert-diente" class="chips" role="group" aria-label="Qué diente"></div>
+      </div>
+
+      <div class="field">
+        <span>¿Cómo estaba el diente?</span>
+        <div id="cert-estado" class="chips" role="group" aria-label="Estado del diente"></div>
+      </div>
+
+      <label class="field">
+        <span>¿Qué le dejó a cambio? <i>opcional</i></span>
+        <input id="cert-premio" type="text" maxlength="24" autocomplete="off"
+               placeholder="Una moneda">
+      </label>
+
+      <label class="field">
+        <span>Unas palabras del Ratón <i>opcional</i></span>
+        <input id="cert-nota" type="text" maxlength="90" autocomplete="off"
+               placeholder="Eres muy valiente, Lucía.">
+      </label>
+    </div>
+  </div>
+
+  <div id="cert-actions">
+    <button id="cert-share" hidden class="primary">Guardar en Fotos</button>
+    <div class="actions">
+      <button id="cert-close">Cerrar</button>
+      <button id="cert-print" class="btn">Imprimir</button>
+      <a id="cert-save" class="btn" download="certificado-raton-perez.png">Descargar</a>
+    </div>
+    <div id="cert-tip" class="tip"></div>
+  </div>
 </div>
 
 <div id="toast" hidden></div>

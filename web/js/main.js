@@ -2,6 +2,7 @@ import { Compositor } from "./compositor.js";
 import { SceneAnalyzer, ParamSolver } from "./analyzer.js";
 import { CanvasRecorder, isSupported as recSupported } from "./recorder.js";
 import { STEPS } from "./flow.js";
+import { drawCertificate, DIENTES, ESTADOS, SIZE as CERT_SIZE } from "./certificate.js";
 
 const ANALYZE_EVERY = 10;   // misma cadencia que el dispositivo (seccion 2 de la arquitectura)
 const OFFSCREEN = 10.0;     // origen del overlay cuando no debe verse: el shader lo descarta
@@ -562,6 +563,101 @@ async function toggleTorch() {
 }
 
 // ---------------------------------------------------------------------------
+// Certificado
+// ---------------------------------------------------------------------------
+
+const cert = {
+  nombre: "", fecha: hoyISO(), diente: "primero", estado: "super", premio: "", nota: "",
+};
+let certRaton;          // el PNG del personaje, ya decodificado
+let certPendiente;      // temporizador: redibujar en cada tecla es tirar trabajo
+
+function hoyISO() {
+  const d = new Date();
+  const p = (n) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+}
+
+function pintarChips(contenedor, opciones, campo) {
+  contenedor.innerHTML = "";
+  for (const o of opciones) {
+    const b = document.createElement("button");
+    b.type = "button";
+    b.className = "chip";
+    b.textContent = o.etiqueta;
+    b.setAttribute("aria-pressed", String(cert[campo] === o.id));
+    b.onclick = () => {
+      cert[campo] = o.id;
+      for (const otro of contenedor.children) {
+        otro.setAttribute("aria-pressed", String(otro === b));
+      }
+      redibujarCert();
+    };
+    contenedor.appendChild(b);
+  }
+}
+
+/**
+ * Redibuja la vista previa, que ES el archivo: el mismo canvas que luego se guarda.
+ *
+ * Se agrupa con un temporizador corto porque el certificado se redibuja entero -grano
+ * del papel incluido- y hacerlo en cada pulsación de tecla se nota en un teléfono viejo.
+ */
+function redibujarCert() {
+  clearTimeout(certPendiente);
+  certPendiente = setTimeout(() => {
+    drawCertificate(el("cert-canvas"), cert, certRaton);
+    prepararGuardadoCert();
+  }, 60);
+}
+
+/** Deja listos guardar y compartir con la imagen actual. */
+function prepararGuardadoCert() {
+  el("cert-canvas").toBlob((blob) => {
+    if (!blob) return;
+    const url = URL.createObjectURL(blob);
+    const link = el("cert-save");
+    if (link.dataset.url) URL.revokeObjectURL(link.dataset.url);
+    link.dataset.url = url;
+    link.href = url;
+    offerSave("cert", blob, "certificado-raton-perez.png",
+      "Elige <b>Guardar imagen</b> y el certificado entra en el carrete, listo para " +
+      "mandarlo a imprimir.\nPara imprimirlo desde aquí, usa <b>Imprimir</b>.",
+      "Guárdalo con <b>Descargar</b> o mándalo a la impresora con <b>Imprimir</b>.");
+  }, "image/png");
+}
+
+async function abrirCertificado() {
+  if (!certRaton) {
+    certRaton = new Image();
+    certRaton.src = "assets/raton_perez.png";
+    try { await certRaton.decode(); } catch { /* sin el personaje, el resto se dibuja */ }
+  }
+  el("cert-fecha").value = cert.fecha;
+  el("cert-nombre").value = cert.nombre;
+  el("cert-premio").value = cert.premio;
+  el("cert-nota").value = cert.nota;
+  pintarChips(el("cert-diente"), DIENTES, "diente");
+  pintarChips(el("cert-estado"), ESTADOS, "estado");
+  el("cert").hidden = false;
+  drawCertificate(el("cert-canvas"), cert, certRaton);
+  prepararGuardadoCert();
+}
+
+function setupCertificado() {
+  for (const [id, campo] of [["cert-nombre", "nombre"], ["cert-fecha", "fecha"],
+                             ["cert-premio", "premio"], ["cert-nota", "nota"]]) {
+    el(id).oninput = (e) => {
+      cert[campo] = e.target.value;
+      redibujarCert();
+    };
+  }
+  el("go-cert").onclick = abrirCertificado;
+  el("cert-close").onclick = () => { el("cert").hidden = true; };
+  el("cert-print").onclick = () => window.print();
+}
+
+// ---------------------------------------------------------------------------
 // Controles
 // ---------------------------------------------------------------------------
 
@@ -587,6 +683,8 @@ function setupControls() {
   el("record").onclick = () => (recorder?.isRecording ? stopRecording() : startRecording());
   el("photo").onclick = capturePhoto;
   el("torch").onclick = toggleTorch;
+
+  setupCertificado();
 
   el("clip-close").onclick = () => { el("clip").hidden = true; el("clip-video").pause(); };
   el("shot-close").onclick = () => { el("shot").hidden = true; };
