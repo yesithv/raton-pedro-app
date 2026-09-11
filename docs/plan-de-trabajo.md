@@ -318,6 +318,17 @@ pequeño en el piso.
 Confirma la sección 0.5: son dos módulos, no dos usos del mismo. Y refuerza el argumento
 de construir la foto después: es la mitad del valor percibido a una fracción del costo.
 
+**Estado: construido en el prototipo web.** *Tomar foto* abre un paso propio —cámara
+frontal, ratón ya colocado, arrastrar y pellizcar, disparar— separado del asistente de
+vídeo. Confirmó lo que la sección 0.5 predecía, y una cosa más que no estaba escrita: en
+el modo foto **el vídeo del overlay sobra y estorba**. El ratón es un PNG con alfa
+(`web/assets/raton_perez.png`) dibujado en el DOM; el `<video>` del atlas `color | matte`
+es la pieza más frágil del prototipo en un móvil —autoplay, códecs, decodificadores
+ocupados— y una imagen fija no necesita ninguna de esas tres cosas. El coste de esa
+decisión es que la foto **no lleva grading**: el ratón no adopta la exposición ni la
+dominante del cuarto. Para el nativo la salida no es volver al vídeo, es dar al shader un
+matte a partir del alfa del PNG.
+
 ### 9. Sobre el personaje
 
 El flujo, las funciones y el concepto son terreno libre. El personaje concreto —ese ratón
@@ -332,6 +343,27 @@ Casa (arriba izq), volver (arriba der), linterna (abajo izq), botón de grabar (
 centro; cuadrado rojo mientras graba). Toast "Video Saved to Gallery" al terminar. La
 linterna coincide con el `setTorch` que ya está en el contrato de canales.
 
+### 11. "Video Saved to Gallery" es la frontera dura entre web y nativo
+
+Ese toast de la referencia **no se puede reproducir en el navegador**. Ninguna página web
+puede escribir en el carrete: no existe API, ni en iOS ni en Android. Lo único disponible
+es la hoja de compartir del sistema (`navigator.share` con un `File`), donde *Guardar
+imagen* / *Guardar vídeo* sí mete el archivo en Fotos — pero es un menú que el usuario
+tiene que atravesar, no un guardado automático.
+
+Salió de una prueba real en el teléfono, y merece quedar escrito porque es un argumento de
+producto, no un detalle técnico: **el guardado automático en la galería solo lo puede dar
+la app nativa** (en Android, `MediaStoreSaver`, ya escrito). Si alguien propone "lanzamos
+la web y el nativo después", este es el punto que hay que poner sobre la mesa: la web
+puede enseñar el efecto y convencer, pero el padre que acaba de grabar a su hijo no
+encuentra el video donde lo busca.
+
+Consecuencia para la UI, ya aplicada en el prototipo: **el botón que abre la hoja del
+sistema es la acción principal** y dice a dónde va el archivo ("Guardar en Fotos"); el
+`<a download>` quedó de plan B y se llama "Descargar archivo". Llamar "Guardar" a la
+descarga era el peor de los dos mundos: en iOS deja la foto en **Archivos**, no en Fotos,
+y quien la busca en el carrete no la encuentra nunca.
+
 ---
 
 ## Prototipo web
@@ -343,6 +375,16 @@ el mismo `shaders/composite.frag` y el mismo asset empaquetado que el nativo.
 Cierra el bucle que pide el producto: colocar el ratón, ver el efecto, grabar, y guardar
 o compartir el resultado. Lo que no hace es detección de planos —WebXR depende igualmente
 de ARCore— así que la colocación es por toque.
+
+Son **dos modos, no uno**, igual que en la referencia (hallazgos 3 y 8):
+
+| Modo | Entrada | Ratón | Pipeline |
+|---|---|---|---|
+| Vídeo | *Crear video* → ESCANEAR → POSICIÓN → TAMAÑO → EDITAR → GRABAR | atlas `color \| matte` en un `<video>` | shader, con grading en vivo |
+| Foto | *Tomar foto* → FOTO | `assets/raton_perez.png`, alfa recta | `<img>` sobre el lienzo + composición 2D al disparar |
+
+El modo foto no pasa por el shader **a propósito**; el porqué y lo que cuesta están en el
+hallazgo 8 y en [`web/README.md`](../web/README.md).
 
 Instrucciones para abrirlo (GitHub Pages) en [`web/README.md`](../web/README.md).
 

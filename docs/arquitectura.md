@@ -95,6 +95,24 @@ No comparte nada con el pipeline de video salvo el asset. Es un módulo aparte,
 mucho más simple, y se construye **después** — es la red de seguridad si el video se
 complica, porque es la mitad del valor percibido a una décima parte del costo.
 
+**Confirmado en el prototipo web, con una corrección.** El modo foto está construido
+(paso FOTO de `web/`) y en efecto no comparte nada con el de video. La corrección es que
+tampoco comparte **el asset**: usa un PNG con alfa recta, no el mp4 empaquetado. Un
+`<video>` es la pieza más frágil del stack en un móvil —autoplay bloqueado, códecs
+ausentes, decodificadores ocupados— y para una imagen fija no aporta nada; un `<img>`
+siempre pinta. En el nativo el equivalente es decodificar el PNG una vez a una textura,
+no abrir un MediaCodec.
+
+Lo que se pierde es el grading: en web ese modo no pasa por el shader, así que el ratón no
+adopta la exposición ni la dominante del cuarto. **En el nativo no hay por qué aceptar esa
+pérdida**: el mismo `composite.frag` sirve si el alfa del PNG se entrega como matte en vez
+de venir empaquetado lado a lado. Es una rama del `sampleOverlay`, no un shader nuevo.
+
+Y un límite que no es del shader ni del pipeline: **el navegador no puede escribir en la
+galería**. No hay API. Ver el hallazgo 11 de `plan-de-trabajo.md`; es la razón por la que
+`MediaStoreSaver` no tiene equivalente web y por la que el prototipo empuja al usuario a
+la hoja de compartir del sistema.
+
 ---
 
 ## 1. El riesgo más grande (entregable 5, primero)
