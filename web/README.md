@@ -51,7 +51,7 @@ Reproduce paso por paso el asistente de la app de referencia:
 | **TAMAÑO** | Hacerlo más grande o más pequeño | Pellizcar |
 | **EDITAR** | Escoger entre las tres animaciones | ‹ › |
 | **GRABAR** | Linterna, grabar, foto | Botón rojo |
-| **FOTO** | Cámara frontal + ratón encima, para la foto con el niño | Arrastrar y pellizcar |
+| **FOTO** | La cámara del teléfono imitada: visor 4:3, cuadrícula y obturador | Arrastrar y pellizcar |
 | **CARTA** | La que deja el Ratón, para imprimir o dejar bajo la almohada | Rellenar |
 
 ## Ajustes: un botón, un sitio
@@ -133,12 +133,42 @@ La grabación arranca la animación y se detiene sola al terminarla. El micrófo
 activado por defecto —la narración en vivo es funcionalidad, no ruido— y se apaga en
 *Ajustes*, que recuerda la elección.
 
-### El modo FOTO no pasa por el shader
+### FOTO imita la cámara del teléfono, con las medidas tomadas
 
 *Tomar foto* no entra en el asistente: abre la **cámara frontal** con el ratón ya puesto
-encima, y ahí se arrastra, se pellizca y se dispara. El botón `⟳` cambia entre frontal y
-trasera; el `⇄` gira al ratón para que mire al otro lado. Al salir del paso se vuelve sola
-a la cámara trasera.
+encima, y ahí se arrastra, se pellizca y se dispara. Al salir del paso se vuelve sola a la
+cámara trasera.
+
+La pantalla está copiada de la app de Cámara de iOS, y las medidas **están tomadas de una
+captura real** (1170x2532 a x3, o sea 390 css px de ancho), no escogidas a ojo:
+
+| | Medido | Por qué importa |
+|---|---|---|
+| **Visor** | 1170x1560 = **4:3 exacto** | Es la proporción de una foto, y ahora la captura se recorta a ella: lo que se ve es lo que se guarda |
+| **Bandas** | 13,5% arriba y 24,9% abajo (**1 : 1,84**) | El encuadre del visor sin ellas no se lee como un visor |
+| **El velo** | Negro al **~55%**, no negro opaco | Donde el visor marcaba 135 de brillo, la banda marcaba 62. Por eso en el teléfono se sigue viendo la habitación por encima y por debajo del recuadro; con negro opaco pierdes de vista la mitad de a lo que apuntas |
+| **Cuadrícula** | En los **tercios** (medida en y=860 y 1383 de un visor de 342 a 1902; los tercios teóricos son 862 y 1382) | Ayuda a colocar al ratón. Se apaga en *Ajustes* |
+| **Obturador** | 204 físicos = **68 css px**, disco blanco con aro | Es el gesto que todo el mundo reconoce |
+
+Y lo que va con ello: **el cromo de la app desaparece**. Nada de barra de navegación ni
+caja de instrucciones encima del visor — eso es justo lo que delata que no es una cámara.
+El aviso del paso pasa a ser una pastilla que se desvanece a los cuatro segundos, y los
+controles de la app se reparten como en el teléfono: la ✕ para salir, una píldora arriba a
+la derecha con luz, girar al ratón y *Ajustes*, y abajo la miniatura de la última foto, el
+carrusel **VÍDEO · FOTO** y el botón de cambiar de cámara.
+
+Dos diferencias deliberadas:
+
+- **El modo activo va en el rojo del chándal**, donde el teléfono pone su amarillo. Se
+  imita la forma del control, no la marca de otro.
+- **No hay control de zoom.** El `0,5 / 1×` del teléfono es óptico, y Safari en iOS no
+  expone el zoom de la cámara por `getUserMedia`. Uno digital no es lo mismo: recorta y
+  pierde calidad, que es justo lo contrario de lo que hace el nativo. Antes de fingirlo,
+  mejor no ponerlo.
+
+Esta pantalla va **oscura en los dos temas**, y no es un descuido: no hay ninguna cámara
+con el marco blanco. Aquí el tema del sistema no pinta nada, porque lo que manda es el
+vídeo que hay debajo.
 
 El ratón de este paso es **`assets/raton_perez.png`**, un PNG con alfa, no un frame del
 atlas `color | matte`. Es deliberado:
@@ -150,6 +180,9 @@ atlas `color | matte`. Es deliberado:
 - Por lo mismo el ratón va en el **DOM**, encima del lienzo, no dentro del shader. La
   captura lo compone aparte en un canvas 2D (`composeShot()` en `js/main.js`), repitiendo
   la misma geometría que usa la vista previa y añadiendo la sombra.
+- El ratón se mide contra el **visor** y no contra la pantalla. Si se midiera contra la
+  pantalla se podría arrastrar a las bandas —donde el velo lo tapa— y además la foto, que
+  se recorta al visor, se lo comería.
 
 Lo que se pierde con esa decisión es el grading: aquí el ratón **no** adopta la exposición
 ni la dominante de color del cuarto, cosa que sí hace el modo vídeo. Para una foto con
@@ -202,6 +235,35 @@ firma, como se apretaría una escrita a mano: 34 → 32 → 30 → 28 px, y 28 p
 13 puntos, que se leen impresos. La prueba del asistente dibuja una nota de exactamente
 `LIMITE_NOTA` en el peor caso y falla si el texto alcanza la despedida, así que el número
 no puede quedarse obsoleto en silencio.
+
+#### Los límites los pone el papel
+
+Todos los campos tienen tope, y **todos los topes viven en `js/certificate.js`**, no en el
+HTML: quien sabe cuánto cabe es el dibujo. Dos números escritos a mano se separan en cuanto
+alguien toca un tamaño, y el que se queda corto siempre es el del formulario.
+
+| Campo | Tope | De dónde sale |
+|---|---|---|
+| Nombre | 28 caracteres, **obligatorio** | Cabe de sobra en el saludo, que además se encoge solo |
+| Fecha | Del **último año hasta hoy** | Una carta se escribe la noche que se cayó el diente o al día siguiente. Hacia delante no hay nada que permitir: un diente no se cae mañana |
+| Premio | 24 caracteres | Va dentro de una frase de la carta |
+| Palabras del padre | 300 caracteres | Medido (arriba) |
+
+Tres detalles que no son obvios:
+
+- **`min` y `max` en un `<input type=date>` no impiden teclear una fecha fuera de rango**,
+  solo la marcan. En un ordenador se escribe a mano y la carta saldría fechada en 2999, así
+  que además se corrige al salir del campo.
+- **`maxlength` no se aplica a un valor puesto desde el código**, ni en algunos navegadores
+  a lo que se pega. Por eso `limpiar()` recorta otra vez en el dibujo, que es la última
+  línea de defensa y no puede fiarse del formulario.
+- **Los saltos de línea se cambian por un espacio, no se borran.** Borrándolos, un texto
+  pegado desde otro sitio sale con las palabras pegadas —«holaqué tal»—. Lo encontró la
+  prueba, no yo.
+
+Y el botón apagado **dice por qué**: un botón mudo se lee como una app rota y el usuario se
+queda mirando sin saber qué le falta. El aviso solo sale cuando ya se ha tocado el campo;
+delante de un formulario recién abierto sería una regañina.
 
 #### El lienzo, y por qué no es HTML
 

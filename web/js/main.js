@@ -2,7 +2,7 @@ import { Compositor } from "./compositor.js";
 import { SceneAnalyzer, ParamSolver } from "./analyzer.js";
 import { CanvasRecorder, isSupported as recSupported } from "./recorder.js";
 import { STEPS } from "./flow.js";
-import { drawCertificate, DIENTES, ESTADOS, LIMITE_NOTA,
+import { drawCertificate, DIENTES, ESTADOS, LIMITES, limpiar,
          SIZE as CERT_SIZE } from "./certificate.js";
 
 const ANALYZE_EVERY = 10;   // misma cadencia que el dispositivo (seccion 2 de la arquitectura)
@@ -22,6 +22,7 @@ const CFG_DEFECTO = {
   smoothing: 0.15,
   limitedRange: false,
   mic: true,          // la narracion en vivo del padre es funcion, no ruido
+  rejilla: true,      // los tercios sobre el visor: ayudan a colocar al raton
   manual: false,
   manualExposure: 1.0, manualGrain: 0.03,
 };
@@ -96,13 +97,18 @@ function setStep(name) {
   const previous = state.step;
   state.step = name;
 
+  // FOTO no lleva el cromo de la app: lleva el suyo, que es el de una camara. Una barra
+  // de navegacion encima del visor es justo lo que delata que no lo es.
+  const enFoto = name === "foto";
   el("step-title").textContent = step.title;
   el("hint").textContent = step.hint;
-  el("hint").hidden = !step.hint;
+  el("hint").hidden = !step.hint || enFoto;
   el("reticle").hidden = !step.reticle;
-  el("chrome").hidden = name === "inicio";
+  el("chrome").hidden = name === "inicio" || enFoto;
+  el("bar").hidden = enFoto;
   el("inicio-head").hidden = name !== "inicio";   // el titular solo vive en INICIO
   el("back").hidden = !step.back;
+  if (enFoto) mostrarPista(step.hint);
 
   for (const k of Object.keys(STEPS)) el(`ui-${k}`).hidden = k !== name;
 
@@ -121,12 +127,40 @@ function setStep(name) {
   else if (previous === "foto" && name !== "foto") setCamera("environment");
 }
 
+/**
+ * La caja contra la que se mide el raton del paso FOTO.
+ *
+ * Es el VISOR y no la pantalla entera, y eso es lo que hace que lo que se ve sea lo que
+ * se guarda: si se midiera contra la pantalla, el raton se podria arrastrar a las bandas
+ * -donde el velo lo tapa- y ademas la foto, que se recorta al visor, se lo comeria.
+ */
+function cajaFoto() {
+  const v = el("visor");
+  const r = v.getBoundingClientRect();
+  return r.height > 0 ? r : el("stage").getBoundingClientRect();
+}
+
+/**
+ * El aviso del paso FOTO: una pastilla que se desvanece a los cuatro segundos.
+ *
+ * La caja de instrucciones tapaba justo lo que hay que mirar -la cama, el suelo, el
+ * nino- y se leia entera cada noche aunque fuera la quinta vez. En una camara canta el
+ * doble: ninguna camara del mundo te explica como se hace una foto encima de la foto.
+ */
+function mostrarPista(texto) {
+  const n = el("cam-pista");
+  n.textContent = texto.split("\n")[0];
+  n.classList.remove("ido");
+  clearTimeout(mostrarPista._t);
+  mostrarPista._t = setTimeout(() => n.classList.add("ido"), 4000);
+}
+
 function positionSticker() {
-  const r = el("stage").getBoundingClientRect();
+  const r = cajaFoto();
   const n = el("sticker");
   n.style.height = `${state.sticker.h * r.height}px`;
-  n.style.left = `${state.sticker.x * r.width}px`;
-  n.style.top = `${state.sticker.y * r.height}px`;
+  n.style.left = `${r.left + state.sticker.x * r.width}px`;
+  n.style.top = `${r.top + state.sticker.y * r.height}px`;
   n.classList.toggle("mirror", state.sticker.mirror);
 }
 
@@ -347,7 +381,7 @@ function setupGestures() {
   let pinch = null;
 
   const norm = (e) => {
-    const r = stage.getBoundingClientRect();
+    const r = STEPS[state.step].sticker ? cajaFoto() : stage.getBoundingClientRect();
     return { x: (e.clientX - r.left) / r.width, y: (e.clientY - r.top) / r.height };
   };
   const clamp01 = (v) => Math.min(1, Math.max(0, v));
@@ -479,6 +513,11 @@ function capturePhoto() {
     img.src = url;
     el("shot").hidden = false;
     el("shot-save").href = url;
+
+    // La ultima foto, abajo a la izquierda, como el carrete del telefono.
+    const mini = el("foto-ultima");
+    mini.querySelector("img").src = url;
+    mini.hidden = false;
     offerSave("shot", blob, "raton-perez.png",
       "Elige <b>Guardar imagen</b> y la foto entra en el carrete.\n" +
       "En el iPhone también sirve mantener pulsada la foto de arriba → " +
@@ -501,12 +540,23 @@ function composeShot() {
   const sticker = el("sticker");
   if (!STEPS[state.step].sticker || !sticker.naturalWidth) return stage;
 
-  const out = document.createElement("canvas");
-  out.width = stage.width;
-  out.height = stage.height;
-  const ctx = out.getContext("2d");
-  ctx.drawImage(stage, 0, 0);
+  // El recorte del VISOR, llevado a pixeles de lienzo. La foto sale 4:3 como la del
+  // telefono, y sobre todo sale IGUAL a lo que se estaba viendo: las bandas no entran.
+  const cajaLienzo = stage.getBoundingClientRect();
+  const v = cajaFoto();
+  const k = stage.width / Math.max(cajaLienzo.width, 1);
+  const sx = (v.left - cajaLienzo.left) * k;
+  const sy = (v.top - cajaLienzo.top) * k;
+  const sw = v.width * k;
+  const sh = v.height * k;
 
+  const out = document.createElement("canvas");
+  out.width = Math.round(sw);
+  out.height = Math.round(sh);
+  const ctx = out.getContext("2d");
+  ctx.drawImage(stage, sx, sy, sw, sh, 0, 0, out.width, out.height);
+
+  // Las coordenadas del raton ya son relativas al visor, asi que valen tal cual.
   const h = state.sticker.h * out.height;
   const w = h * (sticker.naturalWidth / sticker.naturalHeight);
   const x = state.sticker.x * out.width - w / 2;
@@ -514,7 +564,6 @@ function composeShot() {
 
   // Misma sombra que el drop-shadow del CSS, en pixeles de lienzo: sin ella el raton se
   // ve pegado encima de la foto en vez de apoyado en la escena.
-  const k = out.height / Math.max(stage.getBoundingClientRect().height, 1);
   ctx.shadowColor = "rgba(0, 0, 0, 0.45)";
   ctx.shadowBlur = 16 * k;
   ctx.shadowOffsetY = 8 * k;
@@ -557,11 +606,13 @@ function offerSave(kind, blob, filename, tipShare, tipDownload) {
   el(`${kind}-tip`).innerHTML = can ? tipShare : tipDownload;
 }
 
+/** La misma linterna, con un botón en GRABAR y otro en FOTO: se encienden los dos. */
 async function toggleTorch() {
-  const on = !el("torch").classList.contains("on");
+  const botones = [el("torch"), el("foto-luz")];
+  const on = !botones[0].classList.contains("on");
   try {
     await cameraTrack.applyConstraints({ advanced: [{ torch: on }] });
-    el("torch").classList.toggle("on", on);
+    for (const b of botones) b.classList.toggle("on", on);
   } catch (e) {
     fail("Este dispositivo no deja controlar la linterna desde el navegador.");
   }
@@ -616,10 +667,15 @@ function generarCertificado() {
   el("cert-doc-titulo").textContent = "Ya está escrita";
 }
 
-/** El nombre es lo único que no se puede dejar en blanco: sin él no hay certificado. */
+/** El nombre es lo único que no se puede dejar en blanco: sin él no hay a quién escribir. */
 function revisarNombre() {
-  const hay = cert.nombre.trim().length > 0;
+  // `limpiar` y no `trim`: un nombre de puros espacios, o de caracteres invisibles
+  // pegados desde otro sitio, no es un nombre.
+  const hay = limpiar(cert.nombre, LIMITES.nombre).length > 0;
   el("cert-generar").disabled = !hay;
+  // Un botón apagado sin explicación se lee como una app rota. El aviso solo sale cuando
+  // ya se ha tocado el campo: delante de un formulario recién abierto sería una regañina.
+  el("cert-nombre-aviso").hidden = hay || !el("cert-nombre").dataset.tocado;
   return hay;
 }
 
@@ -650,6 +706,8 @@ async function abrirCertificado() {
   el("cert-premio").value = cert.premio;
   el("cert-nota").value = cert.nota;
   contarNota();
+  contarPremio();
+  delete el("cert-nombre").dataset.tocado;
   pintarChips(el("cert-diente"), DIENTES, "diente");
   pintarChips(el("cert-estado"), ESTADOS, "estado");
   revisarNombre();
@@ -659,33 +717,83 @@ async function abrirCertificado() {
 }
 
 /**
- * La cuenta de lo que queda por escribir.
+ * La cuenta de lo que queda por escribir, para los campos que tienen límite.
  *
  * Solo aparece cuando ya se lleva algo escrito: un contador a cero delante de un campo
  * vacío se lee como un deber, y esto es opcional. Y avisa de verdad -en rojo- solo en el
  * último tramo, que es cuando sirve de algo.
  */
-function contarNota() {
-  const quedan = LIMITE_NOTA - el("cert-nota").value.length;
-  const salida = el("cert-nota-cuenta");
-  salida.textContent = el("cert-nota").value ? `Te quedan ${quedan}.` : "";
-  salida.classList.toggle("apurado", quedan <= 40);
+function contar(id, limite, aviso) {
+  const campo = el(id);
+  const salida = el(`${id}-cuenta`);
+  if (!salida) return;
+  const quedan = limite - campo.value.length;
+  salida.textContent = campo.value ? `Te quedan ${quedan}.` : "";
+  salida.classList.toggle("apurado", quedan <= aviso);
+}
+
+function contarNota() { contar("cert-nota", LIMITES.nota, 40); }
+function contarPremio() { contar("cert-premio", LIMITES.premio, 6); }
+
+/**
+ * La fecha, acotada a un rango con sentido.
+ *
+ * Sin esto se puede fechar la carta en 1901 o en 2099: el `<input type=date>` no limita
+ * nada por su cuenta, y en un ordenador se escribe a mano. `min` y `max` frenan al
+ * selector, pero NO a lo que se teclea, así que además hay que corregirlo al vuelo.
+ */
+function rangoFechas() {
+  const hoy = new Date();
+  const desde = new Date(hoy);
+  desde.setDate(desde.getDate() - LIMITES.dias);
+  const iso = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-` +
+                     `${String(d.getDate()).padStart(2, "0")}`;
+  return { min: iso(desde), max: iso(hoy) };
+}
+
+function revisarFecha() {
+  const { min, max } = rangoFechas();
+  const campo = el("cert-fecha");
+  const v = campo.value;
+  if (!v) { campo.value = cert.fecha = max; return; }
+  if (v > max) { campo.value = cert.fecha = max; toast("El diente no se puede caer mañana."); }
+  else if (v < min) { campo.value = cert.fecha = min; toast("Esa fecha queda muy atrás."); }
+  else cert.fecha = v;
 }
 
 function setupCertificado() {
+  // Los limites los pone el PAPEL, no el HTML: `LIMITES` vive en el modulo del dibujo,
+  // que es quien sabe cuanto cabe. Escritos a mano en los dos sitios se separan en cuanto
+  // alguien toca un tamaño, y el que se queda corto siempre es el del formulario.
+  el("cert-nombre").maxLength = LIMITES.nombre;
+  el("cert-premio").maxLength = LIMITES.premio;
+  el("cert-nota").maxLength = LIMITES.nota;
+
+  const { min, max } = rangoFechas();
+  el("cert-fecha").min = min;
+  el("cert-fecha").max = max;
+
   for (const [id, campo] of [["cert-nombre", "nombre"], ["cert-fecha", "fecha"],
                              ["cert-premio", "premio"], ["cert-nota", "nota"]]) {
     el(id).oninput = (e) => {
       cert[campo] = e.target.value;
       if (campo === "nombre") revisarNombre();
       if (campo === "nota") contarNota();
+      if (campo === "premio") contarPremio();
     };
   }
+  // La fecha se corrige al SALIR del campo y no en cada tecla: mientras se teclea "09" de
+  // un año, el valor pasa por fechas absurdas y corregirlas a medias es pelearse con
+  // quien escribe.
+  el("cert-fecha").onchange = revisarFecha;
+  el("cert-fecha").onblur = revisarFecha;
+  el("cert-nombre").onblur = () => {
+    el("cert-nombre").dataset.tocado = "si";
+    revisarNombre();
+  };
   // El límite lo pone el PAPEL, no el formulario: LIMITE_NOTA sale de medir cuánto cabe
   // en la carta antes de tocar la firma. Ponerlo aquí a mano seria tener dos numeros que
   // se separan en cuanto alguien cambie un tamaño del dibujo.
-  el("cert-nota").maxLength = LIMITE_NOTA;
-
   el("go-cert").onclick = abrirCertificado;
   el("cert-generar").onclick = () => { if (revisarNombre()) generarCertificado(); };
   // Volver a los datos conserva lo escrito: se corrige una errata sin repetirlo todo.
@@ -780,6 +888,8 @@ function sincronizarAjustes() {
   }
   el("s-limited").checked = state.cfg.limitedRange;
   el("s-mic").checked = state.cfg.mic;
+  el("s-rejilla").checked = state.cfg.rejilla;
+  el("ui-foto").dataset.rejilla = state.cfg.rejilla ? "si" : "no";
 }
 
 function abrirAjustes() {
@@ -793,6 +903,7 @@ function setupAjustes() {
   // que se hizo ayer en otro cuarto.
   try {
     if (localStorage.getItem("mic") === "no") state.cfg.mic = false;
+    if (localStorage.getItem("rejilla") === "no") state.cfg.rejilla = false;
   } catch (e) { /* sin almacenamiento, el valor de fabrica */ }
 
   setupTema();
@@ -818,6 +929,12 @@ function setupAjustes() {
 
   el("s-limited").onchange = (e) => { state.cfg.limitedRange = e.target.checked; };
 
+  el("s-rejilla").onchange = (e) => {
+    state.cfg.rejilla = e.target.checked;
+    el("ui-foto").dataset.rejilla = state.cfg.rejilla ? "si" : "no";
+    try { localStorage.setItem("rejilla", state.cfg.rejilla ? "si" : "no"); } catch (err) { /* da igual */ }
+  };
+
   el("s-mic").onchange = async (e) => {
     state.cfg.mic = e.target.checked;
     if (!state.cfg.mic) recorder?.disableMic();
@@ -832,8 +949,8 @@ function setupAjustes() {
     // Se MUTA en el sitio en vez de reasignar: `state.cfg` viaja por referencia (el
     // ParamSolver se lo queda), y sustituir el objeto dejaria a quien lo guardo mirando
     // el de antes. El microfono no es ajuste fino y no se toca desde aqui.
-    const { mic } = state.cfg;
-    Object.assign(state.cfg, CFG_DEFECTO, { mic });
+    const { mic, rejilla } = state.cfg;
+    Object.assign(state.cfg, CFG_DEFECTO, { mic, rejilla });
     solver = new ParamSolver(state.cfg);   // y ademas reinicia el EMA, que venia sesgado
     sincronizarAjustes();
     toast("Ajuste fino, como de fábrica");
@@ -863,6 +980,14 @@ function setupControls() {
     state.sticker.mirror = !state.sticker.mirror;
     positionSticker();
   };
+
+  // Los controles propios de la camara.
+  el("foto-salir").onclick = () => setStep("inicio");
+  el("foto-mas").onclick = abrirAjustes;
+  el("foto-ultima").onclick = () => { el("shot").hidden = false; };
+  for (const b of el("cam-modos").children) {
+    b.onclick = () => setStep(b.dataset.modo === "foto" ? "foto" : "escanear");
+  }
   el("place").onclick = () => setStep("superficie");
   el("next-superficie").onclick = () => setStep("tamano");
   el("next-tamano").onclick = () => setStep("editar");
@@ -876,6 +1001,7 @@ function setupControls() {
   el("record").onclick = () => (recorder?.isRecording ? stopRecording() : startRecording());
   el("photo").onclick = capturePhoto;
   el("torch").onclick = toggleTorch;
+  el("foto-luz").onclick = toggleTorch;
 
   setupCertificado();
 

@@ -388,6 +388,65 @@ const editorVisible = await page.isVisible('#ui-editar');
 check('el ratón está a la vista', () => assert(stickerVisible));
 check('el catálogo de animaciones no pinta aquí', () => assert(!editorVisible));
 
+// FOTO imita la cámara del teléfono, y lo que se imita son MEDIDAS tomadas de una
+// captura real: visor 4:3 exacto, bandas 1:1,84, velo en vez de negro opaco, cuadrícula
+// en los tercios y obturador de 68 px. Si alguien toca el CSS y se pierden, la pantalla
+// deja de leerse como una cámara y no hay forma de verlo leyendo el código.
+const cam = await page.evaluate(() => {
+  const caja = (sel) => {
+    const b = document.querySelector(sel).getBoundingClientRect();
+    return { x: b.x, y: b.y, w: b.width, h: b.height };
+  };
+  const v = caja('#visor');
+  return {
+    visor: v, arriba: caja('#cam-arriba'), abajo: caja('#cam-abajo'),
+    aro: caja('.disparador'), disco: caja('.disparador span'),
+    velo: getComputedStyle(document.getElementById('cam-arriba')).backgroundColor,
+    // Cada línea, como fracción del lado del visor por el que corre.
+    rejilla: [...document.querySelectorAll('#rejilla i')].map((n) => {
+      const b = n.getBoundingClientRect();
+      return b.height <= 2 ? (b.y - v.y) / v.h : (b.x - v.x) / v.w;
+    }),
+    cromo: { chrome: !document.getElementById('chrome').hidden,
+             bar: !document.getElementById('bar').hidden,
+             hint: !document.getElementById('hint').hidden },
+  };
+});
+
+console.log(`  visor ${Math.round(cam.visor.w)}x${Math.round(cam.visor.h)} · ` +
+            `bandas 1:${(cam.abajo.h / cam.arriba.h).toFixed(2)} · velo ${cam.velo}`);
+
+check('el visor es 4:3 exacto, como el de la cámara del teléfono', () => {
+  const r = cam.visor.h / cam.visor.w;
+  assert(Math.abs(r - 4 / 3) < 0.01, `el visor va en ${r.toFixed(3)}, no en 1,333`);
+});
+check('las bandas enmarcan el visor en la proporción medida', () => {
+  assert(cam.arriba.h > 40 && cam.abajo.h > 120, 'alguna banda se quedó sin alto');
+  const rel = cam.abajo.h / cam.arriba.h;
+  assert(rel > 1.4 && rel < 2.4, `las bandas van 1:${rel.toFixed(2)} y se midió 1:1,84`);
+});
+check('las bandas son un velo y no negro opaco', () => {
+  // Es lo que hace el teléfono: se sigue viendo la escena por encima y por debajo del
+  // recuadro. Con negro opaco se pierde de vista la mitad de a lo que estás apuntando.
+  const partes = cam.velo.match(/rgba?\(([^)]+)\)/)[1].split(',').map(Number);
+  assert.equal(partes.length, 4, `la banda es opaca: ${cam.velo}`);
+  assert(partes[3] > 0.35 && partes[3] < 0.8, `velo al ${partes[3]}, se midió ~0,55`);
+});
+check('el obturador mide los 68 px de la cámara nativa, con su aro', () => {
+  assert.equal(Math.round(cam.disco.w), 68, `el disco mide ${cam.disco.w}`);
+  assert(cam.aro.w > cam.disco.w + 4, 'el disco no tiene aro alrededor');
+});
+check('la cuadrícula cae en los tercios', () => {
+  const esperado = [1 / 3, 2 / 3, 1 / 3, 2 / 3];
+  cam.rejilla.forEach((v, i) => assert(Math.abs(v - esperado[i]) < 0.01,
+    `la línea ${i + 1} cae en ${v.toFixed(3)} y debería caer en ${esperado[i].toFixed(3)}`));
+});
+check('en FOTO no se ve el cromo de la app', () => {
+  assert(!cam.cromo.chrome, 'la barra de navegación se cuela en la cámara');
+  assert(!cam.cromo.bar, 'la barra inferior de la app se cuela en la cámara');
+  assert(!cam.cromo.hint, 'la caja de instrucciones tapa el visor');
+});
+
 await page.mouse.click(206, 640);     // los pies del ratón, a media pantalla
 await page.click('#flip');            // cambiar de cámara y seguir vivo
 await page.waitForTimeout(1200);
@@ -408,13 +467,20 @@ const captura = await page.evaluate(async () => {
   c.width = img.naturalWidth;
   c.height = img.naturalHeight;
   const ctx = c.getContext('2d');
-  // Caja donde quedó el ratón: anclado por los pies en (0.5, 0.717) y con una altura de
-  // 0.45 de la pantalla, el cuerpo cae en el tercio central.
-  const box = [Math.round(c.width * 0.36), Math.round(c.height * 0.40),
+  // Caja donde quedó el ratón: anclado por los pies cerca del borde de abajo del visor y
+  // con una altura de 0.45, el cuerpo cae en el tercio central a media altura.
+  const box = [Math.round(c.width * 0.36), Math.round(c.height * 0.58),
                Math.round(c.width * 0.28), Math.round(c.height * 0.25)];
   ctx.drawImage(img, 0, 0);
   const conRaton = ctx.getImageData(...box).data;
-  ctx.drawImage(stage, 0, 0);          // el lienzo NO lleva el ratón: es solo la cámara
+  // El lienzo NO lleva el ratón: es solo la cámara. Y hay que recortarlo IGUAL que la
+  // foto -al visor- o se estarían comparando dos trozos distintos de la escena, y la
+  // comprobación pasaría aunque el ratón no estuviera dentro del archivo.
+  const cajaLienzo = stage.getBoundingClientRect();
+  const v = document.getElementById('visor').getBoundingClientRect();
+  const k = stage.width / cajaLienzo.width;
+  ctx.drawImage(stage, (v.left - cajaLienzo.left) * k, (v.top - cajaLienzo.top) * k,
+                v.width * k, v.height * k, 0, 0, c.width, c.height);
   const sinRaton = ctx.getImageData(...box).data;
   let acc = 0;
   for (let i = 0; i < conRaton.length; i += 4) {
@@ -427,16 +493,23 @@ const captura = await page.evaluate(async () => {
 console.log(`  foto ${captura.w}x${captura.h} · diferencia media ${captura.diff.toFixed(1)}/255`);
 check('la foto guardada tiene el tamaño del lienzo', () =>
   assert(captura.w > 0 && captura.h > 0, 'foto sin dimensiones'));
+check('la foto sale con el recorte del visor, no con el de la pantalla', () => {
+  const r = captura.h / captura.w;
+  assert(Math.abs(r - 4 / 3) < 0.02,
+    `la foto sale en ${r.toFixed(3)}: lo que se ve en el visor no es lo que se guarda`);
+});
 check('el ratón está DENTRO de la foto, no solo en pantalla', () =>
   assert(captura.diff > 12,
     `la zona del ratón es casi idéntica a la cámara sola: ${captura.diff.toFixed(1)}/255`));
 
 revisarGuardado('shot', await caminoDeGuardado('shot'));
 
+// Se sale por la ✕ de la cámara y no por el botón de casa de la app: en FOTO el cromo
+// de la app no existe, que es precisamente lo que la hace parecer una cámara.
 await page.click('#shot-close');
-await page.click('#home');
+await page.click('#foto-salir');
 const deFotoAInicio = await page.isVisible('#ui-inicio');
-check('foto vuelve al principio', () => assert(deFotoAInicio));
+check('foto vuelve al principio por la salida de la cámara', () => assert(deFotoAInicio));
 
 console.log('carta del Ratón');
 // Lo que hay que demostrar es que la carta se RELLENA y sale del formulario convertida
@@ -498,13 +571,78 @@ check('el documento se genera con los datos del formulario', () =>
 // comprobación es lo que impide que se quede obsoleto cuando alguien toque un tamaño.
 await page.click('#cert-volver');
 
-const limite = await page.evaluate(async () =>
-  (await import('./js/certificate.js')).LIMITE_NOTA);
-const maxCampo = await page.getAttribute('#cert-nota', 'maxlength');
-check('el formulario limita la nota a lo que cabe en el papel', () => {
-  assert(limite >= 200, `el límite se ha quedado en nada: ${limite}`);
-  assert.equal(Number(maxCampo), limite,
-    'el formulario y el papel no dicen lo mismo sobre cuánto cabe');
+// ---------------------------------------------------------------------------
+// Validación del formulario
+// ---------------------------------------------------------------------------
+// Todos los campos tienen tope y todos los topes salen del MÓDULO DEL DIBUJO, que es
+// quien sabe cuánto cabe en el papel. Lo que hay que demostrar es que el formulario y el
+// papel siguen diciendo lo mismo: escritos a mano en los dos sitios se separan en cuanto
+// alguien toca un tamaño, y el que se queda corto siempre es el del formulario.
+const limites = await page.evaluate(async () =>
+  (await import('./js/certificate.js')).LIMITES);
+const limite = limites.nota;
+
+const topes = await page.evaluate(() => ({
+  nombre: document.getElementById('cert-nombre').maxLength,
+  premio: document.getElementById('cert-premio').maxLength,
+  nota: document.getElementById('cert-nota').maxLength,
+  fechaMin: document.getElementById('cert-fecha').min,
+  fechaMax: document.getElementById('cert-fecha').max,
+}));
+check('los tres campos de texto llevan el tope del papel', () => {
+  assert.equal(topes.nombre, limites.nombre, 'el nombre no coincide con el papel');
+  assert.equal(topes.premio, limites.premio, 'el premio no coincide con el papel');
+  assert.equal(topes.nota, limites.nota, 'la nota no coincide con el papel');
+  assert(limite >= 200, `el límite de la nota se quedó en nada: ${limite}`);
+});
+check('la fecha está acotada a un rango con sentido', () => {
+  assert(topes.fechaMin && topes.fechaMax, 'la fecha no tiene rango: vale cualquier año');
+  const dias = (new Date(topes.fechaMax) - new Date(topes.fechaMin)) / 86400000;
+  assert(Math.abs(dias - limites.dias) <= 1, `el rango son ${dias} días, no ${limites.dias}`);
+  assert.equal(topes.fechaMax, new Date().toISOString().slice(0, 10),
+    'se puede fechar la carta en el futuro: un diente no se cae mañana');
+});
+
+// Una fecha fuera de rango se puede TECLEAR aunque haya min y max: el navegador no la
+// rechaza, solo la marca. Si no se corrige, la carta sale fechada en 1901.
+await page.fill('#cert-fecha', '2999-12-31');
+await page.dispatchEvent('#cert-fecha', 'change');
+const fechaCorregida = await page.inputValue('#cert-fecha');
+check('una fecha imposible se corrige sola', () =>
+  assert.equal(fechaCorregida, topes.fechaMax,
+    `se quedó en ${fechaCorregida}: el rango no se está aplicando a lo tecleado`));
+
+// El botón apagado tiene que DECIR por qué. Un botón mudo se lee como una app rota.
+await page.fill('#cert-nombre', '   ');
+await page.dispatchEvent('#cert-nombre', 'blur');
+const conEspacios = await page.evaluate(() => ({
+  apagado: document.getElementById('cert-generar').disabled,
+  aviso: !document.getElementById('cert-nombre-aviso').hidden,
+}));
+check('un nombre de solo espacios no cuela, y se explica por qué', () => {
+  assert(conEspacios.apagado, 'tres espacios pasan por nombre');
+  assert(conEspacios.aviso, 'el botón se apaga sin decir qué falta');
+});
+
+// Lo que se pega o se mete desde el código se salta el maxlength del navegador. El
+// dibujo es la última línea de defensa y tiene que recortar por su cuenta.
+const desbordado = await page.evaluate(async (lim) => {
+  const { drawCertificate, limpiar, LIMITES } = await import('./js/certificate.js');
+  const lienzo = document.createElement('canvas');
+  const bestia = { nombre: 'N'.repeat(400), fecha: '2026-09-11', diente: 'muela',
+                   estado: 'super', premio: 'P'.repeat(400), nota: 'x '.repeat(4000) };
+  return {
+    caja: drawCertificate(lienzo, bestia).__caja,
+    limpio: limpiar('  hola\n\nqué   tal  ', LIMITES.nombre),
+    recortado: limpiar('N'.repeat(400), LIMITES.nombre).length,
+  };
+}, limites);
+check('un texto desbordado no rompe el dibujo', () => {
+  assert(desbordado.caja.cabe,
+    'con campos gigantes la carta se sale: el dibujo no está recortando');
+  assert.equal(desbordado.limpio, 'hola qué tal',
+    `limpiar() no junta los espacios ni quita los saltos: "${desbordado.limpio}"`);
+  assert.equal(desbordado.recortado, limites.nombre, 'limpiar() no recorta al límite');
 });
 
 // El peor caso: la muela lleva la frase más larga, y el premio va al máximo del campo.
@@ -512,7 +650,7 @@ const PEOR = {
   nombre: 'Maximiliano', diente: 'muela', estado: 'super', premio: 'M'.repeat(24),
 };
 const caja = await page.evaluate(async ({ datos, n }) => {
-  const { drawCertificate, LIMITE_NOTA } = await import('./js/certificate.js');
+  const { drawCertificate, LIMITES } = await import('./js/certificate.js');
   const palabras = ('felicidades te portaste muy bien en el colegio este trimestre te he ' +
     'visto haciendo las tareas aprendiendo inglés continúa así orgulloso lograr').split(' ');
   let nota = '';
@@ -520,7 +658,7 @@ const caja = await page.evaluate(async ({ datos, n }) => {
   const lienzo = document.createElement('canvas');
   const sin = drawCertificate(lienzo, { ...datos, fecha: '2026-09-11', nota: '' }).__caja;
   const con = drawCertificate(lienzo, { ...datos, fecha: '2026-09-11',
-                                        nota: nota.slice(0, LIMITE_NOTA) }).__caja;
+                                        nota: nota.slice(0, LIMITES.nota) }).__caja;
   return { sin, con };
 }, { datos: PEOR, n: limite + 40 });
 

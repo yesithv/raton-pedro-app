@@ -12,9 +12,12 @@ Fase de validación. El prototipo web reproduce los **dos modos** de la app de r
 
 - **Vídeo** — colocar el ratón, ajustar posición y tamaño, escoger entre tres animaciones,
   grabar con narración y guardar o compartir.
-- **Foto** — cámara frontal con el ratón encima, para la foto con el niño dormido. Aquí el
-  ratón es un PNG con alfa, no el vídeo empaquetado, y por eso no lleva grading; el porqué
-  está en la sección 0.5 de la arquitectura.
+- **Foto** — cámara frontal con el ratón encima, para la foto con el niño dormido. La
+  pantalla **imita la cámara del teléfono** con las medidas tomadas de una captura real:
+  visor 4:3 exacto, bandas que lo enmarcan con un velo (no negro opaco), cuadrícula en los
+  tercios y obturador de 68 px. La captura se recorta al visor, así que lo que se ve es lo
+  que se guarda. Aquí el ratón es un PNG con alfa, no el vídeo empaquetado, y por eso no
+  lleva grading; el porqué está en la sección 0.5 de la arquitectura.
 - **Carta del Ratón Pérez** — no un diploma: una carta, alineada a la izquierda y en
   párrafos, con los datos de la convención española (nombre, fecha, qué diente, estado del
   diente y recompensa) contados dentro del texto. Lo que el padre escriba entra como un

@@ -386,6 +386,150 @@ button:disabled { opacity: 0.5; cursor: default; }
 /* Foto, no vídeo: el punto rojo es el lenguaje de "grabando" y aquí engañaría. */
 .shutter.still span { background: #fff; }
 
+/* --- Paso FOTO: la cámara del teléfono ---
+   Las medidas salen de una captura real de la Cámara de iOS (ver index.html). Lo que
+   hace que se lea como "la cámara" y no como "una web con un botón" son cuatro cosas:
+   el visor 4:3, las bandas que lo enmarcan, que esas bandas sean un VELO y no negro
+   opaco, y el obturador blanco de 68 px.
+
+   Esta pantalla va OSCURA en los dos temas, y no es un descuido: no hay ninguna cámara
+   con el marco blanco. Aquí el tema del sistema no pinta nada porque lo que manda es el
+   vídeo que hay debajo. */
+#ui-foto {
+  position: fixed; inset: 0; z-index: 14;
+  display: flex; flex-direction: column;
+  color: #fff;
+  -webkit-user-select: none; user-select: none;
+}
+
+/* 1 : 1,84, medido. Y `flex-basis: 0` para que el reparto sea por la proporción y no
+   por lo que ocupe el contenido de cada banda. */
+.cam-banda {
+  flex: 1 0 0;
+  background: rgba(0, 0, 0, 0.55);   /* el velo medido: 62 de brillo sobre 135 */
+  display: flex; align-items: center;
+  position: relative; z-index: 1;
+}
+#cam-arriba {
+  flex-grow: 1;
+  padding: 0 16px; gap: 10px;
+  padding-top: env(safe-area-inset-top);
+  min-height: calc(env(safe-area-inset-top) + 54px);
+  justify-content: space-between;
+}
+#cam-abajo {
+  flex-grow: 1.84;
+  flex-direction: column; justify-content: center; gap: 18px;
+  padding: 14px 16px calc(10px + env(safe-area-inset-bottom));
+  min-height: calc(env(safe-area-inset-bottom) + 140px);
+}
+
+/* El visor es un HUECO: no pinta fondo, deja ver el lienzo de la cámara. Y no captura
+   toques, para que arrastrar al ratón siga llegando al lienzo. */
+#visor {
+  flex: 0 1 auto;
+  width: 100%; aspect-ratio: 3 / 4;
+  position: relative;
+  pointer-events: none;
+}
+
+/* Los tercios, como la cuadrícula del teléfono: medida en los tercios exactos. */
+#rejilla { position: absolute; inset: 0; }
+#rejilla i {
+  position: absolute;
+  background: rgba(255, 255, 255, 0.22);
+}
+#rejilla i:nth-child(1), #rejilla i:nth-child(2) { left: 0; right: 0; height: 1px; }
+#rejilla i:nth-child(1) { top: 33.333%; }
+#rejilla i:nth-child(2) { top: 66.667%; }
+#rejilla i:nth-child(3), #rejilla i:nth-child(4) { top: 0; bottom: 0; width: 1px; }
+#rejilla i:nth-child(3) { left: 33.333%; }
+#rejilla i:nth-child(4) { left: 66.667%; }
+#ui-foto[data-rejilla="no"] #rejilla { display: none; }
+
+/* El aviso del paso: una pastilla que se va sola, no una caja que tapa la cama. Era el
+   problema 2 del brief de rediseño, y en una cámara canta todavía más. */
+#cam-pista {
+  position: absolute; top: 14px; left: 50%; transform: translateX(-50%);
+  max-width: calc(100% - 32px);
+  background: rgba(0, 0, 0, 0.55);
+  border-radius: 999px; padding: 7px 14px;
+  font-size: 12.5px; line-height: 1.35; text-align: center;
+  transition: opacity 600ms ease;
+}
+#cam-pista.ido { opacity: 0; }
+
+/* Botones de icono: círculo gris oscuro translúcido, como los del teléfono. */
+.cam-btn {
+  width: 38px; height: 38px; padding: 0; flex: none;
+  border-radius: 50%; border: 0;
+  background: rgba(255, 255, 255, 0.16);
+  color: #fff;
+  display: grid; place-items: center;
+  -webkit-tap-highlight-color: transparent;
+}
+.cam-btn:active { background: rgba(255, 255, 255, 0.3); }
+.cam-btn.grande { width: 46px; height: 46px; }
+.cam-btn.on { background: #fff; color: #111; }
+.cam-btn svg { display: block; }
+.cam-grupo {
+  display: flex; align-items: center; gap: 8px;
+  background: rgba(0, 0, 0, 0.35);
+  border-radius: 999px; padding: 5px;
+}
+.cam-grupo .cam-btn { background: transparent; }
+.cam-grupo .cam-btn:active { background: rgba(255, 255, 255, 0.22); }
+
+/* El obturador: 68 px medidos, disco blanco lleno y un aro fino separado. */
+.disparador {
+  width: 78px; height: 78px; padding: 0; flex: none;
+  border-radius: 50%;
+  background: transparent;
+  border: 2px solid #fff;          /* el aro */
+  display: grid; place-items: center;
+  -webkit-tap-highlight-color: transparent;
+}
+.disparador span {                 /* el disco: 68 px medidos en la captura nativa */
+  width: 68px; height: 68px; border-radius: 50%;
+  background: #fff;
+  display: block;
+  transition: transform 90ms ease, background-color 90ms ease;
+}
+.disparador:active span { transform: scale(0.9); background: #d4d4d4; }
+
+#cam-fila {
+  display: grid; grid-template-columns: 46px 1fr 46px;
+  align-items: center; gap: 10px; width: 100%;
+}
+/* Columna fija para cada uno: la miniatura empieza oculta, y sin esto los modos caian
+   en su columna de 46 px y el boton de girar se les montaba encima. */
+.cam-miniatura { grid-column: 1; }
+#cam-modos { grid-column: 2; }
+#cam-fila .cam-btn.grande { grid-column: 3; }
+
+/* La miniatura de la última foto, como el carrete del teléfono. */
+.cam-miniatura {
+  width: 46px; height: 46px; padding: 0; flex: none;
+  border-radius: 9px; overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  background: rgba(255, 255, 255, 0.1);
+}
+.cam-miniatura img { width: 100%; height: 100%; object-fit: cover; display: block; }
+
+/* El carrusel de modos. El activo va en el ROJO del chándal: se imita la forma del
+   control, no el amarillo de otra marca. */
+#cam-modos { display: flex; justify-content: center; gap: 4px; }
+#cam-modos button {
+  background: transparent; border: 0; color: rgba(255, 255, 255, 0.65);
+  font-size: 12px; font-weight: 700; letter-spacing: 0.09em;
+  padding: 7px 13px; border-radius: 999px;
+  -webkit-tap-highlight-color: transparent;
+}
+#cam-modos button[aria-pressed="true"] {
+  color: var(--accent-ink);
+  background: var(--accent);
+}
+
 /* --- Ajustes ---
    Hoja INFERIOR, no pantalla completa. Los deslizadores del ajuste fino solo sirven
    mirando la escena mientras se mueven, así que la hoja deja ver el tercio de arriba;
@@ -609,6 +753,9 @@ button:disabled { opacity: 0.5; cursor: default; }
 .field > span.ayuda { font-size: 12.5px; font-weight: 400; color: var(--dim); line-height: 1.35; }
 .ayuda output { font-variant-numeric: tabular-nums; }
 .ayuda output.apurado { color: var(--accent); font-weight: 600; }
+/* El motivo por el que el botón no deja pasar. Un botón apagado y mudo se lee como una
+   app rota, y el usuario se queda mirando sin saber qué le falta. */
+.field > span.aviso { color: var(--accent); font-weight: 600; }
 /* El selector de fecha nativo de iOS se pinta claro si no se le dice lo contrario */
 
 

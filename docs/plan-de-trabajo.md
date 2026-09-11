@@ -402,6 +402,35 @@ validar la composición sobre cámaras reales, que es justo el riesgo número un
 
 ---
 
+## FOTO imita la cámara del teléfono
+
+El problema 4 del brief decía que los tres botones sin etiqueta del modo FOTO (`⟳`,
+obturador, `⇄`) no se entendían sin probarlos. La respuesta no es ponerles rótulo: es que
+la pantalla **sea** una cámara. Todo el mundo sabe usar la cámara de su teléfono.
+
+Las medidas salen de una captura real de la Cámara de iOS, no de mirarla y aproximar:
+visor 4:3 exacto (1170x1560 en una pantalla de 1170 de ancho), bandas al 13,5% y 24,9%,
+cuadrícula en los tercios y obturador de 68 css px. Y el hallazgo que más cambia el
+resultado: **las bandas no son negras, son un velo al ~55%**. Donde el visor marcaba 135
+de brillo, la banda marcaba 62. Por eso en el teléfono se sigue viendo la habitación por
+encima y por debajo del recuadro, y con negro opaco se pierde de vista la mitad de a lo
+que estás apuntando — que en esta app es la cama.
+
+Dos consecuencias de producto:
+
+1. **La captura se recorta al visor.** Antes la foto salía con la proporción de la
+   pantalla; ahora sale 4:3 como la del teléfono, y sobre todo sale igual a lo que se
+   estaba viendo. El ratón se mide contra el visor y no contra la pantalla, o se podría
+   arrastrar a una banda y la foto se lo comería.
+2. **El cromo de la app desaparece en FOTO.** Nada de barra de navegación ni caja de
+   instrucciones sobre el visor: es justo lo que delata que no es una cámara. El aviso del
+   paso pasa a ser una pastilla que se va sola, lo que de paso resuelve aquí el problema 2
+   del brief.
+
+Lo que **no** se imita, y es a propósito: el control de zoom. El `0,5 / 1×` del teléfono es
+óptico y Safari en iOS no expone el zoom por `getUserMedia`. Uno digital recorta y pierde
+calidad, que es lo contrario de lo que hace el nativo; antes de fingirlo, mejor no ponerlo.
+
 ## Ronda 1 de interfaz
 
 `docs/diseno-ronda-1.pdf` es lo que devolvió el brief de `prompt-rediseno-ui.md`, y
@@ -540,6 +569,23 @@ de adorno, y se nota en cuatro sitios:
    personaje—, y la firma al revés: cursiva inglesa con la P de bucle y la R con vuelo,
    que es lo clásico. El contraste entre las dos es el que hay entre quien escribe y quien
    firma.
+
+#### Los límites del formulario
+
+Todos los campos tienen tope, y todos viven en el módulo del dibujo y no en el HTML: quien
+sabe cuánto cabe es el papel. El formulario los lee de ahí.
+
+- **Nombre**: 28, obligatorio. Un nombre de puros espacios no cuela, y el botón apagado
+  dice por qué en vez de quedarse mudo.
+- **Fecha**: del último año hasta hoy. `min` y `max` en un `<input type=date>` **no**
+  impiden teclear una fecha fuera de rango, solo la marcan; en un ordenador se escribe a
+  mano, así que además se corrige al salir del campo.
+- **Premio**: 24. **Palabras del padre**: 300, medido (abajo).
+
+`maxlength` tampoco se aplica a un valor puesto desde el código ni, en algunos
+navegadores, a lo que se pega, así que el dibujo recorta otra vez por su cuenta. Y los
+saltos de línea se cambian por un espacio en vez de borrarse: borrándolos, un texto pegado
+salía con las palabras pegadas —«holaqué tal»—. Lo encontró la prueba.
 
 #### El límite de la nota salió de medir, no de calcular
 
