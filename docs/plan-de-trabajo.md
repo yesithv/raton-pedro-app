@@ -442,7 +442,21 @@ que la mitad de los padres no descubre.
 (paleta, radios, tipografía). El asistente conserva su estructura de cinco pasos: fundirlo
 en dos es el siguiente encargo, y es cambio de máquina de estados, no de piel.
 
-También lleva el **certificado**, que en el diseño era solo una tarjeta de entrada.
+También lleva el **certificado**, que en el diseño era solo una tarjeta de entrada, y la
+**hoja de ajustes**, que resuelve el punto 3 de arriba — con un matiz que conviene dejar
+escrito, porque no es lo que decía el diseño.
+
+El diseño mandaba *sacar Ajustes de la interfaz*. Lo que se ha hecho es **separar dos cosas
+que estaban mezcladas**, y sacar solo una:
+
+- Lo que un padre sí quiere decidir —el tema, el micrófono— se ha vuelto **más** accesible,
+  no menos: tiene un botón propio en el arranque y otro bajo los controles.
+- El **ajuste fino** (los seis parámetros del grading) sigue a la vista de cualquiera, pero
+  doblado y con un *Restablecer* al lado. No se esconde: se aparta. Esconderlo del todo
+  costaba el caso de uso que justifica que exista —afinar mirando la escena real— y a
+  cambio ahorraba un pliegue.
+- Lo único que sí sale de la interfaz es el **diagnóstico**: `uExposureMatch`, sigma de la
+  escena, fps. Eso sí son siete toques en el título o `?dev=1`, tal como pedía el diseño.
 
 Lo que sigue pendiente, por orden:
 
@@ -450,8 +464,7 @@ Lo que sigue pendiente, por orden:
    bajar EDITAR a una fila de la hoja.
 2. Pantalla de recompensa tras guardar, con la entrada al certificado desde ahí: hoy se
    llega por INICIO, y el remate natural es justo después de guardar el vídeo.
-3. Sacar *Ajustes* de la interfaz (siete toques o `?dev=1`).
-4. Los estados que el diseño aún no cubre: permiso denegado, navegador sin grabación,
+3. Los estados que el diseño aún no cubre: permiso denegado, navegador sin grabación,
    formato que el carrete no acepta, luz fuera de rango. Es la ronda 2.
 
 ### El tema oscuro fijo deja de serlo
@@ -463,9 +476,13 @@ deslumbra.
 
 **Decisión de producto: hay dos temas.** El claro se lee mejor a cualquier otra hora y es
 lo que la mayoría espera; el oscuro sigue siendo el bueno de noche. Los dos motivos son
-válidos y se contradicen, así que elige quien sabe qué hora es: el conmutador del arranque
+válidos y se contradicen, así que elige quien sabe qué hora es: el selector de *Ajustes*
 tiene tres estados —sigue al sistema, siempre claro, siempre oscuro— y por defecto hace
 caso al teléfono, que ya cambia solo al anochecer.
+
+Las tres opciones se enseñan **a la vez**. Empezó siendo un botón que rotaba entre ellas al
+tocarlo, y estaba mal por dos motivos: obliga a dar toques hasta acertar, y nunca dice
+cuántas opciones hay ni cuál es la que está puesta sin descifrar un icono.
 
 El riesgo que el diseño señalaba no desaparece, se acota: sobre el vídeo en vivo la
 interfaz se apoya en **velos degradados** y no en planchas opacas, así que ni siquiera en

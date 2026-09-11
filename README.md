@@ -16,11 +16,14 @@ Fase de validación. El prototipo web reproduce los **dos modos** de la app de r
   ratón es un PNG con alfa, no el vídeo empaquetado, y por eso no lleva grading; el porqué
   está en la sección 0.5 de la arquitectura.
 - **Certificado** — el documento que deja el Ratón, con los campos de la convención
-  española (nombre, fecha, qué diente, estado del diente y recompensa). Se rellena viendo
-  la vista previa, y se guarda en el carrete o se manda a la impresora en A4.
+  española (nombre, fecha, qué diente, estado del diente y recompensa). Primero el
+  formulario y el documento al final; se guarda en el carrete o se manda a la impresora
+  en A4.
 
-Más la cadena de herramientas offline. La interfaz tiene **tema claro y oscuro**, con un
-conmutador de tres estados que por defecto sigue al teléfono.
+Más la cadena de herramientas offline. Todo lo configurable vive en una **hoja de
+ajustes** con un botón propio: el **tema** (automático, claro u oscuro; por defecto sigue
+al teléfono), el micrófono, y —doblado, con un *Restablecer* al lado— el ajuste fino de
+cómo se funde el ratón con la luz del cuarto.
 
 Falta lo que sólo existe en nativo: **detección de planos** (ARCore/ARKit) y **guardado
 automático en la galería** — ninguna página web puede escribir en el carrete, no hay API,

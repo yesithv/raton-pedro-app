@@ -54,10 +54,39 @@ Reproduce paso por paso el asistente de la app de referencia:
 | **FOTO** | Cámara frontal + ratón encima, para la foto con el niño | Arrastrar y pellizcar |
 | **CERTIFICADO** | El documento que deja el Ratón, para imprimir o dejar bajo la almohada | Rellenar |
 
+## Ajustes: un botón, un sitio
+
+Todo lo configurable vive en una hoja: el engranaje de arriba a la derecha del arranque, y
+*Ajustes* bajo los controles una vez encendida la cámara. Los dos abren lo mismo.
+
+Es una **hoja inferior** y no una pantalla entera a propósito: los deslizadores del ajuste
+fino solo sirven si se ve la escena mientras se mueven.
+
+| Sección | Qué hay | Se guarda |
+|---|---|---|
+| **Tema** | Automático, claro u oscuro | Sí |
+| **Al grabar** | Micrófono | Sí |
+| **Ajuste fino de la imagen** *(doblado)* | Los seis parámetros del grading, el rango limitado y **Restablecer** | No |
+| **Diagnóstico** *(oculto)* | El HUD de uniforms, fps y escena | — |
+
+Dos decisiones que no son obvias:
+
+- **El ajuste fino no se guarda, y el tema y el micrófono sí.** Una preferencia vale para
+  siempre; un afinado es de una escena concreta, y heredar de noche el arreglo que se hizo
+  ayer en otro cuarto es peor que empezar de cero. Por eso **Restablecer** está dentro, al
+  lado de lo que puede estropear: hasta ahora se podía dejar la imagen inservible sin más
+  salida que recargar.
+- **El diagnóstico no está a la vista.** Son números crudos (`uExposureMatch`, sigma de la
+  escena) que un padre a las dos de la mañana no tiene por qué ver nunca. Se destapa con
+  `?dev=1` o con **siete toques en el título** de la hoja.
+
 ## Dos temas, y la app no elige por su cuenta
 
 Claro y oscuro, con **tres estados**: sigue al sistema (lo de fábrica), siempre claro, o
-siempre oscuro. Se cambia con el botón de la pantalla de arranque, y la elección se guarda.
+siempre oscuro. Se eligen en *Ajustes*, y la elección se guarda.
+
+Las tres opciones se enseñan **a la vez**, no como un botón que rota al tocarlo: un icono
+que cambia obliga a dar toques hasta acertar y nunca dice cuántas opciones hay.
 
 No es indecisión. El diseño de la ronda 1 pedía oscuro fijo porque la app se usa de noche
 junto a un niño dormido y la pantalla es casi la única luz del cuarto; el claro se lee
@@ -101,8 +130,8 @@ El punto que colocas es el **punto de contacto** con la superficie (`anchorPoint
 asset), no el centro del cuadro: el ratón queda parado ahí y no flotando.
 
 La grabación arranca la animación y se detiene sola al terminarla. El micrófono va
-activado por defecto —la narración en vivo es funcionalidad, no ruido— y se puede apagar
-en *Ajustes*, donde también están los uniforms del grading en vivo.
+activado por defecto —la narración en vivo es funcionalidad, no ruido— y se apaga en
+*Ajustes*, que recuerda la elección.
 
 ### El modo FOTO no pasa por el shader
 
@@ -194,13 +223,13 @@ El HUD de arriba muestra en vivo lo que resuelve el `SceneAnalyzer`. **Esos núm
 el entregable real de este prototipo**: van a `docs/receta-grading.md` y son los que el
 nativo tiene que reproducir en la semana 2.
 
-El deslizador *Balance color* es el segundo parámetro de arte: en 0 el ratón conserva
+El deslizador *Toma el color del cuarto* (`whiteBalance`) es el segundo parámetro de arte: en 0 el ratón conserva
 su color propio y se ve pegado sobre un cuarto de otro color (una tira LED magenta, una
 lamparita ámbar); en 1 adopta la dominante entera y se vuelve una silueta del color de la
 pared. Pruébalo en el cuarto real y anota el valor.
 
 Si aparece el aviso naranja, la exposición está tocando el borde del rango: el valor
-correcto para esa luz queda fuera. Mueve el piso en *Ajustes* y compara — esa es la
+correcto para esa luz queda fuera. Mueve *Oscurecer, como mucho* en el ajuste fino y compara — esa es la
 decisión de realismo contra legibilidad, y se toma mirando, no calculando.
 
 ## Estructura
