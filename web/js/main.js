@@ -2,7 +2,8 @@ import { Compositor } from "./compositor.js";
 import { SceneAnalyzer, ParamSolver } from "./analyzer.js";
 import { CanvasRecorder, isSupported as recSupported } from "./recorder.js";
 import { STEPS } from "./flow.js";
-import { drawCertificate, DIENTES, ESTADOS, SIZE as CERT_SIZE } from "./certificate.js";
+import { drawCertificate, DIENTES, ESTADOS, LIMITE_NOTA,
+         SIZE as CERT_SIZE } from "./certificate.js";
 
 const ANALYZE_EVERY = 10;   // misma cadencia que el dispositivo (seccion 2 de la arquitectura)
 const OFFSCREEN = 10.0;     // origen del overlay cuando no debe verse: el shader lo descarta
@@ -612,7 +613,7 @@ function generarCertificado() {
   prepararGuardadoCert();
   el("cert").dataset.paso = "documento";
   el("cert-scroll").scrollTo(0, 0);
-  el("cert-doc-titulo").textContent = `Ya está firmado`;
+  el("cert-doc-titulo").textContent = "Ya está escrita";
 }
 
 /** El nombre es lo único que no se puede dejar en blanco: sin él no hay certificado. */
@@ -631,8 +632,8 @@ function prepararGuardadoCert() {
     if (link.dataset.url) URL.revokeObjectURL(link.dataset.url);
     link.dataset.url = url;
     link.href = url;
-    offerSave("cert", blob, "certificado-raton-perez.png",
-      "Elige <b>Guardar imagen</b> y el certificado entra en el carrete, listo para " +
+    offerSave("cert", blob, "carta-del-raton-perez.png",
+      "Elige <b>Guardar imagen</b> y la carta entra en el carrete, lista para " +
       "mandarlo a imprimir.\nPara imprimirlo desde aquí, usa <b>Imprimir</b>.",
       "Guárdalo con <b>Descargar</b> o mándalo a la impresora con <b>Imprimir</b>.");
   }, "image/png");
@@ -648,6 +649,7 @@ async function abrirCertificado() {
   el("cert-nombre").value = cert.nombre;
   el("cert-premio").value = cert.premio;
   el("cert-nota").value = cert.nota;
+  contarNota();
   pintarChips(el("cert-diente"), DIENTES, "diente");
   pintarChips(el("cert-estado"), ESTADOS, "estado");
   revisarNombre();
@@ -656,14 +658,34 @@ async function abrirCertificado() {
   el("cert-scroll").scrollTo(0, 0);
 }
 
+/**
+ * La cuenta de lo que queda por escribir.
+ *
+ * Solo aparece cuando ya se lleva algo escrito: un contador a cero delante de un campo
+ * vacío se lee como un deber, y esto es opcional. Y avisa de verdad -en rojo- solo en el
+ * último tramo, que es cuando sirve de algo.
+ */
+function contarNota() {
+  const quedan = LIMITE_NOTA - el("cert-nota").value.length;
+  const salida = el("cert-nota-cuenta");
+  salida.textContent = el("cert-nota").value ? `Te quedan ${quedan}.` : "";
+  salida.classList.toggle("apurado", quedan <= 40);
+}
+
 function setupCertificado() {
   for (const [id, campo] of [["cert-nombre", "nombre"], ["cert-fecha", "fecha"],
                              ["cert-premio", "premio"], ["cert-nota", "nota"]]) {
     el(id).oninput = (e) => {
       cert[campo] = e.target.value;
       if (campo === "nombre") revisarNombre();
+      if (campo === "nota") contarNota();
     };
   }
+  // El límite lo pone el PAPEL, no el formulario: LIMITE_NOTA sale de medir cuánto cabe
+  // en la carta antes de tocar la firma. Ponerlo aquí a mano seria tener dos numeros que
+  // se separan en cuanto alguien cambie un tamaño del dibujo.
+  el("cert-nota").maxLength = LIMITE_NOTA;
+
   el("go-cert").onclick = abrirCertificado;
   el("cert-generar").onclick = () => { if (revisarNombre()) generarCertificado(); };
   // Volver a los datos conserva lo escrito: se corrige una errata sin repetirlo todo.
