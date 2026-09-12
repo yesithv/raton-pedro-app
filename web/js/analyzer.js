@@ -11,7 +11,8 @@ function makeCtx(size) {
   return c.getContext("2d", { willReadFrequently: true });
 }
 
-/** Mediana sin ordenar el array completo. */
+/** Mediana. Ordena una copia en un Float32Array: `sort()` sobre un array tipado es
+ *  numerico de verdad, mientras que sobre un Array normal seria alfabetico. */
 function median(arr) {
   const a = Float32Array.from(arr).sort();
   const n = a.length;

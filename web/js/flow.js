@@ -84,5 +84,8 @@ export const STEPS = {
   },
 };
 
-export const ORDER = ["inicio", "escanear", "superficie", "tamano", "editar", "grabar"];
-// FOTO no aparece: no esta en la cadena del asistente, se entra y se sale por INICIO.
+// FOTO no aparece en la cadena del asistente: se entra y se sale por INICIO. El orden de
+// los pasos no hace falta escribirlo en ningun sitio -cada paso sabe a donde vuelve con
+// su `back`, y hacia delante lo decide el boton que se pulsa-. Hubo aqui un `ORDER` con
+// la lista entera, y no lo importaba nadie: una segunda declaracion del mismo flujo que
+// solo podia quedarse desfasada.

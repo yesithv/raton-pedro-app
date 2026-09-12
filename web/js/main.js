@@ -5,6 +5,7 @@ import { STEPS } from "./flow.js";
 import { drawCertificate, dientes, estados, LIMITES, limpiar,
          SIZE as CERT_SIZE } from "./certificate.js";
 import { t, IDIOMAS, idioma, idiomaInicial, fijarIdioma } from "./i18n.js";
+import { CLAVES, guardar, olvidar, leerBooleano, guardarBooleano } from "./preferencias.js";
 
 const ANALYZE_EVERY = 10;   // misma cadencia que el dispositivo (seccion 2 de la arquitectura)
 const OFFSCREEN = 10.0;     // origen del overlay cuando no debe verse: el shader lo descarta
@@ -895,7 +896,7 @@ function setupCertificado() {
     el("cert-nombre").dataset.tocado = "si";
     revisarNombre();
   };
-  // El límite lo pone el PAPEL, no el formulario: LIMITE_NOTA sale de medir cuánto cabe
+  // El límite lo pone el PAPEL, no el formulario: LIMITES.nota sale de medir cuánto cabe
   // en la carta antes de tocar la firma. Ponerlo aquí a mano seria tener dos numeros que
   // se separan en cuanto alguien cambie un tamaño del dibujo.
   el("go-cert").onclick = abrirCertificado;
@@ -947,10 +948,11 @@ function temaActual() {
 function aplicarTema(id) {
   if (id === "auto") delete document.documentElement.dataset.tema;
   else document.documentElement.dataset.tema = id;
-  try {
-    if (id === "auto") localStorage.removeItem("tema");
-    else localStorage.setItem("tema", id);
-  } catch (e) { /* en privado no se puede guardar; el tema vale para esta sesión */ }
+  // "auto" se guarda BORRANDO y no escribiendo "auto": el script en línea del <head> —que
+  // corre antes que esto y no puede importar nada— solo entiende "claro" y "oscuro", y
+  // ante cualquier otra cosa deja mandar al sistema, que es justo lo que significa auto.
+  if (id === "auto") olvidar(CLAVES.tema);
+  else guardar(CLAVES.tema, id);
 
   for (const boton of el("tema").children) {
     boton.setAttribute("aria-pressed", String(boton.dataset.tema === id));
@@ -1072,10 +1074,8 @@ function setupAjustes() {
   // El microfono es una PREFERENCIA y sobrevive a cerrar la app; el ajuste fino no, que
   // es afinado de una escena concreta y lo contrario seria heredar de noche el arreglo
   // que se hizo ayer en otro cuarto.
-  try {
-    if (localStorage.getItem("mic") === "no") state.cfg.mic = false;
-    if (localStorage.getItem("rejilla") === "no") state.cfg.rejilla = false;
-  } catch (e) { /* sin almacenamiento, el valor de fabrica */ }
+  state.cfg.mic = leerBooleano(CLAVES.mic, CFG_DEFECTO.mic);
+  state.cfg.rejilla = leerBooleano(CLAVES.rejilla, CFG_DEFECTO.rejilla);
 
   // El idioma, ANTES que nada: fija el <html lang>, deja el documento traducido y solo
   // entonces se pintan los selectores, que ya salen en el idioma que toca. Al reves, la
@@ -1113,7 +1113,7 @@ function setupAjustes() {
   el("s-rejilla").onchange = (e) => {
     state.cfg.rejilla = e.target.checked;
     el("ui-foto").dataset.rejilla = state.cfg.rejilla ? "si" : "no";
-    try { localStorage.setItem("rejilla", state.cfg.rejilla ? "si" : "no"); } catch (err) { /* da igual */ }
+    guardarBooleano(CLAVES.rejilla, state.cfg.rejilla);
   };
 
   el("s-mic").onchange = async (e) => {
@@ -1123,7 +1123,7 @@ function setupAjustes() {
       e.target.checked = state.cfg.mic = false;
       fail(t("opciones.micNegado"));
     }
-    try { localStorage.setItem("mic", state.cfg.mic ? "si" : "no"); } catch (err) { /* da igual */ }
+    guardarBooleano(CLAVES.mic, state.cfg.mic);
   };
 
   el("ajustes-reset").onclick = () => {

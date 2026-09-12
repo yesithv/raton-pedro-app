@@ -57,8 +57,8 @@ const SUAVE = "#8A7F72";      // el gris del pelaje
  * ratón con gafas y chándal. `ui-rounded` da en Apple la SF Rounded, que es redonda y
  * joven sin ser infantil; donde no exista, la cadena cae en Trebuchet o en la letra del
  * sistema -Roboto en Android, Segoe en Windows-, que son humanistas y siguen sirviendo.
- * Ninguna se descarga: la CSP lo prohíbe y una fuente que no carga cambia el documento
- * en silencio.
+ * Y ninguna se descarga, que es la otra mitad de la decisión: una fuente que llega tarde
+ * —o que no llega— cambia el documento en silencio, y este documento se imprime.
  */
 const REDONDA = 'ui-rounded, "SF Pro Rounded", "Varela Round", "Trebuchet MS", ' +
                 '"Segoe UI", Roboto, system-ui, sans-serif';
@@ -124,9 +124,6 @@ export const LIMITES = {
   nota: 300,
   dias: 365,
 };
-
-/** Se mantiene el nombre viejo: la prueba y `main.js` ya lo usaban. */
-export const LIMITE_NOTA = LIMITES.nota;
 
 /**
  * Deja un texto en condiciones de ser dibujado.
@@ -361,7 +358,8 @@ function sello(ctx, cx, cy, r) {
  *
  * No hay alternativa: no existe NINGUNA cursiva garantizada en los tres sitios donde
  * esto se ve. Apple trae Snell Roundhand, Windows trae Segoe Script, Android no trae
- * ninguna, y la CSP prohibe cargar una. Escribir la firma con `font` significa que cada
+ * ninguna, y descargar una no es opcion: una fuente que no llega deja la firma en la
+ * Arial de respaldo sin avisar. Escribir la firma con `font` significa que cada
  * telefono firma distinto y que en la mitad se cae a la Arial de respaldo, que es
  * exactamente lo contrario de una firma.
  *
@@ -646,7 +644,7 @@ export function drawCertificate(canvas, datos, raton) {
                             (x) => `600 ${x}px ${REDONDA}`)}px ${REDONDA}`;
   // Si ni al tamaño más apretado cabe, la posdata se queda en TOPE y se monta sobre la
   // última línea. Es feo, pero es el último recurso: el formulario limita la nota a
-  // LIMITE_NOTA justo para que esto no llegue a pasar, y la prueba lo vigila.
+  // LIMITES.nota justo para que esto no llegue a pasar, y la prueba lo vigila.
   const yDeseado = y + 14;
   const yPosdata = Math.min(yDeseado, TOPE);
   ctx.fillText(posdata, MARGEN, yPosdata);
