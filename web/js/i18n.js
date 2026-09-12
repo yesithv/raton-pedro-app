@@ -18,6 +18,7 @@
 //    elemento (`n.dataset.t = "..."`) en vez de escribir la frase a pelo: al repasar el
 //    documento, se traducen solos.
 
+import { CLAVES, leer, guardar } from "./preferencias.js";
 import es from "./idiomas/es.js";
 import en from "./idiomas/en.js";
 import pt from "./idiomas/pt.js";
@@ -29,7 +30,6 @@ export const IDIOMAS = CATALOGOS.map((c) => ({ id: c.id, nombre: c.nombre }));
 
 const POR_ID = Object.fromEntries(CATALOGOS.map((c) => [c.id, c]));
 const ORIGINAL = es;
-const CLAVE_GUARDADO = "idioma";
 
 let actual = ORIGINAL;
 
@@ -80,12 +80,11 @@ export function t(clave, vars) {
 
 export const idioma = () => actual.id;
 
-/** Lo que el usuario eligió alguna vez, si sigue existiendo. */
+/** Lo que el usuario eligió alguna vez, si sigue existiendo.
+ *  Se comprueba contra el catálogo: un idioma guardado que ya no exista no vale. */
 function guardado() {
-  try {
-    const id = localStorage.getItem(CLAVE_GUARDADO);
-    return POR_ID[id] ? id : null;
-  } catch (e) { return null; }
+  const id = leer(CLAVES.idioma);
+  return POR_ID[id] ? id : null;
 }
 
 /**
@@ -120,8 +119,7 @@ export const idiomaInicial = () => guardado() ?? delTelefono();
  */
 export function fijarIdioma(id, raiz = document) {
   actual = POR_ID[id] ?? ORIGINAL;
-  try { localStorage.setItem(CLAVE_GUARDADO, actual.id); }
-  catch (e) { /* en privado no se puede guardar; vale para esta sesión */ }
+  guardar(CLAVES.idioma, actual.id);
   document.documentElement.lang = actual.lang;
   traducir(raiz);
   return actual.id;

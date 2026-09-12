@@ -333,7 +333,7 @@ Son **un párrafo más de la carta**: misma letra, mismo tamaño, mismo color, s
 sin cursiva. En cuanto se marcan como cita dejan de ser del Ratón y pasan a ser un añadido,
 que es justo lo contrario de lo que se busca.
 
-Su límite —`LIMITE_NOTA`, hoy **300 caracteres**— sale de **medir el dibujo de verdad**, no
+Su límite —`LIMITES.nota`, hoy **300 caracteres**— sale de **medir el dibujo de verdad**, no
 de una cuenta a ojo. El primer número que puse fue 340 «porque quedan seis líneas libres»,
 y era falso: en el peor caso —una muela, que lleva la frase más larga, con la frase de
 estado más larga y un premio de 24 caracteres— no cabía ni una línea. Midiendo:
@@ -346,7 +346,7 @@ estado más larga y un premio de 24 caracteres— no cabía ni una línea. Midie
 Y si aun así sobra texto, la carta **se apreta un punto** en vez de escribir sobre la
 firma, como se apretaría una escrita a mano: 34 → 32 → 30 → 28 px, y 28 px a 150 ppp son
 13 puntos, que se leen impresos. La prueba del asistente dibuja una nota de exactamente
-`LIMITE_NOTA` en el peor caso y falla si el texto alcanza la despedida, así que el número
+`LIMITES.nota` en el peor caso y falla si el texto alcanza la despedida, así que el número
 no puede quedarse obsoleto en silencio.
 
 #### Los límites los pone el papel

@@ -490,7 +490,7 @@
 
         <!-- Textarea y no input: son varias frases, y en una línea de una sola altura no
              se puede releer lo que se acaba de escribir. El maxlength lo pone el módulo
-             desde LIMITE_NOTA, que es quien sabe cuánto cabe en el papel. -->
+             desde LIMITES.nota, que es quien sabe cuánto cabe en el papel. -->
         <label class="field">
           <span><span data-t="carta.nota"></span> <i data-t="carta.opcional"></i></span>
           <textarea id="cert-nota" rows="4" autocomplete="off"
@@ -531,8 +531,14 @@
   </div>
 </div>
 
-<div id="toast" hidden></div>
-<div id="error" hidden></div>
+<!-- Los dos avisos de la app, y los dos se ANUNCIAN. Sin `role`, un lector de pantalla
+     no dice ni "no hay cámara frontal" ni por qué no arrancó la cámara: el texto aparece
+     en pantalla y para quien no la ve no ha pasado nada.
+     Y no llevan el mismo: el toast confirma algo que acaba de hacer el usuario y espera
+     su turno (`status`); el error interrumpe lo que estuviera leyendo (`alert`), que es
+     lo que corresponde a algo que ha impedido seguir. -->
+<div id="toast" role="status" aria-live="polite" hidden></div>
+<div id="error" role="alert" aria-live="assertive" hidden></div>
 
 <script type="module" src="js/main.js"></script>
 </body>
