@@ -27,8 +27,15 @@ Fase de validación. El prototipo web reproduce los **dos modos** de la app de r
 
 Más la cadena de herramientas offline. Todo lo configurable vive en una **hoja de
 ajustes** con un botón propio: el **tema** (automático, claro u oscuro; por defecto sigue
-al teléfono), el micrófono, y —doblado, con un *Restablecer* al lado— el ajuste fino de
-cómo se funde el ratón con la luz del cuarto.
+al teléfono), el **idioma**, el micrófono, y —doblado, con un *Restablecer* al lado— el
+ajuste fino de cómo se funde el ratón con la luz del cuarto.
+
+El prototipo va en **castellano, inglés y portugués**, y la primera vez lo elige el
+teléfono. Se cambia sin recargar y cambia todo, **la carta incluida**: una interfaz
+traducida que escupe un papel en castellano está a medias, y el papel es justo lo que lee
+el niño. Los textos no viven en las pantallas sino en `web/js/idiomas/`, un archivo por
+idioma, así que añadir uno nuevo es añadir un archivo. El detalle está en la sección *Tres
+idiomas, y la carta también* de [`web/README.md`](web/README.md).
 
 Falta lo que sólo existe en nativo: **detección de planos** (ARCore/ARKit) y **guardado
 automático en la galería** — ninguna página web puede escribir en el carrete, no hay API,

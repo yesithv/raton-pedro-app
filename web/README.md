@@ -96,11 +96,8 @@ baja todavía —62 % de la pantalla frente al 86 %— porque los deslizadores d
 solo sirven **viendo la escena mientras se mueven**. Es el motivo entero por el que están
 ahí y no en los ajustes de la app: con la hoja alta no se ve nada y el control es inútil.
 
-El **idioma es por ahora solo el selector**. Traducir los textos es otro trabajo, y lo que
-no se puede hacer es poner un selector mudo y callárselo: guarda la elección y **dice
-debajo** que los textos llegan después. El `<html lang>` se queda en `es` a propósito —los
-textos siguen en castellano, y mentirle al lector de pantalla sobre en qué idioma está lo
-que va a leer es peor que no ofrecer el idioma.
+El **idioma cambia la app entera**, y en caliente: la interfaz, los avisos y **la carta que
+se imprime**. Cómo funciona está abajo, en *Tres idiomas, y la carta también*.
 
 Dos decisiones que no son obvias:
 
@@ -112,6 +109,75 @@ Dos decisiones que no son obvias:
 - **El diagnóstico no está a la vista.** Son números crudos (`uExposureMatch`, sigma de la
   escena) que un padre a las dos de la mañana no tiene por qué ver nunca. Se destapa con
   `?dev=1` o con **siete toques en el título** de la hoja.
+
+## Tres idiomas, y la carta también
+
+Castellano, inglés y portugués. Se elige en *Ajustes*, y **la primera vez lo elige el
+teléfono**: se mira `navigator.languages` por prefijo —el navegador dice `en-GB` o
+`pt-BR`— y si no hay ninguno conocido manda el castellano, que es el idioma de origen.
+Una elección a mano gana siempre a la detección: si alguien pide castellano teniendo el
+teléfono en inglés, fue a propósito.
+
+**La carta se traduce igual que la pantalla, y es la mitad del trabajo.** Una interfaz en
+inglés que escupe un papel en castellano no está traducida, está a medias, y encima el
+papel es justo lo que lee el niño. Por eso en `certificate.js` no queda ni una frase
+escrita: los meses, el sello, la posdata y la tabla de dientes salen del catálogo, porque
+la concordancia de género —«me **la** llevé envuelt**a**» de *una muela*— es gramática del
+idioma y no del dibujo. Cada idioma trae su plantilla y usa los huecos que necesita: el
+inglés, que no concuerda, deja `terminacion` sin gastar.
+
+```
+js/i18n.js          el motor: buscar una clave, rellenar huecos, repasar el DOM
+js/idiomas/es.js    el ORIGINAL. Cuando falta una clave en otro idioma, se cae aquí
+js/idiomas/en.js
+js/idiomas/pt.js
+```
+
+**Añadir un idioma es un archivo y una línea** en `i18n.js`. No se toca ninguna pantalla:
+el HTML marca *qué* hay que traducir, no qué dice.
+
+| Marca en el HTML | Qué pone |
+|---|---|
+| `data-t` | el texto del elemento |
+| `data-t-html` | igual, pero el texto lleva marcas (`<br>`, `<b>`) |
+| `data-t-label` | `aria-label` **y** `title`, que en los botones de icono dicen lo mismo |
+| `data-t-aria` · `data-t-title` | por separado, para los pocos que dicen cosas distintas |
+| `data-t-placeholder` · `data-t-alt` | lo que se lee dentro de un campo vacío y el texto de una imagen |
+
+Cuatro cosas que conviene saber:
+
+- **Cambia sin recargar.** Este selector se toca estando ya dentro, a veces con un vídeo
+  recién grabado en pantalla o con media carta escrita, y una recarga perdería todo eso
+  para ahorrarse cuatro llamadas. Lo que cuesta es acordarse de repintar lo que no vive en
+  el HTML, y de eso va `refrescarIdioma()` en `main.js`: las dos listas de botones, el paso
+  actual, la animación, las fichas del formulario y **los resultados que haya a la vista**
+  —su explicación, sus botones y el nombre del archivo—. La regla para no olvidarse de
+  ninguno: si un texto se escribe con `textContent` fuera de esa función, o deja su clave
+  en `dataset.t`, o hay que repintarlo ahí.
+- **Lo elegido se guarda por `id`, no por etiqueta.** El diente y el estado del formulario
+  son claves, así que cambiar de idioma con la carta a medias no pierde nada.
+- **El `<html lang>` dice la verdad.** Antes se quedaba en `es` a propósito, porque los
+  textos seguían en castellano y mentirle al lector de pantalla era peor que no ofrecer el
+  idioma. Ahora los textos están. El atributo se pone además en el script **en línea** del
+  `<head>`, junto al del tema y por el mismo motivo: gobierna el guionado del navegador y
+  los módulos cargan después del primer pintado.
+- **Lo que NO se traduce, y a propósito:** el nombre del personaje —es un nombre propio, y
+  la firma del papel está trazada con curvas letra a letra, así que traducirlo dejaría la
+  carta firmada con otro nombre distinto del que la encabeza— y el **HUD de diagnóstico**,
+  que son los nombres reales de los uniforms del shader y los números que van a
+  `docs/receta-grading.md`.
+
+La prueba vigila tres cosas que se rompen solas: que **los tres catálogos traen exactamente
+las mismas claves** (añadir un texto en `es.js` y olvidarlo en los otros dos no rompe nada
+hasta que alguien cambia de idioma, y entonces ya no hay quien lo vea venir), que la carta
+**se dibuja distinta** en cada idioma, y que el **peor caso cabe en el papel en los tres**
+—`LIMITES.nota` se midió en castellano, y una traducción más larga se saldría en la
+impresora de alguien—.
+
+El portugués es **europeo**, y conviene decirlo: entre *telemóvel* y *celular* no hay forma
+neutra que suene bien en los dos lados, y fingir que la hay da un texto que no es de nadie.
+Si hace falta el de Brasil, se añade `pt-BR` como un idioma más —que es justo para lo que
+está montado esto— y no se estropea este.
 
 ## Dos temas, y la app no elige por su cuenta
 
@@ -248,8 +314,9 @@ Que sea una carta y no un diploma manda sobre todo lo demás:
 - **El texto va alineado a la izquierda y en párrafos.** Un bloque centrado se lee como un
   título; uno alineado, como algo que alguien te ha escrito.
 - **Los datos se cuentan dentro del texto**, no en casillas. Una tabla dentro de una carta
-  es un formulario. Por eso `DIENTES` lleva `pronombre`, `posesivo` y `terminacion`: sin
-  ellos la carta dice «lo envolví» y «el tuyo» de *una muela*.
+  es un formulario. Por eso la tabla de dientes lleva `pronombre`, `posesivo` y
+  `terminacion`: sin ellos la carta dice «lo envolví» y «el tuyo» de *una muela*. Vive en
+  `idiomas/`, una por idioma, porque eso es gramática y no dibujo.
 - **La letra es redonda, no de diploma.** `ui-rounded` da en Apple la SF Rounded, y donde
   no exista se cae en Trebuchet o en la del sistema. Georgia se fue: era la letra de un
   certificado del colegio, y aquí quien escribe es un ratón con gafas y chándal.
@@ -378,7 +445,9 @@ decisión de realismo contra legibilidad, y se toma mirando, no calculando.
 ```
 index.html          UI
 app.css
-js/flow.js          definición del asistente: pasos, textos, gestos
+js/flow.js          definición del asistente: pasos y gestos (los textos, no)
+js/i18n.js          idiomas: buscar la clave, rellenar huecos, repasar el DOM
+js/idiomas/*.js     un archivo por idioma; es.js es el original
 js/compositor.js    WebGL2. Carga shaders/composite.{vert,frag} y los reescribe a WebGL
 js/analyzer.js      SceneAnalyzer: color de un mip, ruido de un recorte nativo, EMA
 js/recorder.js      canvas.captureStream + MediaRecorder, con micrófono

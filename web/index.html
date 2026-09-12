@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1">
-<title>Ratón Pérez AR — prototipo</title>
+<title data-t="app.titulo">Ratón Pérez AR — prototipo</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ctext y='26' font-size='26'%3E%F0%9F%90%AD%3C/text%3E%3C/svg%3E">
 <link rel="stylesheet" href="app.css">
 <script>
@@ -15,6 +15,11 @@
     if (guardado === "claro" || guardado === "oscuro") {
       document.documentElement.dataset.tema = guardado;
     }
+    // Y el idioma, por lo mismo pero de otra forma: el <html lang> gobierna el guionado y
+    // las comillas del navegador, y los módulos cargan DESPUÉS del primer pintado. Aquí
+    // solo el atributo; las palabras las pone `i18n.js` cuando llega.
+    const idioma = localStorage.getItem("idioma");
+    if (/^(es|en|pt)$/.test(idioma || "")) document.documentElement.lang = idioma;
   } catch (e) { /* sin almacenamiento, manda el sistema */ }
 </script>
 </head>
@@ -54,7 +59,7 @@
 
      No aparece en los pasos de la cámara: ahí arriba a la derecha está CERRAR, y la
      convención de las esquinas manda sobre cualquier atajo. -->
-<button id="ajustes-abrir" class="icon" aria-label="Ajustes" title="Ajustes">
+<button id="ajustes-abrir" class="icon" data-t-label="nav.ajustes">
   <svg viewBox="0 0 24 24" width="21" height="21" fill="none" stroke="currentColor"
        stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
     <circle cx="12" cy="12" r="3.1"/>
@@ -66,17 +71,16 @@
 <div id="boot">
   <img id="boot-hero" src="assets/raton_perez.png" alt="">
   <div class="rayas" aria-hidden="true"><i></i><i></i><i></i></div>
-  <h1>Ratón Pérez<br>en su cuarto</h1>
-  <p>Apunta el móvil a la cama y grábale mientras el peque duerme. Mañana se lo enseñas.</p>
-  <button id="start">Encender la cámara</button>
-  <p class="fine">Solo usamos la cámara mientras la app está abierta.
-     Nada se sube a ningún sitio.</p>
+  <h1 data-t-html="arranque.titulo"></h1>
+  <p data-t="arranque.entradilla"></p>
+  <button id="start" data-t="arranque.empezar"></button>
+  <p class="fine" data-t="arranque.privacidad"></p>
 </div>
 
 <!-- Titular del paso INICIO, sobre la escena -->
 <div id="inicio-head" hidden>
-  <h2>Esta noche viene<br>el Ratón Pérez</h2>
-  <p>Apunta a la cama. Tú eliges qué se lleva.</p>
+  <h2 data-t-html="inicio.titulo"></h2>
+  <p data-t="inicio.entradilla"></p>
 </div>
 
 <!-- Retículo de colocación (paso ESCANEAR) -->
@@ -89,11 +93,11 @@
 <!-- Izquierda se vuelve, derecha se cierra. Antes era al revés -casa a la izquierda y
      flecha a la derecha-, que además dejaba la acción de salir en el sitio de volver. -->
 <div id="chrome" hidden>
-  <button id="back" class="icon" title="Atrás" aria-label="Volver al paso anterior">
+  <button id="back" class="icon" data-t-title="nav.atras" data-t-aria="nav.atrasAria">
     <svg class="ic" aria-hidden="true"><use href="#ic-atras"/></svg>
   </button>
   <div id="step-title"></div>
-  <button id="home" class="icon" title="Cerrar" aria-label="Cerrar y volver al inicio">
+  <button id="home" class="icon" data-t-title="nav.cerrar" data-t-aria="nav.cerrarAria">
     <svg class="ic" aria-hidden="true"><use href="#ic-cerrar"/></svg>
   </button>
 </div>
@@ -115,7 +119,7 @@
           <rect x="3" y="6.5" width="12.5" height="11" rx="2.5"/><path d="M15.5 12.2 21 9v6l-5.5-3.2z"/>
         </svg>
       </span>
-      <span><b>Grabar su visita</b><em>Vídeo de 5 s · unos 40 segundos</em></span>
+      <span><b data-t="inicio.video"></b><em data-t="inicio.videoPie"></em></span>
       <span class="chev">
         <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor"
              stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m10 6 6 6-6 6"/></svg>
@@ -129,7 +133,7 @@
           <circle cx="12" cy="13" r="3.4"/>
         </svg>
       </span>
-      <span><b>Foto con él</b><em>Cámara frontal · unos 10 segundos</em></span>
+      <span><b data-t="inicio.foto"></b><em data-t="inicio.fotoPie"></em></span>
       <span class="chev">
         <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor"
              stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m10 6 6 6-6 6"/></svg>
@@ -142,47 +146,47 @@
           <path d="M5.5 3.5h13v17l-6.5-3.2-6.5 3.2z"/><path d="M9 8.5h6M9 12h6"/>
         </svg>
       </span>
-      <span><b>Carta del Ratón Pérez</b><em>Para dejar bajo la almohada</em></span>
+      <span><b data-t="inicio.carta"></b><em data-t="inicio.cartaPie"></em></span>
       <span class="chev">
         <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor"
              stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m10 6 6 6-6 6"/></svg>
       </span>
     </button>
-    <p class="fine">Nadie oye nada: la app no hace ruido.</p>
+    <p class="fine" data-t="inicio.silencio"></p>
   </div>
 
   <div id="ui-escanear" class="pane" hidden>
-    <button id="place" class="primary">Colocar aquí</button>
+    <button id="place" class="primary" data-t="asistente.colocar"></button>
   </div>
 
   <div id="ui-superficie" class="pane" hidden>
-    <button id="next-superficie" class="primary">Siguiente</button>
+    <button id="next-superficie" class="primary" data-t="asistente.siguiente"></button>
   </div>
 
   <div id="ui-tamano" class="pane" hidden>
-    <button id="next-tamano" class="primary">Siguiente</button>
+    <button id="next-tamano" class="primary" data-t="asistente.siguiente"></button>
   </div>
 
   <div id="ui-editar" class="pane" hidden>
     <div class="picker">
-      <button id="fx-prev" class="icon" aria-label="Anterior">‹</button>
+      <button id="fx-prev" class="icon" data-t-aria="asistente.anterior">‹</button>
       <div id="fx-title"></div>
-      <button id="fx-next" class="icon" aria-label="Siguiente">›</button>
+      <button id="fx-next" class="icon" data-t-aria="asistente.siguiente">›</button>
     </div>
-    <button id="select-fx" class="primary">Seleccionar</button>
+    <button id="select-fx" class="primary" data-t="asistente.seleccionar"></button>
   </div>
 
   <div id="ui-grabar" class="pane" hidden>
-    <button id="torch" class="icon" title="Linterna" aria-label="Linterna">⚡</button>
-    <button id="record" class="shutter" aria-label="Grabar"><span></span></button>
-    <button id="photo" class="icon" title="Foto" aria-label="Foto">◎</button>
+    <button id="torch" class="icon" data-t-label="asistente.linterna">⚡</button>
+    <button id="record" class="shutter" data-t-aria="asistente.grabar"><span></span></button>
+    <button id="photo" class="icon" data-t-label="asistente.foto">◎</button>
   </div>
 
   <!-- Las opciones de CÁMARA, y solo dentro de la cámara. En INICIO no se muestra: ahí
        todavía no hay escena que mirar, y una cuadrícula o un deslizador de grano delante
        de tres tarjetas que dicen qué hace la app no significan nada. Lo que sí hay en
        INICIO es el engranaje de arriba a la derecha, que son los ajustes de la app. -->
-  <button id="camopts-bar" class="tiny" hidden>Cámara</button>
+  <button id="camopts-bar" class="tiny" data-t="asistente.camara" hidden></button>
 </div>
 
 <!-- Paso FOTO: la cámara del teléfono, imitada.
@@ -204,22 +208,22 @@
 <div id="ui-foto" hidden>
 
   <div class="cam-banda" id="cam-arriba">
-    <button id="foto-salir" class="cam-btn" aria-label="Volver al inicio" title="Volver">
+    <button id="foto-salir" class="cam-btn" data-t-aria="camara.salir" data-t-title="nav.volver">
       <svg class="ic grande" aria-hidden="true"><use href="#ic-atras"/></svg>
     </button>
     <div class="cam-grupo">
-      <button id="foto-luz" class="cam-btn" aria-label="Luz" title="Luz">
+      <button id="foto-luz" class="cam-btn" data-t-label="camara.luz">
         <svg viewBox="0 0 24 24" width="27" height="27" fill="currentColor" aria-hidden="true">
           <path d="M13.5 2 5 13.2h5.1L9.8 22l8.7-11.4h-5.3z"/>
         </svg>
       </button>
-      <button id="sticker-flip" class="cam-btn" aria-label="Girar al ratón" title="Girar al ratón">
+      <button id="sticker-flip" class="cam-btn" data-t-label="camara.girar">
         <svg viewBox="0 0 24 24" width="27" height="27" fill="none" stroke="currentColor"
              stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
           <path d="M4 9h14l-3.2-3.2M20 15H6l3.2 3.2"/>
         </svg>
       </button>
-      <button id="foto-mas" class="cam-btn" aria-label="Ajustes" title="Ajustes">
+      <button id="foto-mas" class="cam-btn" data-t-label="camara.mas">
         <svg viewBox="0 0 24 24" width="27" height="27" fill="currentColor" aria-hidden="true">
           <circle cx="5.5" cy="12" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="18.5" cy="12" r="1.8"/>
         </svg>
@@ -239,11 +243,11 @@
          del pulgar. Estaba abajo, junto al carrusel, y desde ahí no se llega sin mover
          la mano. -->
     <div id="cam-disparo">
-      <button id="foto-ultima" class="cam-miniatura" hidden aria-label="Ver la última foto">
+      <button id="foto-ultima" class="cam-miniatura" hidden data-t-aria="camara.ultima">
         <img alt="">
       </button>
-      <button id="snap" class="disparador" aria-label="Tomar foto"><span></span></button>
-      <button id="flip" class="cam-btn" aria-label="Cambiar de cámara" title="Cambiar de cámara">
+      <button id="snap" class="disparador" data-t-aria="camara.disparar"><span></span></button>
+      <button id="flip" class="cam-btn" data-t-label="camara.cambiar">
         <svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor"
              stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
           <path d="M20 11a8 8 0 0 0-13.7-5.1L4 8"/><path d="M4 4v4h4"/>
@@ -251,9 +255,9 @@
         </svg>
       </button>
     </div>
-    <div id="cam-modos" role="group" aria-label="Modo">
-      <button data-modo="video" aria-pressed="false">VÍDEO</button>
-      <button data-modo="foto" aria-pressed="true">FOTO</button>
+    <div id="cam-modos" role="group" data-t-aria="camara.modo">
+      <button data-modo="video" aria-pressed="false" data-t="camara.modoVideo"></button>
+      <button data-modo="foto" aria-pressed="true" data-t="camara.modoFoto"></button>
     </div>
   </div>
 </div>
@@ -271,30 +275,32 @@
 <div id="ajustes" class="hoja" hidden>
   <div class="hoja-panel" role="dialog" aria-modal="true" aria-labelledby="ajustes-titulo">
     <div class="hoja-head">
-      <h2 class="titulo-hoja" id="ajustes-titulo">Ajustes</h2>
-      <button id="ajustes-close" class="icon" aria-label="Cerrar los ajustes" title="Cerrar">
+      <h2 class="titulo-hoja" id="ajustes-titulo" data-t="ajustes.titulo"></h2>
+      <button id="ajustes-close" class="icon" data-t-aria="ajustes.cerrar" data-t-title="nav.cerrar">
         <svg class="ic" aria-hidden="true"><use href="#ic-cerrar"/></svg>
       </button>
     </div>
 
     <div id="ajustes-scroll" class="hoja-scroll">
       <section class="grupo">
-        <h3>Tema</h3>
-        <div id="tema" class="segmento" role="group" aria-label="Tema"></div>
+        <h3 data-t="ajustes.tema"></h3>
+        <div id="tema" class="segmento" role="group" data-t-aria="ajustes.tema"></div>
         <p class="fine texto-hoja" id="tema-pie"></p>
       </section>
 
-      <!-- Solo el selector. Los textos traducidos son otro trabajo, y prometerlos con un
-           selector que no hace nada sería peor que no tenerlo: por eso lo dice debajo. -->
+      <!-- El idioma cambia la app ENTERA y al momento: la interfaz, los avisos y la
+           carta que se imprime. Sin recargar, porque este selector se toca estando ya
+           dentro y una recarga perdería lo que hubiera a medias. El pie lo confirma en el
+           idioma recién elegido, que es la única prueba que el usuario necesita. -->
       <section class="grupo">
-        <h3>Idioma</h3>
-        <div id="idioma" class="segmento" role="group" aria-label="Idioma"></div>
+        <h3 data-t="ajustes.idioma"></h3>
+        <div id="idioma" class="segmento" role="group" data-t-aria="ajustes.idioma"></div>
         <p class="fine texto-hoja" id="idioma-pie"></p>
       </section>
     </div>
 
     <div class="hoja-pie">
-      <button id="ajustes-listo" class="primary">Listo</button>
+      <button id="ajustes-listo" class="primary" data-t="ajustes.listo"></button>
     </div>
   </div>
 </div>
@@ -302,8 +308,8 @@
 <div id="camopts" class="hoja" hidden>
   <div class="hoja-panel" role="dialog" aria-modal="true" aria-labelledby="camopts-titulo">
     <div class="hoja-head">
-      <h2 class="titulo-hoja" id="camopts-titulo">La cámara</h2>
-      <button id="camopts-close" class="icon" aria-label="Cerrar las opciones" title="Cerrar">
+      <h2 class="titulo-hoja" id="camopts-titulo" data-t="opciones.titulo"></h2>
+      <button id="camopts-close" class="icon" data-t-aria="opciones.cerrar" data-t-title="nav.cerrar">
         <svg class="ic" aria-hidden="true"><use href="#ic-cerrar"/></svg>
       </button>
     </div>
@@ -312,15 +318,15 @@
       <section class="grupo">
         <label class="fila">
           <span>
-            <b>Cuadrícula</b>
-            <em>Las líneas de los tercios sobre el visor, como en la cámara del teléfono.</em>
+            <b data-t="opciones.rejilla"></b>
+            <em data-t="opciones.rejillaPie"></em>
           </span>
           <input id="s-rejilla" type="checkbox" checked>
         </label>
         <label class="fila">
           <span>
-            <b>Grabar también tu voz</b>
-            <em>Lo que digas mientras grabas entra en el vídeo.</em>
+            <b data-t="opciones.mic"></b>
+            <em data-t="opciones.micPie"></em>
           </span>
           <input id="s-mic" type="checkbox" checked>
         </label>
@@ -329,68 +335,66 @@
       <!-- Doblado, no escondido. Quien lo abra tiene que poder deshacerlo, y por eso
            "Restablecer" está dentro y no en otra pantalla. -->
       <details id="avanzado" class="grupo">
-        <summary>Ajuste fino de la imagen</summary>
+        <summary data-t="opciones.avanzado"></summary>
 
-        <p class="fine texto-hoja">Cómo se funde el ratón con la luz del cuarto. La app lo
-           calcula sola mirando la escena; esto es para llevarle la contraria. Si algo se
-           tuerce, <b>Restablecer</b> lo deja como estaba.</p>
+        <p class="fine texto-hoja" data-t-html="opciones.avanzadoPie"></p>
 
-        <label><span>Luz sobre el ratón</span><output id="s-key-v"></output><input id="s-key" type="range" min="0.5" max="2" step="0.01"></label>
-        <label><span>Toma el color del cuarto</span><output id="s-wb-v"></output><input id="s-wb" type="range" min="0" max="1" step="0.01"></label>
-        <label><span>Oscurecer, como mucho</span><output id="s-exp-min-v"></output><input id="s-exp-min" type="range" min="0.1" max="1.5" step="0.01"></label>
-        <label><span>Aclarar, como mucho</span><output id="s-exp-max-v"></output><input id="s-exp-max" type="range" min="0.5" max="2.5" step="0.01"></label>
-        <label><span>Bordes suaves</span><output id="s-softness-v"></output><input id="s-softness" type="range" min="0" max="2.5" step="0.05"></label>
-        <label><span>Grano, como mucho</span><output id="s-grain-max-v"></output><input id="s-grain-max" type="range" min="0" max="0.2" step="0.005"></label>
+        <label><span data-t="opciones.key"></span><output id="s-key-v"></output><input id="s-key" type="range" min="0.5" max="2" step="0.01"></label>
+        <label><span data-t="opciones.wb"></span><output id="s-wb-v"></output><input id="s-wb" type="range" min="0" max="1" step="0.01"></label>
+        <label><span data-t="opciones.expMin"></span><output id="s-exp-min-v"></output><input id="s-exp-min" type="range" min="0.1" max="1.5" step="0.01"></label>
+        <label><span data-t="opciones.expMax"></span><output id="s-exp-max-v"></output><input id="s-exp-max" type="range" min="0.5" max="2.5" step="0.01"></label>
+        <label><span data-t="opciones.softness"></span><output id="s-softness-v"></output><input id="s-softness" type="range" min="0" max="2.5" step="0.05"></label>
+        <label><span data-t="opciones.grainMax"></span><output id="s-grain-max-v"></output><input id="s-grain-max" type="range" min="0" max="0.2" step="0.005"></label>
 
         <label class="fila">
           <span>
-            <b>Rango de color limitado</b>
-            <em>Para cámaras que entregan el vídeo de 16 a 235 en vez de 0 a 255.</em>
+            <b data-t="opciones.limitado"></b>
+            <em data-t="opciones.limitadoPie"></em>
           </span>
           <input id="s-limited" type="checkbox">
         </label>
 
         <div id="clamp-warn" hidden></div>
-        <button id="ajustes-reset">Restablecer</button>
+        <button id="ajustes-reset" data-t="opciones.restablecer"></button>
       </details>
 
       <!-- Diagnóstico: números crudos, para quien desarrolla. Se abre con ?dev=1 o con
            siete toques en el título de esta hoja. -->
       <section class="grupo" id="diagnostico" hidden>
-        <h3>Diagnóstico</h3>
+        <h3 data-t="opciones.diagnostico"></h3>
         <div id="dbg"></div>
       </section>
     </div>
 
     <div class="hoja-pie">
-      <button id="camopts-listo" class="primary">Listo</button>
+      <button id="camopts-listo" class="primary" data-t="opciones.listo"></button>
     </div>
   </div>
 </div>
 
 <!-- Resultado: video -->
 <div id="clip" hidden>
-  <button id="clip-close" class="icon esquina-cerrar" aria-label="Cerrar el vídeo" title="Cerrar">
+  <button id="clip-close" class="icon esquina-cerrar" data-t-aria="resultado.cerrarVideo" data-t-title="nav.cerrar">
     <svg class="ic" aria-hidden="true"><use href="#ic-cerrar"/></svg>
   </button>
   <video id="clip-video" controls playsinline></video>
   <div id="clip-meta"></div>
   <div class="actions">
-    <button id="clip-share" hidden class="primary">Guardar en el carrete</button>
-    <a id="clip-save" class="btn" download="raton-perez.webm">Descargar archivo</a>
+    <button id="clip-share" hidden class="primary" data-t="resultado.guardarCarrete"></button>
+    <a id="clip-save" class="btn" download="raton-perez.webm" data-t="resultado.descargarArchivo"></a>
   </div>
   <div id="clip-tip" class="tip"></div>
 </div>
 
 <!-- Resultado: foto -->
 <div id="shot" hidden>
-  <button id="shot-close" class="icon esquina-cerrar" aria-label="Cerrar la foto" title="Cerrar">
+  <button id="shot-close" class="icon esquina-cerrar" data-t-aria="resultado.cerrarFoto" data-t-title="nav.cerrar">
     <svg class="ic" aria-hidden="true"><use href="#ic-cerrar"/></svg>
   </button>
-  <img id="shot-img" alt="Foto compuesta">
+  <img id="shot-img" data-t-alt="resultado.altFoto" alt="">
   <div class="actions">
-    <button id="shot-share" hidden class="primary">Guardar en Fotos</button>
-    <a id="shot-save" class="btn" download="raton-perez.png">Descargar archivo</a>
+    <button id="shot-share" hidden class="primary" data-t="resultado.guardarFotos"></button>
+    <a id="shot-save" class="btn" download="raton-perez.png" data-t="resultado.descargarArchivo"></a>
   </div>
   <div id="shot-tip" class="tip"></div>
 </div>
@@ -407,11 +411,14 @@
        formulario empieza debajo de la barra por construcción, sin reservarle hueco a mano
        con un padding que hay que acordarse de cuadrar. -->
   <div class="barra-nav">
-    <button id="cert-volver" class="icon" aria-label="Volver" title="Volver">
+    <button id="cert-volver" class="icon" data-t-label="nav.volver">
       <svg class="ic" aria-hidden="true"><use href="#ic-atras"/></svg>
     </button>
-    <div class="barra-nav-titulo" id="cert-paso-titulo">Los datos</div>
-    <button id="cert-close" class="icon" aria-label="Cerrar la carta" title="Cerrar">
+    <!-- El rótulo cambia de paso llevando su CLAVE, no su texto (`dataset.t`): así el
+         repaso del documento al cambiar de idioma lo traduce solo, sin que pasoCert()
+         tenga que acordarse de nada. -->
+    <div class="barra-nav-titulo" id="cert-paso-titulo" data-t="carta.pasoDatos"></div>
+    <button id="cert-close" class="icon" data-t-aria="carta.cerrar" data-t-title="nav.cerrar">
       <svg class="ic" aria-hidden="true"><use href="#ic-cerrar"/></svg>
     </button>
   </div>
@@ -420,40 +427,42 @@
 
     <!-- Paso 1: los datos -->
     <div id="cert-datos" class="cert-columna">
-      <h2 class="titulo-hoja">La carta del Ratón</h2>
-      <p class="fine texto-hoja">Rellena lo que sepas y el Ratón escribe la
-         carta. Lo único imprescindible es el nombre.</p>
+      <h2 class="titulo-hoja" data-t="carta.titulo"></h2>
+      <p class="fine texto-hoja" data-t="carta.entradilla"></p>
 
       <div id="cert-form">
+        <!-- El rótulo va en un <span> DENTRO del <span> del campo, y no suelto, porque
+             `data-t` escribe el elemento entero: con el texto pegado al <i> o al
+             <output>, traducir se llevaría por delante al hermano. -->
         <label class="field">
-          <span>¿Cómo se llama? <i>obligatorio</i></span>
+          <span><span data-t="carta.nombre"></span> <i data-t="carta.obligatorio"></i></span>
           <input id="cert-nombre" type="text" autocomplete="off" required
-                 enterkeyhint="done" placeholder="Su nombre">
-          <span class="ayuda aviso" id="cert-nombre-aviso" hidden>
-            Sin nombre no hay a quién escribirle.</span>
+                 enterkeyhint="done" data-t-placeholder="carta.nombrePlaceholder">
+          <span class="ayuda aviso" id="cert-nombre-aviso" hidden
+                data-t="carta.nombreAviso"></span>
         </label>
 
         <label class="field">
-          <span>¿Qué día se le cayó?</span>
+          <span data-t="carta.fecha"></span>
           <input id="cert-fecha" type="date" required>
-          <span class="ayuda">Del último año hasta hoy.</span>
+          <span class="ayuda" data-t="carta.fechaAyuda"></span>
         </label>
 
         <div class="field">
-          <span>¿Cuál se llevó el Ratón?</span>
-          <div id="cert-diente" class="chips" role="group" aria-label="Qué diente"></div>
+          <span data-t="carta.queDiente"></span>
+          <div id="cert-diente" class="chips" role="group" data-t-aria="carta.queDiente"></div>
         </div>
 
         <div class="field">
-          <span>¿Cómo estaba el diente?</span>
-          <div id="cert-estado" class="chips" role="group" aria-label="Estado del diente"></div>
+          <span data-t="carta.comoEstaba"></span>
+          <div id="cert-estado" class="chips" role="group" data-t-aria="carta.comoEstaba"></div>
         </div>
 
         <label class="field">
-          <span>¿Qué le dejó a cambio? <i>opcional</i></span>
+          <span><span data-t="carta.premio"></span> <i data-t="carta.opcional"></i></span>
           <input id="cert-premio" type="text" autocomplete="off"
-                 placeholder="Una moneda">
-          <span class="ayuda">Se cuenta dentro de la carta.
+                 data-t-placeholder="carta.premioPlaceholder">
+          <span class="ayuda"><span data-t="carta.premioAyuda"></span>
             <output id="cert-premio-cuenta"></output></span>
         </label>
 
@@ -461,10 +470,10 @@
              se puede releer lo que se acaba de escribir. El maxlength lo pone el módulo
              desde LIMITE_NOTA, que es quien sabe cuánto cabe en el papel. -->
         <label class="field">
-          <span>Lo que quieras decirle <i>opcional</i></span>
+          <span><span data-t="carta.nota"></span> <i data-t="carta.opcional"></i></span>
           <textarea id="cert-nota" rows="4" autocomplete="off"
-                    placeholder="Te he visto haciendo las tareas sin que nadie te lo recuerde, y aprendiendo inglés con muchas ganas. Estoy muy orgulloso de ti."></textarea>
-          <span class="ayuda">Va dentro de la carta, con la letra del Ratón.
+                    data-t-placeholder="carta.notaPlaceholder"></textarea>
+          <span class="ayuda"><span data-t="carta.notaAyuda"></span>
             <output id="cert-nota-cuenta"></output></span>
         </label>
       </div>
@@ -472,10 +481,10 @@
 
     <!-- Paso 2: el documento -->
     <div id="cert-doc" class="cert-columna">
-      <h2 class="titulo-hoja" id="cert-doc-titulo">Ya está escrita</h2>
-      <p class="fine texto-hoja">Guárdala en el carrete o mándala a la impresora.</p>
+      <h2 class="titulo-hoja" id="cert-doc-titulo" data-t="carta.hecha"></h2>
+      <p class="fine texto-hoja" data-t="carta.hechaPie"></p>
       <div id="cert-preview">
-        <canvas id="cert-canvas" aria-label="La carta del Ratón Pérez"></canvas>
+        <canvas id="cert-canvas" data-t-aria="carta.lienzo"></canvas>
       </div>
     </div>
   </div>
@@ -486,13 +495,14 @@
   <div id="cert-actions">
     <div class="cert-columna">
       <!-- Paso 1 -->
-      <button id="cert-generar" class="primary">Escribir la carta</button>
+      <button id="cert-generar" class="primary" data-t="carta.generar"></button>
 
       <!-- Paso 2 -->
-      <button id="cert-share" hidden class="primary">Guardar en Fotos</button>
+      <button id="cert-share" hidden class="primary" data-t="resultado.guardarFotos"></button>
       <div class="actions" id="cert-acciones-doc">
-        <button id="cert-print" class="btn">Imprimir</button>
-        <a id="cert-save" class="btn" download="carta-del-raton-perez.png">Descargar</a>
+        <button id="cert-print" class="btn" data-t="carta.imprimir"></button>
+        <a id="cert-save" class="btn" download="carta-del-raton-perez.png"
+           data-t="carta.descargar"></a>
       </div>
       <div id="cert-tip" class="tip"></div>
     </div>
