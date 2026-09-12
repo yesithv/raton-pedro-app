@@ -97,6 +97,16 @@ export default {
   // Los tres placeholders del catálogo. Se traducen POR ID y no dentro del asset: el
   // `.json` que acompaña al vídeo lo genera `tools/build_effect.py` y describe el material,
   // no la interfaz. Si algún día falta la clave, se enseña el título del asset.
+  // Los ratones del selector de la foto, por `id` del catálogo y no por su archivo: las
+  // rutas cambian cuando llegan fotos nuevas y la traducción no tiene por qué enterarse.
+  // Los tres de colores son provisionales; ver `web/assets/ratones/LEEME.md`.
+  ratones: {
+    clasico: "Clásico",
+    azul: "Azul",
+    verde: "Verde",
+    morado: "Morado",
+  },
+
   efectos: {
     entra_y_es_descubierto: "Entra y es descubierto",
     es_descubierto_y_se_esconde: "Es descubierto y se esconde",
@@ -143,6 +153,9 @@ export default {
     titulo: "La cámara",
     cerrar: "Cerrar las opciones",
     listo: "Listo",
+    raton: "Ratón de la foto",
+    ratonPie: "El que sale al hacer la foto. La carta lleva siempre el clásico.",
+    ratonSinFoto: "No se pudo cargar «{nombre}». Se queda el de antes.",
     rejilla: "Cuadrícula",
     rejillaPie: "Las líneas de los tercios sobre el visor, como en la cámara del teléfono.",
     mic: "Grabar también tu voz",

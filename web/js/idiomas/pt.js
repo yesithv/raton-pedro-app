@@ -91,6 +91,13 @@ export default {
     camara: "Câmara",
   },
 
+  ratones: {
+    clasico: "Clássico",
+    azul: "Azul",
+    verde: "Verde",
+    morado: "Roxo",
+  },
+
   efectos: {
     entra_y_es_descubierto: "Entra e é apanhado",
     es_descubierto_y_se_esconde: "É apanhado e esconde-se",
@@ -134,6 +141,9 @@ export default {
     titulo: "A câmara",
     cerrar: "Fechar as opções",
     listo: "Pronto",
+    raton: "Rato da foto",
+    ratonPie: "O que aparece ao tirar a foto. A carta leva sempre o clássico.",
+    ratonSinFoto: "Não foi possível carregar «{nombre}». Fica o anterior.",
     rejilla: "Grelha",
     rejillaPie: "As linhas dos terços sobre o visor, como na câmara do telemóvel.",
     mic: "Gravar também a tua voz",

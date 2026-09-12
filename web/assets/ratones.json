@@ -1,0 +1,24 @@
+{
+  "ratones": [
+    {
+      "id": "clasico",
+      "title": "Ratón Pérez",
+      "archivo": "assets/raton_perez.png"
+    },
+    {
+      "id": "azul",
+      "title": "Chándal azul",
+      "archivo": "assets/ratones/azul.png"
+    },
+    {
+      "id": "verde",
+      "title": "Chándal verde",
+      "archivo": "assets/ratones/verde.png"
+    },
+    {
+      "id": "morado",
+      "title": "Chándal morado",
+      "archivo": "assets/ratones/morado.png"
+    }
+  ]
+}

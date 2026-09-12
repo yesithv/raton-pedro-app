@@ -501,6 +501,7 @@ const dentroDeCamara = await page.evaluate(() => ({
   tieneAjusteFino: !!document.querySelector('#camopts #avanzado'),
   tieneRejilla: !!document.querySelector('#camopts #s-rejilla'),
   tieneTema: !!document.querySelector('#camopts #tema'),
+  ratonALaVista: !document.getElementById('raton-grupo').hidden,
 }));
 check('el botón de la barra abre las opciones de CÁMARA, no los ajustes', () => {
   assert(dentroDeCamara.ajustesCerrados, 'se abrieron los ajustes de la app');
@@ -508,6 +509,12 @@ check('el botón de la barra abre las opciones de CÁMARA, no los ajustes', () =
   assert(dentroDeCamara.tieneRejilla, 'la cuadrícula no está en las opciones de cámara');
   assert(!dentroDeCamara.tieneTema, 'el tema se ha colado en las opciones de cámara');
 });
+// El ratón de la foto se elige en esta misma hoja, pero SOLO desde FOTO: aquí, en el
+// asistente de vídeo, quien pone al ratón es la animación elegida. Un control que no
+// cambia nada donde está se toca, no pasa nada, y parece que la app está rota.
+check('el selector de ratón no pinta en el asistente de vídeo', () =>
+  assert(!dentroDeCamara.ratonALaVista,
+    'el selector de ratón sale donde el ratón lo pone la animación'));
 
 // El ajuste fino puede dejar la imagen inservible; "Restablecer" es la salida. Se mueve
 // un deslizador, se comprueba que se movió, y se restablece.
@@ -742,6 +749,136 @@ check('el ratón está DENTRO de la foto, no solo en pantalla', () =>
     `la zona del ratón es casi idéntica a la cámara sola: ${captura.diff.toFixed(1)}/255`));
 
 revisarGuardado('shot', await caminoDeGuardado('shot'));
+
+// ---------------------------------------------------------------------------
+// Que el ratón SE PUEDA ELEGIR
+// ---------------------------------------------------------------------------
+// El selector vive en las opciones de CÁMARA y se abre con el ••• de FOTO: con la cámara
+// encendida y el ratón a la vista, que es lo que hace que elegir sea mirar y no leer.
+//
+// Lo que hay que demostrar no es que el botón se marque —eso es pintar— sino que el ratón
+// elegido acaba DENTRO del archivo que se guarda. Por eso se hacen dos fotos desde el
+// mismo sitio, una con cada ratón, y se comparan: es la única comprobación que falla si
+// la elección se queda en la pantalla y no llega a composeShot().
+console.log('elegir ratón');
+
+const catalogoRatones = await page.evaluate(() =>
+  fetch('assets/ratones.json').then((r) => r.json()).then((d) => d.ratones));
+check('el catálogo trae los cuatro ratones', () =>
+  assert.equal(catalogoRatones.length, 4));
+
+/**
+ * El color medio de la zona del ratón DENTRO de la foto ya guardada.
+ *
+ * Se mide sobre `#shot-img`, o sea sobre el archivo, no sobre el lienzo: el ratón del
+ * modo FOTO es un <img> del DOM que el shader no ve, y lo que se está vigilando es
+ * justamente el trozo de código que lo vuelve a dibujar en 2D al guardar.
+ *
+ * La caja sale de dónde está el ratón AHORA, medida contra el visor y llevada a píxeles
+ * del archivo —la foto es el recorte del visor, así que las proporciones valen tal cual—.
+ * Y no es el ratón entero sino la BANDA DE LA CHAQUETA, del 25% al 62% de su alto: el
+ * pantalón y las zapatillas son iguales en los cuatro, y metidos en la cuenta solo diluyen
+ * lo único que cambia. Se recorta además a los bordes del archivo, porque el ratón puede
+ * asomar por arriba.
+ *
+ * Se devuelve `azulSobreRojo` y no el color a secas porque es lo que distingue a los
+ * cuatro: el cuarto de la cámara falsa tira a magenta y aporta lo mismo a las dos fotos,
+ * así que la diferencia que quede entre ellas es del chándal.
+ */
+const zonaDelRaton = () => page.evaluate(async () => {
+  const img = document.getElementById('shot-img');
+  await img.decode();
+  const s = document.getElementById('sticker').getBoundingClientRect();
+  const v = document.getElementById('visor').getBoundingClientRect();
+  const c = document.createElement('canvas');
+  c.width = img.naturalWidth;
+  c.height = img.naturalHeight;
+  const ctx = c.getContext('2d');
+  ctx.drawImage(img, 0, 0);
+
+  const aLienzo = (px, py, pw, ph) => {
+    const x = Math.round((px - v.left) / v.width * c.width);
+    const y = Math.round((py - v.top) / v.height * c.height);
+    const w = Math.round(pw / v.width * c.width);
+    const h = Math.round(ph / v.height * c.height);
+    const x0 = Math.max(0, Math.min(c.width - 1, x));
+    const y0 = Math.max(0, Math.min(c.height - 1, y));
+    return [x0, y0, Math.max(1, Math.min(c.width - x0, w)),
+            Math.max(1, Math.min(c.height - y0, h))];
+  };
+
+  const d = ctx.getImageData(
+    ...aLienzo(s.left, s.top + s.height * 0.25, s.width, s.height * 0.37)).data;
+  let r = 0, g = 0, b = 0;
+  for (let i = 0; i < d.length; i += 4) { r += d[i]; g += d[i + 1]; b += d[i + 2]; }
+  const n = d.length / 4;
+  return { r: r / n, g: g / n, b: b / n, azulSobreRojo: (b - r) / n };
+});
+
+// La foto de referencia no se repite: es la que acaba de hacer la prueba de aquí arriba,
+// que sigue en pantalla y lleva el ratón de fábrica en este mismo encuadre.
+const conElClasico = await zonaDelRaton();
+await page.click('#shot-close');
+await page.waitForTimeout(200);
+
+await page.click('#foto-mas');
+await page.waitForSelector('#camopts:not([hidden])', { timeout: 5_000 });
+const selector = await page.evaluate(() => ({
+  visible: !document.getElementById('raton-grupo').hidden,
+  ids: [...document.querySelectorAll('#ratones button')].map((b) => b.dataset.raton),
+  marcados: [...document.querySelectorAll('#ratones button[aria-pressed="true"]')]
+    .map((b) => b.dataset.raton),
+  nombres: [...document.querySelectorAll('#ratones button span')].map((e) => e.textContent),
+  fotos: [...document.querySelectorAll('#ratones img')].map((i) => i.getAttribute('src')),
+}));
+await shot('7b_selector_de_raton');
+
+check('el ••• de FOTO abre el selector con los cuatro ratones', () => {
+  assert(selector.visible, 'el selector no sale en las opciones de la cámara');
+  assert.deepEqual(selector.ids, catalogoRatones.map((r) => r.id));
+  assert.deepEqual(selector.fotos, catalogoRatones.map((r) => r.archivo));
+});
+// Marcado hay UNO, y es el que se está viendo. Sin esto, un selector que no marca nada
+// -o que los marca todos- se lee como que no ha pasado nada al tocar.
+check('el selector marca el ratón que está puesto, y solo ese', () =>
+  assert.deepEqual(selector.marcados, ['clasico'],
+    `marcados: ${selector.marcados.join(', ') || 'ninguno'}`));
+// Los nombres salen de `idiomas/`, por `id` y no del catálogo: si alguien añade una foto
+// y olvida traducirla, esto lo dice antes de que el usuario vea "morado2" en la pantalla.
+check('cada miniatura lleva su nombre traducido', () =>
+  assert.deepEqual(selector.nombres, ['Clásico', 'Azul', 'Verde', 'Morado']));
+
+await page.click('#ratones button[data-raton="morado"]');
+// Se espera al `src`, y no vale un `waitForTimeout`: el PNG se decodifica ANTES de
+// cambiar el <img> justo para que disparar aquí mismo no saque una foto sin ratón.
+await page.waitForFunction(
+  () => document.getElementById('sticker').getAttribute('src') === 'assets/ratones/morado.png',
+  null, { timeout: 15_000 });
+const trasElegir = await page.evaluate(() => ({
+  marcados: [...document.querySelectorAll('#ratones button[aria-pressed="true"]')]
+    .map((b) => b.dataset.raton),
+  guardado: localStorage.getItem('raton'),
+}));
+check('elegir otro ratón mueve la marca y se guarda en el teléfono', () => {
+  assert.deepEqual(trasElegir.marcados, ['morado'],
+    `marcados: ${trasElegir.marcados.join(', ') || 'ninguno'}`);
+  assert.equal(trasElegir.guardado, 'morado', 'la elección no sobrevive a cerrar la app');
+});
+
+await page.click('#camopts-listo');
+await page.waitForTimeout(200);
+// Y se dispara otra vez desde el mismo sitio, sin tocar nada más: lo único que ha
+// cambiado entre las dos fotos es el ratón elegido.
+await page.click('#snap');
+await page.waitForSelector('#shot:not([hidden])', { timeout: 15_000 });
+const conElMorado = await zonaDelRaton();
+console.log(`  chándal en la foto: clásico ${conElClasico.azulSobreRojo.toFixed(1)} · ` +
+            `morado ${conElMorado.azulSobreRojo.toFixed(1)} (azul menos rojo)`);
+check('la foto sale con el ratón elegido, no con el de siempre', () =>
+  assert(conElMorado.azulSobreRojo > conElClasico.azulSobreRojo + 8,
+    'la zona del ratón es igual en las dos fotos: la elección se quedó en la pantalla'));
+await shot('8b_foto_con_el_raton_elegido');
+
 
 // ---------------------------------------------------------------------------
 // Que el ratón SE PUEDA MOVER
