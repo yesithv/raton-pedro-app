@@ -108,6 +108,15 @@ function setStep(name) {
   el("bar").hidden = enFoto;
   el("inicio-head").hidden = name !== "inicio";   // el titular solo vive en INICIO
   el("back").hidden = !step.back;
+
+  // El engranaje de los AJUSTES solo en INICIO (y en el arranque, que no pasa por aqui).
+  // En los pasos de la camara su sitio -arriba a la derecha- lo ocupa CERRAR, y la
+  // convencion de las esquinas manda: dos cosas distintas en el mismo punto de la
+  // pantalla segun el paso es justo lo que obliga a mirar antes de tocar.
+  el("ajustes-abrir").hidden = name !== "inicio";
+  // Y las opciones de CAMARA solo dentro de la camara: en INICIO no hay escena que mirar
+  // mientras se mueve un deslizador, que es lo unico que los hace utiles.
+  el("camopts-bar").hidden = name === "inicio" || enFoto;
   if (enFoto) mostrarPista(step.hint);
 
   for (const k of Object.keys(STEPS)) el(`ui-${k}`).hidden = k !== name;
@@ -961,8 +970,8 @@ function setupAjustes() {
   setupIdioma();
   sincronizarAjustes();
 
-  // El engranaje del arranque abre los AJUSTES. El ••• de la camara y el boton de la
-  // barra del asistente abren las OPCIONES DE CAMARA: los dos se pulsan estando dentro
+  // El engranaje -arranque e INICIO- abre los AJUSTES. El ••• de la camara y el boton de
+  // la barra del asistente abren las OPCIONES DE CAMARA: los dos se pulsan estando dentro
   // de la camara, que es donde esos controles sirven.
   el("ajustes-abrir").onclick = abrirAjustes;
   el("camopts-bar").onclick = abrirCamOpts;

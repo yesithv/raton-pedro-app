@@ -46,16 +46,25 @@
 <!-- Ratón del modo FOTO: PNG con alfa encima de la cámara, sin vídeo ni shader -->
 <img id="sticker" src="assets/raton_perez.png" alt="Ratón Pérez" draggable="false" hidden>
 
+<!-- El engranaje de los AJUSTES. Vive FUERA del arranque, y ese es el arreglo: estaba
+     dentro de #boot, que se oculta entero al encender la cámara, así que en cuanto
+     empezabas ya no había forma de volver al tema ni al idioma. Ahora es el mismo botón,
+     en el mismo sitio -arriba a la derecha-, en las dos pantallas donde se elige con qué
+     luz quieres la app: el arranque y el INICIO.
+
+     No aparece en los pasos de la cámara: ahí arriba a la derecha está CERRAR, y la
+     convención de las esquinas manda sobre cualquier atajo. -->
+<button id="ajustes-abrir" class="icon" aria-label="Ajustes" title="Ajustes">
+  <svg viewBox="0 0 24 24" width="21" height="21" fill="none" stroke="currentColor"
+       stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+    <circle cx="12" cy="12" r="3.1"/>
+    <path d="M12 2.6v2.2M12 19.2v2.2M4.36 4.36l1.56 1.56M18.08 18.08l1.56 1.56M2.6 12h2.2M19.2 12h2.2M4.36 19.64l1.56-1.56M18.08 5.92l1.56-1.56"/>
+  </svg>
+</button>
+
 <!-- Arranque: permiso de cámara -->
 <div id="boot">
   <img id="boot-hero" src="assets/raton_perez.png" alt="">
-  <button id="ajustes-abrir" class="icon" aria-label="Ajustes" title="Ajustes">
-    <svg viewBox="0 0 24 24" width="21" height="21" fill="none" stroke="currentColor"
-         stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-      <circle cx="12" cy="12" r="3.1"/>
-      <path d="M12 2.6v2.2M12 19.2v2.2M4.36 4.36l1.56 1.56M18.08 18.08l1.56 1.56M2.6 12h2.2M19.2 12h2.2M4.36 19.64l1.56-1.56M18.08 5.92l1.56-1.56"/>
-    </svg>
-  </button>
   <div class="rayas" aria-hidden="true"><i></i><i></i><i></i></div>
   <h1>Ratón Pérez<br>en su cuarto</h1>
   <p>Apunta el móvil a la cama y grábale mientras el peque duerme. Mañana se lo enseñas.</p>
@@ -169,7 +178,11 @@
     <button id="photo" class="icon" title="Foto" aria-label="Foto">◎</button>
   </div>
 
-  <button id="camopts-bar" class="tiny">Cámara</button>
+  <!-- Las opciones de CÁMARA, y solo dentro de la cámara. En INICIO no se muestra: ahí
+       todavía no hay escena que mirar, y una cuadrícula o un deslizador de grano delante
+       de tres tarjetas que dicen qué hace la app no significan nada. Lo que sí hay en
+       INICIO es el engranaje de arriba a la derecha, que son los ajustes de la app. -->
+  <button id="camopts-bar" class="tiny" hidden>Cámara</button>
 </div>
 
 <!-- Paso FOTO: la cámara del teléfono, imitada.

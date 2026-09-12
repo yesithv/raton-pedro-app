@@ -78,8 +78,18 @@ que no tienen nada que ver.
 
 | | Se abre desde | Qué hay |
 |---|---|---|
-| **Ajustes** | El engranaje del arranque | Tema · Idioma |
+| **Ajustes** | El engranaje de arriba a la derecha, en el arranque y en INICIO | Tema · Idioma |
 | **La cámara** | El `•••` de FOTO y *Cámara* en la barra del asistente | Cuadrícula · Micrófono · Ajuste fino *(doblado)* · Diagnóstico *(oculto)* |
+
+El engranaje vive **fuera** del arranque. Estuvo dentro, y `#boot` se oculta entero al
+encender la cámara: a partir de ahí el tema y el idioma seguían ahí pero ya no había forma
+de llegar a ellos. Ahora es el mismo botón y el mismo sitio en las dos pantallas donde se
+elige con qué luz quieres la app —el arranque y INICIO—, y **desaparece en los pasos de la
+cámara**, donde arriba a la derecha está *cerrar* y la convención de las esquinas manda.
+
+Y al revés: *Cámara* **ya no sale en INICIO**. Ahí todavía no hay escena que mirar, y una
+cuadrícula o un deslizador de grano delante de tres tarjetas que dicen qué hace la app no
+significan nada.
 
 Las dos son **hojas inferiores** y no pantallas enteras, y la de la cámara se queda más
 baja todavía —62 % de la pantalla frente al 86 %— porque los deslizadores del ajuste fino
