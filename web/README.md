@@ -78,10 +78,10 @@ que no tienen nada que ver.
 
 | | Se abre desde | Qué hay |
 |---|---|---|
-| **Ajustes** | El engranaje de arriba a la derecha, en el arranque y en INICIO | Tema · Idioma |
+| **Ajustes** | Los deslizadores de arriba a la derecha, en el arranque y en INICIO | Tema · Idioma |
 | **La cámara** | El `•••` de FOTO y *Cámara* en la barra del asistente | Cuadrícula · Micrófono · Ajuste fino *(doblado)* · Diagnóstico *(oculto)* |
 
-El engranaje vive **fuera** del arranque. Estuvo dentro, y `#boot` se oculta entero al
+El botón vive **fuera** del arranque. Estuvo dentro, y `#boot` se oculta entero al
 encender la cámara: a partir de ahí el tema y el idioma seguían ahí pero ya no había forma
 de llegar a ellos. Ahora es el mismo botón y el mismo sitio en las dos pantallas donde se
 elige con qué luz quieres la app —el arranque y INICIO—, y **desaparece en los pasos de la

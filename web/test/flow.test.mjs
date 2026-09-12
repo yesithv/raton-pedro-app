@@ -87,10 +87,14 @@ const nav = await page.evaluate(() => {
     cerrar: lados('.esquina-cerrar'),
     // Se mira el ORDEN en el documento y no la posición medida, porque estas barras viven
     // en pantallas que arrancan ocultas y una pantalla oculta no tiene geometría.
-    barras: [...document.querySelectorAll('.barra-nav')].map((b) => ({
-      primero: icono(b.firstElementChild),
-      ultimo: icono(b.lastElementChild),
-    })),
+    barras: [...document.querySelectorAll('.barra-nav')].map((b) => {
+      const hijos = [...b.children];
+      return {
+        atras: hijos.findIndex((e) => icono(e) === '#ic-atras'),
+        cerrar: hijos.findIndex((e) => icono(e) === '#ic-cerrar'),
+        ultimo: hijos.length - 1,
+      };
+    }),
     iconos: todos.map((e) => icono(e) ?? e.textContent.trim()),
     // El cromo del asistente: volver a la izquierda, cerrar a la derecha.
     chrome: [...document.querySelectorAll('#chrome > *')].map((e) => e.id || e.tagName),
@@ -101,9 +105,15 @@ check('volver va siempre a la izquierda y cerrar siempre a la derecha', () => {
   assert(nav.cerrar.length > 0, 'no hay botones de esquina');
   for (const b of nav.cerrar) assert(b.der && !b.izq, 'un "cerrar" no está a la derecha');
   assert(nav.barras.length > 0, 'no hay barras de navegación');
+  // Lo que la convención dice es DÓNDE va cada cosa cuando está, no que tengan que estar
+  // las dos: una pantalla puede no tener nada que cerrar aparte de volver. Volver sí es
+  // obligatorio -una pantalla sin salida es un callejón- y va lo primero de la fila; la X,
+  // si la hay, lo último.
   for (const b of nav.barras) {
-    assert.equal(b.primero, '#ic-atras', 'una barra no empieza por el botón de volver');
-    assert.equal(b.ultimo, '#ic-cerrar', 'una barra no acaba en el botón de cerrar');
+    assert.equal(b.atras, 0, 'una barra no empieza por el botón de volver');
+    if (b.cerrar !== -1) {
+      assert.equal(b.cerrar, b.ultimo, 'el "cerrar" de una barra no va el último');
+    }
   }
 });
 check('el cromo del asistente sigue la convención', () =>
@@ -246,17 +256,17 @@ check('el catálogo trae las tres animaciones', () => assert.equal(catalog.lengt
 // ---------------------------------------------------------------------------
 // Los ajustes siguen ahí después de encender la cámara
 // ---------------------------------------------------------------------------
-// Este es el bug que arregla esta pantalla: el engranaje vivía DENTRO de #boot, y #boot
+// Este es el bug que arregla esta pantalla: el botón vivía DENTRO de #boot, y #boot
 // se oculta entero al arrancar. A partir de ahí el tema y el idioma existían pero no
 // había forma de llegar a ellos. Y lo que NO tiene que seguir en INICIO es el botón de
 // las opciones de cámara: sin escena que mirar mientras se mueve un deslizador, ahí no
 // significan nada.
 const enInicio = await page.evaluate(() => ({
-  engranaje: !document.getElementById('ajustes-abrir').hidden,
+  ajustes: !document.getElementById('ajustes-abrir').hidden,
   camara: !document.getElementById('camopts-bar').hidden,
 }));
-check('el engranaje de ajustes sigue a la vista en INICIO', () =>
-  assert(enInicio.engranaje, 'el botón de ajustes desapareció al encender la cámara'));
+check('el botón de ajustes sigue a la vista en INICIO', () =>
+  assert(enInicio.ajustes, 'el botón de ajustes desapareció al encender la cámara'));
 check('INICIO ya no lleva el botón de opciones de cámara', () =>
   assert(!enInicio.camara, 'el botón "Cámara" sigue en la barra del inicio'));
 
@@ -272,13 +282,13 @@ console.log('asistente');
 await page.click('#go-video');
 
 // Dentro de la cámara se cambian las tornas: arriba a la derecha está CERRAR, así que el
-// engranaje se quita de en medio, y las opciones de cámara -que ahí sí sirven- aparecen.
+// botón de ajustes se quita de en medio, y las opciones de cámara -que ahí sí sirven- aparecen.
 const enEscanear = await page.evaluate(() => ({
-  engranaje: !document.getElementById('ajustes-abrir').hidden,
+  ajustes: !document.getElementById('ajustes-abrir').hidden,
   camara: !document.getElementById('camopts-bar').hidden,
 }));
-check('en los pasos de la cámara el engranaje cede el sitio a CERRAR', () =>
-  assert(!enEscanear.engranaje, 'el engranaje se solapa con el botón de cerrar'));
+check('en los pasos de la cámara los ajustes ceden el sitio a CERRAR', () =>
+  assert(!enEscanear.ajustes, 'el botón de ajustes se solapa con el de cerrar'));
 check('las opciones de cámara aparecen dentro de la cámara', () =>
   assert(enEscanear.camara, 'no hay forma de abrir las opciones de cámara'));
 const reticleVisible = await page.isVisible('#reticle');
@@ -730,23 +740,30 @@ const lienzoCert = () => page.evaluate(() => {
 const paso = () => page.getAttribute('#cert', 'data-paso');
 
 /**
- * La pantalla, medida: que quepa a lo ancho y que los dos botones estén puestos.
+ * La pantalla, medida: que quepa a lo ancho y que la salida esté puesta.
  *
  * El ancho es el que arregló el bug de verdad: el formulario se salía de la pantalla -un
  * control nativo que no sabía encogerse ensanchaba la rejilla entera- y la carta se
  * arrastraba de lado con el dedo como si fuera un lienzo, con el texto saliéndose por la
  * izquierda. Se mide `scrollWidth` contra `clientWidth` porque es exactamente eso: cuánto
  * hay de más para arrastrar.
+ *
+ * Y el rótulo se mide CENTRADO en la barra: al quitar la X quedó una esquina vacía, y sin
+ * el hueco que la sustituye el título se corría medio botón hacia la derecha.
  */
 const pantallaCarta = () => page.evaluate(() => {
   const s = document.getElementById('cert-scroll');
-  const caja = (id) => document.getElementById(id).getBoundingClientRect();
-  const v = caja('cert-volver');
-  const c = caja('cert-close');
+  const barra = document.querySelector('#cert .barra-nav').getBoundingClientRect();
+  const v = document.getElementById('cert-volver').getBoundingClientRect();
+  const t = document.getElementById('cert-paso-titulo').getBoundingClientRect();
   return {
     sobra: s.scrollWidth - s.clientWidth,
     sobraDoc: document.documentElement.scrollWidth - document.documentElement.clientWidth,
-    volver: v.width > 0, cerrar: c.width > 0, enOrden: v.left < c.left,
+    volver: v.width > 0,
+    // A la izquierda de la mitad de la barra: el sitio que le toca por convención.
+    volverALaIzquierda: v.left + v.width / 2 < (barra.left + barra.right) / 2,
+    // Cuánto se desvía el centro del rótulo del centro de la barra.
+    desvioTitulo: Math.abs((t.left + t.right) / 2 - (barra.left + barra.right) / 2),
   };
 });
 
@@ -766,11 +783,13 @@ check('el formulario cabe a lo ancho de la pantalla', () => {
   assert.equal(anchoDatos.sobra, 0, `sobran ${anchoDatos.sobra} px que se pueden arrastrar`);
   assert.equal(anchoDatos.sobraDoc, 0, 'la página entera se desplaza de lado');
 });
-check('rellenando los datos ya están los dos botones de la barra', () => {
+check('rellenando los datos, la salida está arriba a la izquierda', () => {
   assert(anchoDatos.volver, 'falta el botón de volver');
-  assert(anchoDatos.cerrar, 'falta el botón de cerrar');
-  assert(anchoDatos.enOrden, 'volver no está a la izquierda de cerrar');
+  assert(anchoDatos.volverALaIzquierda, 'el volver no está en la mitad izquierda');
 });
+check('el rótulo de la barra sigue centrado sin la X', () =>
+  assert(anchoDatos.desvioTitulo < 1,
+    `el rótulo se desvía ${anchoDatos.desvioTitulo.toFixed(1)} px del centro`));
 
 await page.fill('#cert-nombre', 'Lucía');
 await page.fill('#cert-premio', 'Una moneda');
@@ -787,9 +806,10 @@ check('al generar se pasa al documento', () => assert.equal(pasoFinal, 'document
 check('la carta es A4 a 150 ppp', () =>
   assert.equal(`${lleno.w}x${lleno.h}`, '1240x1754'));
 const anchoDoc = await pantallaCarta();
-check('la carta escrita también cabe a lo ancho, y con los dos botones', () => {
+check('la carta escrita también cabe a lo ancho, y con su salida', () => {
   assert.equal(anchoDoc.sobra, 0, `sobran ${anchoDoc.sobra} px que se pueden arrastrar`);
-  assert(anchoDoc.volver && anchoDoc.cerrar && anchoDoc.enOrden);
+  assert(anchoDoc.volver && anchoDoc.volverALaIzquierda);
+  assert(anchoDoc.desvioTitulo < 1, 'el rótulo se descentra en el documento');
 });
 await shot('10_certificado_documento');
 
@@ -956,25 +976,25 @@ check('al imprimir solo va la carta', () => {
   }
 });
 
-// Se cierra DESDE EL DOCUMENTO: al partir el flujo en dos, el botón de cerrar se quedó
-// solo en el paso de los datos y el documento no tenía salida. Lo cazó esta prueba.
-const cerrarVisibleEnDoc = await page.isVisible('#cert-close');
-await page.click('#cert-close');
-const certCerrado = !(await page.isVisible('#cert'));
-check('la carta se cierra desde el documento', () => {
-  assert(cerrarVisibleEnDoc, 'no hay forma de cerrar el documento');
-  assert(certCerrado);
+// LA SALIDA, y es una sola: volver deshace el camino -de la carta al formulario, y del
+// formulario al inicio-. Hubo un momento en que el documento no tenía salida ninguna, y lo
+// cazó esta prueba; lo que hay que demostrar ahora es que el único botón que queda llega
+// hasta fuera, porque si no lo hiciera la carta sería un callejón.
+const salidaEnDoc = await page.isVisible('#cert-volver');
+await page.click('#cert-volver');
+const volvioALosDatos = await paso();
+await page.click('#cert-volver');
+const fuera = !(await page.isVisible('#cert')) && await page.isVisible('#ui-inicio');
+check('desde la carta se sale deshaciendo el camino: primero los datos, luego el inicio', () => {
+  assert(salidaEnDoc, 'el documento no tiene salida');
+  assert.equal(volvioALosDatos, 'datos', 'el primer toque no volvió al formulario');
+  assert(fuera, 'el segundo toque no salió al inicio');
 });
 
-// Y arriba a la izquierda se VUELVE, también desde el primer paso: desde la carta, al
-// formulario; desde el formulario, al inicio, que es de donde se vino. Antes ese botón no
-// existía en los datos y la única salida era cerrar, que no es lo mismo aunque acabe en el
-// mismo sitio.
-await page.click('#go-cert');
-await page.waitForSelector('#cert:not([hidden])', { timeout: 10_000 });
-await page.click('#cert-volver');
-const vueltoAlInicio = !(await page.isVisible('#cert')) && await page.isVisible('#ui-inicio');
-check('desde los datos, volver sale al inicio', () => assert(vueltoAlInicio));
+// Y no queda ninguna X en la carta. Iba pegada al volver y acababa en el mismo sitio: dos
+// botones juntos que hacen lo mismo obligan a elegir entre dos cosas que no se diferencian.
+const sinX = await page.evaluate(() => !document.getElementById('cert-close'));
+check('la carta ya no lleva X de cerrar', () => assert(sinX));
 
 await browser.close();
 

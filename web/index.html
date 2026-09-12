@@ -46,19 +46,35 @@
 <!-- Ratón del modo FOTO: PNG con alfa encima de la cámara, sin vídeo ni shader -->
 <img id="sticker" src="assets/raton_perez.png" alt="Ratón Pérez" draggable="false" hidden>
 
-<!-- El engranaje de los AJUSTES. Vive FUERA del arranque, y ese es el arreglo: estaba
+<!-- El botón de los AJUSTES. Vive FUERA del arranque, y ese es el arreglo: estaba
      dentro de #boot, que se oculta entero al encender la cámara, así que en cuanto
      empezabas ya no había forma de volver al tema ni al idioma. Ahora es el mismo botón,
      en el mismo sitio -arriba a la derecha-, en las dos pantallas donde se elige con qué
      luz quieres la app: el arranque y el INICIO.
 
      No aparece en los pasos de la cámara: ahí arriba a la derecha está CERRAR, y la
-     convención de las esquinas manda sobre cualquier atajo. -->
+     convención de las esquinas manda sobre cualquier atajo.
+
+     EL DIBUJO SON DESLIZADORES, y antes era un círculo con ocho rayos: o sea, un SOL. Un
+     sol encima de una app que tiene tema claro y tema oscuro no dice "ajustes", dice
+     "toca aquí para cambiar a claro" — y el tema es una de las dos cosas que hay dentro,
+     no lo que hace el botón. Los deslizadores dicen lo que hay detrás: cosas que se
+     eligen.
+
+     Tampoco es una rueda dentada, que sería la otra opción evidente: a 21 px sus dientes
+     se empastan en una mancha con el grosor de trazo de esta app. Está medido, no
+     supuesto: los deslizadores se leen al tamaño al que se usan de verdad, y la rueda
+     solo se lee ampliada. -->
 <button id="ajustes-abrir" class="icon" aria-label="Ajustes" title="Ajustes">
   <svg viewBox="0 0 24 24" width="21" height="21" fill="none" stroke="currentColor"
        stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-    <circle cx="12" cy="12" r="3.1"/>
-    <path d="M12 2.6v2.2M12 19.2v2.2M4.36 4.36l1.56 1.56M18.08 18.08l1.56 1.56M2.6 12h2.2M19.2 12h2.2M4.36 19.64l1.56-1.56M18.08 5.92l1.56-1.56"/>
+    <!-- Los raíles se CORTAN alrededor de cada mando en vez de pasar por debajo: el hueco
+         se dibuja solo, sin tener que rellenar el mando de un color de fondo que luego
+         habría que mantener igual en los dos temas. -->
+    <path d="M4 6.5h9.3M17.7 6.5H20M4 12h2.3M10.7 12H20M4 17.5h6.8M15.2 17.5H20"/>
+    <circle cx="15.5" cy="6.5" r="2.2"/>
+    <circle cx="8.5" cy="12" r="2.2"/>
+    <circle cx="13" cy="17.5" r="2.2"/>
   </svg>
 </button>
 
@@ -181,7 +197,7 @@
   <!-- Las opciones de CÁMARA, y solo dentro de la cámara. En INICIO no se muestra: ahí
        todavía no hay escena que mirar, y una cuadrícula o un deslizador de grano delante
        de tres tarjetas que dicen qué hace la app no significan nada. Lo que sí hay en
-       INICIO es el engranaje de arriba a la derecha, que son los ajustes de la app. -->
+       INICIO es el botón de arriba a la derecha, que son los ajustes de la app. -->
   <button id="camopts-bar" class="tiny" hidden>Cámara</button>
 </div>
 
@@ -397,23 +413,26 @@
 
 <!-- La carta del Ratón: primero los datos, y la carta al final -->
 <div id="cert" data-paso="datos" hidden>
-  <!-- La barra de navegación, FIJA y con los dos botones SIEMPRE puestos. Antes eran dos
-       botones sueltos flotando sobre el texto y el de volver solo aparecía en el segundo
-       paso: en el primero la esquina de la izquierda estaba vacía, y una esquina que unas
-       veces tiene botón y otras no obliga a mirar antes de tocar.
+  <!-- La barra de navegación, FIJA y con UN SOLO botón: volver.
+       La X se ha ido. Volver ya sale de aquí -de la carta a los datos, y de los datos al
+       inicio-, así que la X era un segundo camino a la misma puerta: dos botones pegados
+       en la misma barra que acaban en el mismo sitio obligan a pararse a elegir entre dos
+       cosas que no se diferencian en nada.
 
-       La convención es la misma que en el resto de la app -izquierda se vuelve, derecha se
-       cierra- y aquí, además, es una FILA de la rejilla y no algo superpuesto: así el
-       formulario empieza debajo de la barra por construcción, sin reservarle hueco a mano
-       con un padding que hay que acordarse de cuadrar. -->
+       La convención sigue en pie: izquierda se vuelve, derecha se cierra. Lo que dice es
+       DÓNDE va cada cosa cuando está, no que tengan que estar las dos; y el hueco de la
+       derecha se queda vacío a propósito, para que el rótulo no se descentre y para que
+       nada más ocupe el sitio de cerrar.
+
+       Y es una FILA de la rejilla y no algo superpuesto: así el formulario empieza debajo
+       de la barra por construcción, sin reservarle hueco a mano con un padding que hay que
+       acordarse de cuadrar. -->
   <div class="barra-nav">
     <button id="cert-volver" class="icon" aria-label="Volver" title="Volver">
       <svg class="ic" aria-hidden="true"><use href="#ic-atras"/></svg>
     </button>
     <div class="barra-nav-titulo" id="cert-paso-titulo">Los datos</div>
-    <button id="cert-close" class="icon" aria-label="Cerrar la carta" title="Cerrar">
-      <svg class="ic" aria-hidden="true"><use href="#ic-cerrar"/></svg>
-    </button>
+    <div class="barra-nav-hueco" aria-hidden="true"></div>
   </div>
 
   <div id="cert-scroll">

@@ -109,7 +109,7 @@ function setStep(name) {
   el("inicio-head").hidden = name !== "inicio";   // el titular solo vive en INICIO
   el("back").hidden = !step.back;
 
-  // El engranaje de los AJUSTES solo en INICIO (y en el arranque, que no pasa por aqui).
+  // El boton de los AJUSTES solo en INICIO (y en el arranque, que no pasa por aqui).
   // En los pasos de la camara su sitio -arriba a la derecha- lo ocupa CERRAR, y la
   // convencion de las esquinas manda: dos cosas distintas en el mismo punto de la
   // pantalla segun el paso es justo lo que obliga a mirar antes de tocar.
@@ -825,16 +825,16 @@ function setupCertificado() {
   // se separan en cuanto alguien cambie un tamaño del dibujo.
   el("go-cert").onclick = abrirCertificado;
   el("cert-generar").onclick = () => { if (revisarNombre()) generarCertificado(); };
-  // Arriba a la izquierda se VUELVE, y vuelve siempre: desde la carta, al formulario; desde
-  // el formulario, al inicio, que es de donde se vino. Antes el botón no existía en el
-  // primer paso, y la única salida era la X: quien entraba a mirar el formulario tenía que
-  // CERRAR para volver, que no es lo mismo aunque acabe en el mismo sitio.
+  // La ÚNICA salida de la carta, y deshace el camino paso a paso: desde la carta escrita
+  // se vuelve al formulario, y desde el formulario al inicio, que es de donde se vino.
+  // Había además una X que cerraba de golpe, y se ha ido: acababa en el mismo sitio que
+  // esto, y dos botones pegados en la misma barra que hacen lo mismo obligan a pararse a
+  // elegir entre dos cosas que no se diferencian en nada.
   // Volver a los datos conserva lo escrito: se corrige una errata sin repetirlo todo.
   el("cert-volver").onclick = () => {
     if (el("cert").dataset.paso === "documento") pasoCert("datos");
     else cerrarCertificado();
   };
-  el("cert-close").onclick = cerrarCertificado;
   el("cert-print").onclick = () => window.print();
 }
 
@@ -993,7 +993,7 @@ function setupAjustes() {
   setupIdioma();
   sincronizarAjustes();
 
-  // El engranaje -arranque e INICIO- abre los AJUSTES. El ••• de la camara y el boton de
+  // Los deslizadores -arranque e INICIO- abren los AJUSTES. El ••• de la camara y el boton de
   // la barra del asistente abren las OPCIONES DE CAMARA: los dos se pulsan estando dentro
   // de la camara, que es donde esos controles sirven.
   el("ajustes-abrir").onclick = abrirAjustes;
