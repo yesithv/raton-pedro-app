@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- El icono adaptativo, que es el que usan todos los lanzadores desde Android 8.
+     Dos capas: el fondo liso y el ratón delante. El sistema las recorta con la forma que
+     tenga el lanzador -círculo, cuadrado redondeado, gota- y las mueve un poco al pasar
+     el dedo, y para eso necesita las dos por separado: con un PNG plano no puede.
+
+     El fondo es el papel cálido de la app y no el rojo del chándal: el personaje YA es
+     rojo, y sobre rojo se pierde el contraste que lo hace reconocible a 48 px. -->
+<adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
+    <background android:drawable="@color/ic_launcher_background" />
+    <foreground android:drawable="@mipmap/ic_launcher_foreground" />
+    <monochrome android:drawable="@mipmap/ic_launcher_foreground" />
+</adaptive-icon>

@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- El mismo papel cálido que el token «surface» de web/app.css. Está aquí, y no
+         escrito dentro del icono, porque el fondo de un icono adaptativo tiene que ser un
+         drawable o un color, y un color con nombre se cambia en un sitio solo. -->
+    <color name="ic_launcher_background">#FAF5EE</color>
+</resources>

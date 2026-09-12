@@ -1,0 +1,24 @@
+# Copia este archivo a `key.properties` (sin el .ejemplo) y rellénalo con lo tuyo.
+#
+# `key.properties` y cualquier *.jks están en .gitignore, y ahí se quedan: LA CLAVE NO
+# ENTRA NUNCA EN EL REPOSITORIO. Google Play identifica una app por su firma, así que
+# quien tenga la clave puede publicar actualizaciones de esta app; y si se pierde, no hay
+# forma de actualizarla nunca más —hay que subir otra distinta, con otro identificador, y
+# quien la tenga instalada se queda en la versión vieja para siempre—.
+#
+# Cómo se crea la clave está en docs/publicar-android.md.
+
+# Ruta al almacén. Absoluta, o relativa a app/android/.
+storeFile=/ruta/fuera/del/repo/perezar.jks
+keyAlias=perezar
+
+# LAS DOS CONTRASEÑAS SE QUEDAN VACÍAS AQUÍ, a propósito. Van sin comillas y sin espacios
+# alrededor del `=`.
+#
+# No es remilgo: la primera versión de este archivo traía contraseñas de mentira puestas
+# —"la-del-almacen"— y el escáner de secretos del repositorio tumbó el PR marcándolas como
+# fuga. Tenía razón en lo que importa: una plantilla con contraseñas rellenas se copia tal
+# cual, y entonces la de verdad acaba escrita con la misma forma en un archivo con el
+# mismo nombre, a un `git add -A` de distancia de subirse.
+storePassword=
+keyPassword=
