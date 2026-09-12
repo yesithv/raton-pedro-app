@@ -2,8 +2,9 @@ import { Compositor } from "./compositor.js";
 import { SceneAnalyzer, ParamSolver } from "./analyzer.js";
 import { CanvasRecorder, isSupported as recSupported } from "./recorder.js";
 import { STEPS } from "./flow.js";
-import { drawCertificate, DIENTES, ESTADOS, LIMITES, limpiar,
+import { drawCertificate, dientes, estados, LIMITES, limpiar,
          SIZE as CERT_SIZE } from "./certificate.js";
+import { t, IDIOMAS, idioma, idiomaInicial, fijarIdioma } from "./i18n.js";
 
 const ANALYZE_EVERY = 10;   // misma cadencia que el dispositivo (seccion 2 de la arquitectura)
 const OFFSCREEN = 10.0;     // origen del overlay cuando no debe verse: el shader lo descarta
@@ -45,6 +46,12 @@ const state = {
 };
 
 let compositor, analyzer, solver, recorder, cameraVideo, overlayVideo, cameraTrack;
+
+// Lo ultimo que se produjo, guardado para poder REPINTARLO en otro idioma. Un resultado en
+// pantalla no se puede volver a generar -el clip tardo cuarenta segundos en grabarse- pero
+// su linea de metadatos, sus botones y el nombre del archivo si se vuelven a escribir.
+let ultimoClip = null;
+const guardables = {};
 
 function fail(msg) {
   el("error").textContent = msg;
@@ -92,6 +99,26 @@ function toCameraRect(rect, canvasW, canvasH) {
 // Pasos
 // ---------------------------------------------------------------------------
 
+/**
+ * El titulo y la pista del paso actual, en el idioma de ahora.
+ *
+ * Aparte de setStep() porque hay dos motivos para repintarlos y solo uno es cambiar de
+ * paso: el otro es cambiar de idioma sin moverse del sitio. `flow.js` ya no guarda
+ * textos, asi que las claves salen del NOMBRE del paso.
+ */
+function pintarPaso() {
+  const nombre = state.step;
+  const pista = t(`pasos.${nombre}.pista`);
+  el("step-title").textContent = t(`pasos.${nombre}.titulo`);
+  el("hint").textContent = pista;
+  // En FOTO la pista no es una caja fija sino una pastilla que se va sola: ahi el hueco
+  // de arriba lo ocupa el visor, y una caja de instrucciones tapa lo unico que hay que
+  // mirar.
+  el("hint").hidden = !pista || nombre === "foto" || !!recorder?.isRecording;
+  if (nombre === "foto") mostrarPista(pista);
+  return pista;
+}
+
 function setStep(name) {
   const step = STEPS[name];
   const previous = state.step;
@@ -100,9 +127,7 @@ function setStep(name) {
   // FOTO no lleva el cromo de la app: lleva el suyo, que es el de una camara. Una barra
   // de navegacion encima del visor es justo lo que delata que no lo es.
   const enFoto = name === "foto";
-  el("step-title").textContent = step.title;
-  el("hint").textContent = step.hint;
-  el("hint").hidden = !step.hint || enFoto;
+  pintarPaso();
   el("reticle").hidden = !step.reticle;
   el("chrome").hidden = name === "inicio" || enFoto;
   el("bar").hidden = enFoto;
@@ -117,7 +142,6 @@ function setStep(name) {
   // Y las opciones de CAMARA solo dentro de la camara: en INICIO no hay escena que mirar
   // mientras se mueve un deslizador, que es lo unico que los hace utiles.
   el("camopts-bar").hidden = name === "inicio" || enFoto;
-  if (enFoto) mostrarPista(step.hint);
 
   for (const k of Object.keys(STEPS)) el(`ui-${k}`).hidden = k !== name;
 
@@ -191,11 +215,30 @@ function resumeLoop() {
 // Catalogo de efectos
 // ---------------------------------------------------------------------------
 
+/**
+ * El nombre de la animacion que se esta enseñando.
+ *
+ * Se traduce POR ID y no dentro del asset: el `.json` que acompaña al video lo genera
+ * `tools/build_effect.py` y describe el MATERIAL -fps, cuadros, luma de referencia-, no la
+ * interfaz. Meter ahi tres titulos por idioma obligaria a regenerar los assets para
+ * corregir una palabra. Si el id no esta traducido, se enseña el titulo del asset, que al
+ * menos dice algo.
+ */
+function tituloEfecto(entry) {
+  const traducido = t(`efectos.${entry.id}`);
+  return traducido === `efectos.${entry.id}` ? (entry.title ?? "") : traducido;
+}
+
+function pintarEfecto() {
+  const entry = state.catalog[state.fxIndex];
+  if (entry) el("fx-title").textContent = tituloEfecto(entry);
+}
+
 async function loadEffect(index) {
   const entry = state.catalog[index];
   state.fxIndex = index;
   state.meta = await (await fetch(`${entry.base}.json`)).json();
-  el("fx-title").textContent = state.meta.title ?? entry.title;
+  pintarEfecto();
 
   // H.264 primero, VP9 de respaldo: hay builds de Chromium y Firefox sin codecs
   // propietarios donde el <video> falla con "no supported sources", que en pantalla se
@@ -219,7 +262,8 @@ async function loadEffect(index) {
       return;
     } catch (e) { lastError = e; }
   }
-  throw new Error(`No pude cargar "${entry.title}".\n${lastError?.message ?? ""}`);
+  throw new Error(`${t("resultado.sinEfecto", { titulo: tituloEfecto(entry) })}\n` +
+                  `${lastError?.message ?? ""}`);
 }
 
 async function cycleEffect(delta) {
@@ -266,9 +310,7 @@ async function setCamera(facing) {
   try {
     await openCamera(facing);
   } catch (e) {
-    toast(facing === "user"
-      ? "Este dispositivo no me deja usar la cámara frontal."
-      : "No pude volver a la cámara de atrás.");
+    toast(t(facing === "user" ? "camara.sinFrontal" : "camara.sinTrasera"));
     try { await openCamera(previous); } catch (e2) { fail(e2.message); }
   }
 }
@@ -355,6 +397,14 @@ function loop(now) {
   }
 }
 
+/**
+ * El HUD de diagnostico, y es lo UNICO de la app que no se traduce.
+ *
+ * No es un descuido: son los nombres reales de los uniforms del shader
+ * (`uExposureMatch`, `uGrainAmount`) y los numeros que van a
+ * `docs/receta-grading.md`. Quien los lee esta comparandolos con el codigo del nativo, y
+ * un HUD traducido obligaria a traducir mentalmente de vuelta para buscar el uniform.
+ */
 function updateHud(params) {
   const e = params.exposure;
   const rgb = analyzer.last.sceneRgb ?? [0, 0, 0];
@@ -374,9 +424,7 @@ function updateHud(params) {
     (solver.rawExposure < state.cfg.exposureMin || solver.rawExposure > state.cfg.exposureMax);
   el("clamp-warn").hidden = !clamping;
   if (clamping) {
-    el("clamp-warn").textContent =
-      "La exposición toca el borde del rango: el valor correcto para esta luz queda " +
-      "fuera. Mueve el piso y compara.";
+    el("clamp-warn").textContent = t("opciones.recorte");
   }
 }
 
@@ -457,7 +505,7 @@ function setupGestures() {
 async function startRecording() {
   try {
     if (state.cfg.mic && !recorder.micEnabled && !(await recorder.enableMic())) {
-      toast("Sin permiso de micrófono: grabo solo vídeo.");
+      toast(t("opciones.micSinPermiso"));
     }
     recorder.start();
   } catch (e) { return fail(e.message); }
@@ -480,7 +528,7 @@ async function stopRecording() {
   finally {
     el("record").classList.remove("on");
     el("rec-badge").hidden = true;
-    el("hint").hidden = !STEPS[state.step].hint;
+    el("hint").hidden = !t(`pasos.${state.step}.pista`);
   }
 
   resumeLoop();
@@ -490,11 +538,8 @@ async function stopRecording() {
   if (video.src) URL.revokeObjectURL(video.src);
   video.src = url;
   el("clip").hidden = false;
-  el("clip-meta").textContent =
-    `${(result.durationMs / 1000).toFixed(1)}s · ${(result.blob.size / 1e6).toFixed(1)} MB · ` +
-    `${result.mimeType.split(";")[0]}${recorder.micEnabled ? " · con micrófono" : " · sin audio"}` +
-    (CanvasRecorder.isAmbiguous(result.requestedMimeType)
-      ? " · ojo: este navegador no declaró el códec, comprueba que abra fuera" : "");
+  ultimoClip = { ...result, conMic: recorder.micEnabled };
+  pintarMetaClip();
 
   // Arranca reproduciendo: MediaRecorder no escribe la duracion en el contenedor, asi
   // que el <video> no pinta ningun frame hasta reproducir y se veria un rectangulo
@@ -503,19 +548,26 @@ async function stopRecording() {
 
   const ext = CanvasRecorder.extensionFor(result.mimeType);
   el("clip-save").href = url;
-  el("clip-save").download = `raton-perez.${ext}`;
-  offerSave("clip", result.blob, `raton-perez.${ext}`,
-    ext === "mp4"
-      ? "Elige <b>Guardar vídeo</b> y el clip entra en el carrete."
-      : "Ojo: este clip es <b>.webm</b>, y el carrete del teléfono no lo acepta. " +
-        "Se puede compartir o descargar, pero para guardarlo en la galería hace falta " +
-        "que el navegador grabe en mp4.",
-    "Este navegador no puede escribir en la galería: el clip se descarga como archivo.");
+  offerSave("clip", result.blob, () => `${t("resultado.archivoVideo")}.${ext}`,
+    ext === "mp4" ? "resultado.pistaVideoMp4" : "resultado.pistaVideoWebm",
+    "resultado.pistaVideoDescarga");
+}
+
+/** La linea de metadatos del clip. Aparte, porque tambien la repinta cambiar de idioma. */
+function pintarMetaClip() {
+  if (!ultimoClip) return;
+  el("clip-meta").textContent =
+    `${(ultimoClip.durationMs / 1000).toFixed(1)}s · ` +
+    `${(ultimoClip.blob.size / 1e6).toFixed(1)} MB · ` +
+    `${ultimoClip.mimeType.split(";")[0]} · ` +
+    t(ultimoClip.conMic ? "resultado.conMic" : "resultado.sinAudio") +
+    (CanvasRecorder.isAmbiguous(ultimoClip.requestedMimeType)
+      ? ` · ${t("resultado.codecDudoso")}` : "");
 }
 
 function capturePhoto() {
   composeShot().toBlob((blob) => {
-    if (!blob) return fail("No pude capturar el lienzo.");
+    if (!blob) return fail(t("resultado.sinLienzo"));
     const url = URL.createObjectURL(blob);
     const img = el("shot-img");
     if (img.src) URL.revokeObjectURL(img.src);
@@ -527,11 +579,8 @@ function capturePhoto() {
     const mini = el("foto-ultima");
     mini.querySelector("img").src = url;
     mini.hidden = false;
-    offerSave("shot", blob, "raton-perez.png",
-      "Elige <b>Guardar imagen</b> y la foto entra en el carrete.\n" +
-      "En el iPhone también sirve mantener pulsada la foto de arriba → " +
-      "<b>Añadir a Fotos</b>.",
-      "Este navegador no puede escribir en la galería: la foto se descarga como archivo.");
+    offerSave("shot", blob, () => t("resultado.archivoFoto"),
+      "resultado.pistaFoto", "resultado.pistaFotoDescarga");
   }, "image/png");
 }
 
@@ -597,22 +646,41 @@ function composeShot() {
  * prioridad visual: era exactamente la confusion que hacia que las fotos acabaran donde
  * nadie las busca.
  */
-function offerSave(kind, blob, filename, tipShare, tipDownload) {
+function offerSave(kind, blob, nombre, claveShare, claveDescarga) {
+  guardables[kind] = { blob, nombre, claveShare, claveDescarga };
+  pintarGuardado(kind);
+}
+
+/**
+ * Pinta los dos caminos de un resultado ya ofrecido.
+ *
+ * Se guarda lo que hace falta para repetirlo -el blob y las CLAVES, no las frases- porque
+ * cambiar de idioma con un resultado en pantalla tiene que cambiar tambien sus botones,
+ * su explicacion y el NOMBRE DEL ARCHIVO. Por eso el nombre llega como funcion: el del
+ * clip lleva pegada la extension real, que depende del codec y no del idioma.
+ */
+function pintarGuardado(kind) {
+  const g = guardables[kind];
+  if (!g) return;
   const btn = el(`${kind}-share`);
   const link = el(`${kind}-save`);
-  const file = new File([blob], filename, { type: blob.type });
+  const archivo = g.nombre();
+  const file = new File([g.blob], archivo, { type: g.blob.type });
   const can = !!navigator.canShare?.({ files: [file] });
 
+  link.download = archivo;
   btn.hidden = !can;
   btn.onclick = async () => {
     try { await navigator.share({ files: [file] }); }
-    catch (e) { if (e.name !== "AbortError") fail(`No pude abrir el menú: ${e.message}`); }
+    catch (e) {
+      if (e.name !== "AbortError") fail(t("resultado.sinMenu", { error: e.message }));
+    }
   };
 
   // Sin hoja del sistema (escritorio, navegadores viejos) la descarga es lo unico que
   // hay, y entonces si es la accion principal.
   link.classList.toggle("primary", !can);
-  el(`${kind}-tip`).innerHTML = can ? tipShare : tipDownload;
+  el(`${kind}-tip`).innerHTML = can ? t(g.claveShare) : t(g.claveDescarga);
 }
 
 /** La misma linterna, con un botón en GRABAR y otro en FOTO: se encienden los dos. */
@@ -623,7 +691,7 @@ async function toggleTorch() {
     await cameraTrack.applyConstraints({ advanced: [{ torch: on }] });
     for (const b of botones) b.classList.toggle("on", on);
   } catch (e) {
-    fail("Este dispositivo no deja controlar la linterna desde el navegador.");
+    fail(t("camara.sinLinterna"));
   }
 }
 
@@ -640,6 +708,13 @@ function hoyISO() {
   const d = new Date();
   const p = (n) => String(n).padStart(2, "0");
   return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+}
+
+/** Las dos filas de fichas del formulario. Las etiquetas dependen del idioma; los `id`
+ *  con los que se guarda la eleccion, no: cambiar de idioma no puede perder lo elegido. */
+function pintarChipsCarta() {
+  pintarChips(el("cert-diente"), dientes(), "diente");
+  pintarChips(el("cert-estado"), estados(), "estado");
 }
 
 function pintarChips(contenedor, opciones, campo) {
@@ -672,7 +747,6 @@ function generarCertificado() {
   drawCertificate(el("cert-canvas"), cert, certRaton);
   prepararGuardadoCert();
   pasoCert("documento");
-  el("cert-doc-titulo").textContent = "Ya está escrita";
 }
 
 /**
@@ -687,7 +761,11 @@ function generarCertificado() {
  */
 function pasoCert(paso) {
   el("cert").dataset.paso = paso;
-  el("cert-paso-titulo").textContent = paso === "documento" ? "La carta" : "Los datos";
+  // Se deja puesta la CLAVE y se resuelve, en vez de escribir la frase: asi el repaso del
+  // documento al cambiar de idioma se lo lleva por delante sin que esto se entere.
+  const rotulo = el("cert-paso-titulo");
+  rotulo.dataset.t = paso === "documento" ? "carta.pasoCarta" : "carta.pasoDatos";
+  rotulo.textContent = t(rotulo.dataset.t);
   el("cert-scroll").scrollTo(0, 0);
 }
 
@@ -712,10 +790,8 @@ function prepararGuardadoCert() {
     if (link.dataset.url) URL.revokeObjectURL(link.dataset.url);
     link.dataset.url = url;
     link.href = url;
-    offerSave("cert", blob, "carta-del-raton-perez.png",
-      "Elige <b>Guardar imagen</b> y la carta entra en el carrete, lista para " +
-      "mandarlo a imprimir.\nPara imprimirlo desde aquí, usa <b>Imprimir</b>.",
-      "Guárdalo con <b>Descargar</b> o mándalo a la impresora con <b>Imprimir</b>.");
+    offerSave("cert", blob, () => t("resultado.archivoCarta"),
+      "carta.pistaGuardar", "carta.pistaDescargar");
   }, "image/png");
 }
 
@@ -732,8 +808,7 @@ async function abrirCertificado() {
   contarNota();
   contarPremio();
   delete el("cert-nombre").dataset.tocado;
-  pintarChips(el("cert-diente"), DIENTES, "diente");
-  pintarChips(el("cert-estado"), ESTADOS, "estado");
+  pintarChipsCarta();
   revisarNombre();
   // El paso se fija ANTES de enseñar la pantalla: al revés, quien vuelve a entrar después
   // de haber escrito una carta ve un fotograma del documento anterior antes del formulario.
@@ -757,7 +832,7 @@ function contar(id, limite, aviso) {
   const salida = el(`${id}-cuenta`);
   if (!salida) return;
   const quedan = limite - campo.value.length;
-  salida.textContent = campo.value ? `Te quedan ${quedan}.` : "";
+  salida.textContent = campo.value ? t("carta.quedan", { n: quedan }) : "";
   salida.classList.toggle("apurado", quedan <= aviso);
 }
 
@@ -785,8 +860,8 @@ function revisarFecha() {
   const campo = el("cert-fecha");
   const v = campo.value;
   if (!v) { campo.value = cert.fecha = max; return; }
-  if (v > max) { campo.value = cert.fecha = max; toast("El diente no se puede caer mañana."); }
-  else if (v < min) { campo.value = cert.fecha = min; toast("Esa fecha queda muy atrás."); }
+  if (v > max) { campo.value = cert.fecha = max; toast(t("carta.fechaFutura")); }
+  else if (v < min) { campo.value = cert.fecha = min; toast(t("carta.fechaVieja")); }
   else cert.fecha = v;
 }
 
@@ -855,14 +930,14 @@ function setupCertificado() {
  * Y se presentan LOS TRES A LA VEZ, no como un boton que rota. Un icono que cambia al
  * tocarlo obliga a dar toques hasta acertar y nunca dice cuantas opciones hay; el tema es
  * de las poquisimas cosas que un usuario quiere elegir, y elegir necesita ver la lista.
+ *
+ * El glifo se queda aqui y el nombre se va a `idiomas/`: un simbolo de luna no se traduce,
+ * y ponerlo en los tres catalogos solo daria tres sitios donde equivocarse.
  */
 const TEMAS = [
-  { id: "auto", glifo: "\u25D0", nombre: "Automático",
-    pie: "Sigue al teléfono: se pone oscuro cuando el teléfono se pone oscuro." },
-  { id: "claro", glifo: "\u2600", nombre: "Claro",
-    pie: "Siempre claro, sea la hora que sea." },
-  { id: "oscuro", glifo: "\u263E", nombre: "Oscuro",
-    pie: "Siempre oscuro. De noche, junto a un niño dormido, es el que menos molesta." },
+  { id: "auto", glifo: "\u25D0" },
+  { id: "claro", glifo: "\u2600" },
+  { id: "oscuro", glifo: "\u263E" },
 ];
 
 function temaActual() {
@@ -880,54 +955,65 @@ function aplicarTema(id) {
   for (const boton of el("tema").children) {
     boton.setAttribute("aria-pressed", String(boton.dataset.tema === id));
   }
-  el("tema-pie").textContent = TEMAS.find((t) => t.id === id).pie;
+  el("tema-pie").textContent = t(`ajustes.temas.${id}.pie`);
 }
 
 function setupTema() {
-  el("tema").replaceChildren(...TEMAS.map((t) => {
+  el("tema").replaceChildren(...TEMAS.map((tema) => {
     const b = document.createElement("button");
     b.type = "button";
-    b.dataset.tema = t.id;
+    b.dataset.tema = tema.id;
     b.setAttribute("aria-pressed", "false");
     b.innerHTML = `<span class="glifo" aria-hidden="true"></span><span></span>`;
-    b.firstChild.textContent = t.glifo;
-    b.lastChild.textContent = t.nombre;
-    b.onclick = () => aplicarTema(t.id);
+    b.firstChild.textContent = tema.glifo;
+    b.lastChild.textContent = t(`ajustes.temas.${tema.id}.nombre`);
+    b.onclick = () => aplicarTema(tema.id);
     return b;
   }));
   aplicarTema(temaActual());
 }
 
 /**
- * El selector de idioma, y por ahora SOLO el selector.
+ * El idioma, y ahora cambia la app ENTERA: interfaz, avisos y la carta que se imprime.
  *
- * Traducir los textos es otro trabajo. Lo que no se puede hacer es poner un selector que
- * no hace nada y callarselo: quien lo toque y siga viendo todo en castellano pensara que
- * la app esta rota. Por eso guarda la eleccion, la pone en el <html lang> -que es lo que
- * usan el lector de pantalla y el corrector del teclado- y DICE debajo que los textos
- * llegan despues.
+ * Cambia EN CALIENTE, sin recargar. Este selector se toca estando ya dentro -a veces con
+ * un vídeo grabado en pantalla, o con media carta escrita- y una recarga perdería todo
+ * eso para ahorrarse cuatro llamadas. Lo que cuesta es acordarse de repintar lo que no
+ * vive en el HTML, y de eso va `refrescarIdioma()`.
+ *
+ * Lo que NO cambia es lo elegido: el diente y el estado se guardan por `id`, no por su
+ * etiqueta, así que una carta a medias sobrevive al cambio.
  */
-const IDIOMAS = [
-  { id: "es", nombre: "Español", pie: "La app está en español." },
-  { id: "en", nombre: "English",
-    pie: "Guardado. Los textos en inglés llegan más adelante; por ahora se ve en español." },
-  { id: "pt", nombre: "Português",
-    pie: "Guardado. Os textos em português chegam mais tarde; por enquanto aparece em espanhol." },
-];
-
-function idiomaActual() {
-  try { return localStorage.getItem("idioma") || "es"; } catch (e) { return "es"; }
+function aplicarIdioma(id) {
+  fijarIdioma(id);          // guarda, pone el <html lang> de verdad y repasa el documento
+  refrescarIdioma();
 }
 
-function aplicarIdioma(id) {
-  try { localStorage.setItem("idioma", id); } catch (e) { /* vale para esta sesion */ }
-  // El documento SIGUE en castellano hasta que existan los textos, asi que `lang` se
-  // queda en "es": mentirle al lector de pantalla sobre en que idioma esta lo que va a
-  // leer es peor que no ofrecer el idioma.
-  for (const boton of el("idioma").children) {
-    boton.setAttribute("aria-pressed", String(boton.dataset.idioma === id));
+/**
+ * Todo lo que el repaso del documento no alcanza.
+ *
+ * `i18n.traducir()` se ocupa de lo que está marcado en el HTML. Aquí va lo que se pinta
+ * desde el código: las dos listas de botones, el paso actual, la animación elegida, las
+ * fichas del formulario y los resultados que haya en pantalla. La regla para no olvidarse
+ * de ninguno es sencilla: si un texto se escribe con `textContent` fuera de esta función,
+ * o deja su clave en `dataset.t`, o hay que repintarlo aquí.
+ */
+function refrescarIdioma() {
+  setupTema();
+  setupIdioma();
+  pintarPaso();
+  pintarEfecto();
+  if (el("cert-diente").children.length) pintarChipsCarta();
+  contarNota();
+  contarPremio();
+  for (const kind of Object.keys(guardables)) pintarGuardado(kind);
+  pintarMetaClip();
+  // La carta ya dibujada se vuelve a dibujar: es un lienzo, y ahí dentro no hay ni un
+  // `data-t` que valga. Solo si está a la vista, que es cuando importa.
+  if (!el("cert").hidden && el("cert").dataset.paso === "documento") {
+    drawCertificate(el("cert-canvas"), cert, certRaton);
+    prepararGuardadoCert();
   }
-  el("idioma-pie").textContent = IDIOMAS.find((x) => x.id === id).pie;
 }
 
 function setupIdioma() {
@@ -935,12 +1021,14 @@ function setupIdioma() {
     const b = document.createElement("button");
     b.type = "button";
     b.dataset.idioma = x.id;
-    b.setAttribute("aria-pressed", "false");
+    // El nombre de cada idioma va SIEMPRE en sí mismo y no se traduce: quien busca el
+    // suyo en una lista busca la palabra que conoce.
     b.textContent = x.nombre;
+    b.setAttribute("aria-pressed", String(x.id === idioma()));
     b.onclick = () => aplicarIdioma(x.id);
     return b;
   }));
-  aplicarIdioma(idiomaActual());
+  el("idioma-pie").textContent = t("ajustes.idiomaPie");
 }
 
 /**
@@ -989,6 +1077,10 @@ function setupAjustes() {
     if (localStorage.getItem("rejilla") === "no") state.cfg.rejilla = false;
   } catch (e) { /* sin almacenamiento, el valor de fabrica */ }
 
+  // El idioma, ANTES que nada: fija el <html lang>, deja el documento traducido y solo
+  // entonces se pintan los selectores, que ya salen en el idioma que toca. Al reves, la
+  // app se enseña un instante en castellano a quien la abre en ingles.
+  fijarIdioma(idiomaInicial());
   setupTema();
   setupIdioma();
   sincronizarAjustes();
@@ -1029,7 +1121,7 @@ function setupAjustes() {
     if (!state.cfg.mic) recorder?.disableMic();
     else if (recorder && !(await recorder.enableMic())) {
       e.target.checked = state.cfg.mic = false;
-      fail("El navegador negó el micrófono.");
+      fail(t("opciones.micNegado"));
     }
     try { localStorage.setItem("mic", state.cfg.mic ? "si" : "no"); } catch (err) { /* da igual */ }
   };
@@ -1042,7 +1134,7 @@ function setupAjustes() {
     Object.assign(state.cfg, CFG_DEFECTO, { mic, rejilla });
     solver = new ParamSolver(state.cfg);   // y ademas reinicia el EMA, que venia sesgado
     sincronizarAjustes();
-    toast("Ajuste fino, como de fábrica");
+    toast(t("opciones.restablecido"));
   };
 
   // Diagnostico: numeros crudos, para quien desarrolla. Con ?dev=1 o con siete toques en
@@ -1052,7 +1144,7 @@ function setupAjustes() {
   const abrirDiagnostico = () => {
     el("diagnostico").hidden = false;
     el("avanzado").open = true;
-    toast("Diagnóstico activado");
+    toast(t("opciones.diagnosticoOn"));
   };
   if (new URLSearchParams(location.search).has("dev")) el("diagnostico").hidden = false;
   el("camopts-titulo").onclick = () => {
@@ -1105,16 +1197,22 @@ function setupControls() {
 
 setupAjustes();
 
+/** El rotulo del boton de arranque, dejando puesta la clave para que se traduzca solo. */
+function rotuloArranque(clave) {
+  el("start").dataset.t = clave;
+  el("start").textContent = t(clave);
+}
+
 el("start").onclick = async () => {
   el("start").disabled = true;
-  el("start").textContent = "Abriendo cámara…";
+  rotuloArranque("arranque.abriendo");
   try {
     setupGestures();
     setupControls();
     await boot();
   } catch (e) {
     el("start").disabled = false;
-    el("start").textContent = "Reintentar";
-    fail(`${e.message}\n\nLa cámara necesita HTTPS (o localhost) y permiso del navegador.`);
+    rotuloArranque("arranque.reintentar");
+    fail(`${e.message}\n\n${t("arranque.sinCamara")}`);
   }
 };
