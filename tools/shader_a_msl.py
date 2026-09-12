@@ -17,12 +17,29 @@ LA CADENA
 ---------
     composite.frag  --(este script)-->  GLSL apto para SPIR-V
                     --(glslangValidator)-->  SPIR-V
-                    --(spirv-cross)-->  composite.metal
+                    --(spirv-opt)------->  SPIR-V con todo inlineado
+                    --(spirv-cross)----->  composite.metal
 
 Las herramientas son las de Khronos, y corren igual en Linux, macOS y Windows:
 
-    apt install glslang-tools spirv-cross     # Debian / Ubuntu
-    brew install glslang spirv-cross          # macOS
+    apt install glslang-tools spirv-tools spirv-cross   # Debian / Ubuntu
+    brew install glslang spirv-tools spirv-cross        # macOS
+
+EL PASO DE INLINEADO NO ES UNA OPTIMIZACIÓN: ES OBLIGATORIO
+------------------------------------------------------------
+Sin él, esto no compila en un Mac, y el error no se parece en nada a su causa. Metal tiene
+espacios de direcciones explícitos: los uniforms llegan en `constant` y las variables
+locales viven en `thread`. Cuando spirv-cross traduce una función auxiliar del GLSL
+—`sampleOverlay()`, aquí— le pone los parámetros en `thread`, pero luego le pasa un
+uniform, que está en `constant`. El compilador de Apple lo rechaza:
+
+    cannot bind reference in address space 'constant' to object
+    in default address space in 4th argument
+
+Lo cazó la primera ejecución de `CI iOS`, con seis errores iguales. Inlineando antes de
+traducir no queda ninguna función que pueda tener ese desajuste: todo acaba dentro del
+`main0`, que es donde los uniforms ya están declarados con su espacio correcto. Y no
+cambia nada del render: cualquier compilador de GPU inlinea esto de todos modos.
 
 POR QUÉ EL .metal SE VERSIONA, AL REVÉS QUE EL DE ANDROID
 ---------------------------------------------------------
@@ -117,12 +134,12 @@ def falta(herramienta: str) -> bool:
 
 
 def traducir(glsl: str) -> str:
-    for herramienta in ("glslangValidator", "spirv-cross"):
+    for herramienta in ("glslangValidator", "spirv-opt", "spirv-cross"):
         if falta(herramienta):
             sys.exit(
                 f"Falta {herramienta}.\n"
-                "  Debian/Ubuntu: apt install glslang-tools spirv-cross\n"
-                "  macOS:         brew install glslang spirv-cross"
+                "  Debian/Ubuntu: apt install glslang-tools spirv-tools spirv-cross\n"
+                "  macOS:         brew install glslang spirv-tools spirv-cross"
             )
 
     with tempfile.TemporaryDirectory() as tmp:
@@ -140,9 +157,17 @@ def traducir(glsl: str) -> str:
             ["glslangValidator", "-G", "-S", "frag", "-o", str(spv), str(frag)],
             check=True, stdout=subprocess.DEVNULL,
         )
+        # Sin esto el Metal generado NO compila. Ver el docstring: es lo que evita que una
+        # función auxiliar reciba un uniform de `constant` por un parámetro de `thread`.
+        plano = tmp / "composite.opt.spv"
+        subprocess.run(
+            ["spirv-opt", "--inline-entry-points-exhaustive", "--eliminate-dead-functions",
+             "-o", str(plano), str(spv)],
+            check=True, stdout=subprocess.DEVNULL,
+        )
         # 2.1 es el mínimo que se puede exigir en iOS 15, que es el objetivo declarado.
         subprocess.run(
-            ["spirv-cross", str(spv), "--msl", "--msl-version", "20100",
+            ["spirv-cross", str(plano), "--msl", "--msl-version", "20100",
              "--output", str(metal)],
             check=True,
         )

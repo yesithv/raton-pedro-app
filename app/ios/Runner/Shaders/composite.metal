@@ -8,8 +8,6 @@
 //
 // Por qué existe y qué transformaciones lleva: tools/shader_a_msl.py.
 
-#pragma clang diagnostic ignored "-Wmissing-prototypes"
-
 #include <metal_stdlib>
 #include <simd/simd.h>
 
@@ -25,21 +23,6 @@ struct main0_in
     float2 vCamUV [[user(locn0)]];
     float2 vScreenUV [[user(locn1)]];
 };
-
-static inline __attribute__((always_inline))
-float3 sampleOverlay(thread const float2& uv, texture2d<float> uOverlay, sampler uOverlaySmplr, thread const float4x4& uOverlayXform)
-{
-    float3 _39 = uOverlay.sample(uOverlaySmplr, (uOverlayXform * float4(uv, 0.0, 1.0)).xy).xyz;
-    return _39;
-}
-
-static inline __attribute__((always_inline))
-float hash13(thread float3& p)
-{
-    p = fract(p * 0.103100001811981201171875);
-    p += float3(dot(p, p.yzx + float3(33.3300018310546875)));
-    return fract((p.x + p.y) * p.z);
-}
 
 fragment main0_out main0(main0_in in [[stage_in]], constant bool& uLimitedRange [[buffer(6)]], constant float4x4& uOverlayXform [[buffer(0)]], constant float2& uOverlayOrigin [[buffer(1)]], constant float2& uGyroOffset [[buffer(2)]], constant float2& uOverlayScale [[buffer(3)]], constant float2& uOverlayTexel [[buffer(4)]], constant float& uSoftness [[buffer(5)]], constant float3& uExposureMatch [[buffer(7)]], constant float& uTime [[buffer(8)]], constant float& uGrainAmount [[buffer(9)]], texture2d<float> uOverlay [[texture(0)]], texture2d<float> uCamera [[texture(1)]], sampler uOverlaySmplr [[sampler(0)]], sampler uCameraSmplr [[sampler(1)]])
 {
@@ -85,21 +68,35 @@ fragment main0_out main0(main0_in in [[stage_in]], constant bool& uLimitedRange 
     float2 uvColor = float2(fast::clamp(ouv.x * 0.5, pad, 0.5 - pad), ouv.y);
     float2 uvMatte = float2(fast::clamp((ouv.x * 0.5) + 0.5, 0.5 + pad, 1.0 - pad), ouv.y);
     float2 param = uvColor;
+    float3 _268 = uOverlay.sample(uOverlaySmplr, (uOverlayXform * float4(param, 0.0, 1.0)).xy).xyz;
+    float3 _269 = _268;
     float2 param_1 = uvColor + float2(blur.x, 0.0);
+    float3 _282 = uOverlay.sample(uOverlaySmplr, (uOverlayXform * float4(param_1, 0.0, 1.0)).xy).xyz;
+    float3 _283 = _282;
     float2 param_2 = uvColor + float2(-blur.x, 0.0);
+    float3 _296 = uOverlay.sample(uOverlaySmplr, (uOverlayXform * float4(param_2, 0.0, 1.0)).xy).xyz;
+    float3 _297 = _296;
     float2 param_3 = uvColor + float2(0.0, blur.y);
+    float3 _310 = uOverlay.sample(uOverlaySmplr, (uOverlayXform * float4(param_3, 0.0, 1.0)).xy).xyz;
+    float3 _311 = _310;
     float2 param_4 = uvColor + float2(0.0, -blur.y);
-    float3 rgbP = ((((sampleOverlay(param, uOverlay, uOverlaySmplr, uOverlayXform) * 0.5) + (sampleOverlay(param_1, uOverlay, uOverlaySmplr, uOverlayXform) * 0.125)) + (sampleOverlay(param_2, uOverlay, uOverlaySmplr, uOverlayXform) * 0.125)) + (sampleOverlay(param_3, uOverlay, uOverlaySmplr, uOverlayXform) * 0.125)) + (sampleOverlay(param_4, uOverlay, uOverlaySmplr, uOverlayXform) * 0.125);
+    float3 _324 = uOverlay.sample(uOverlaySmplr, (uOverlayXform * float4(param_4, 0.0, 1.0)).xy).xyz;
+    float3 _325 = _324;
+    float3 rgbP = ((((_269 * 0.5) + (_283 * 0.125)) + (_297 * 0.125)) + (_311 * 0.125)) + (_325 * 0.125);
     float2 param_5 = uvMatte;
-    float a = sampleOverlay(param_5, uOverlay, uOverlaySmplr, uOverlayXform).x;
+    float3 _338 = uOverlay.sample(uOverlaySmplr, (uOverlayXform * float4(param_5, 0.0, 1.0)).xy).xyz;
+    float3 _339 = _338;
+    float a = _339.x;
     if (uLimitedRange)
     {
         a = fast::clamp((a - 0.0627000033855438232421875) * 1.16439998149871826171875, 0.0, 1.0);
     }
     rgbP *= uExposureMatch;
     float3 param_6 = float3(in.vCamUV * 1024.0, floor(uTime * 30.0));
-    float _247 = hash13(param_6);
-    float n = _247 - 0.5;
+    param_6 = fract(param_6 * 0.103100001811981201171875);
+    param_6 += float3(dot(param_6, param_6.yzx + float3(33.3300018310546875)));
+    float _352 = fract((param_6.x + param_6.y) * param_6.z);
+    float n = _352 - 0.5;
     rgbP += ((float3(n) * uGrainAmount) * a);
     out.fragColor = float4(rgbP + (cam * (1.0 - a)), 1.0);
     return out;

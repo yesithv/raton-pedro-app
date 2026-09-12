@@ -55,7 +55,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Herramientas de Khronos
-        run: sudo apt-get update -q && sudo apt-get install -y -q glslang-tools spirv-cross
+        run: sudo apt-get update -q && sudo apt-get install -y -q glslang-tools spirv-tools spirv-cross
       # Regenera desde shaders/composite.frag y compara con lo versionado. Si alguien toca
       # el shader compartido y no regenera, aquí se entera. La comprobación es SEMÁNTICA,
       # no textual: compara el Metal generado, así que un comentario nuevo en el .frag no
