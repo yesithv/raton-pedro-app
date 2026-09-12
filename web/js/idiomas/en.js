@@ -138,8 +138,8 @@ export default {
     cerrar: "Close the options",
     listo: "Done",
     raton: "Mouse in the photo",
-    ratonPie: "The one that shows up when you take the photo. The letter always has the " +
-              "classic one.",
+    ratonPie: "The one that shows up when you take the photo. The letter's is chosen as " +
+              "you write it.",
     ratonSinFoto: "Couldn't load “{nombre}”. Keeping the previous one.",
     rejilla: "Grid",
     rejillaPie: "The thirds lines over the viewfinder, like the phone's own camera.",
@@ -214,6 +214,8 @@ export default {
     fechaVieja: "That date is a long way back.",
     queDiente: "Which one did the mouse take?",
     comoEstaba: "What shape was the tooth in?",
+    queRaton: "Which mouse comes to the letter?",
+    queRatonAyuda: "He is drawn at the bottom, next to the signature.",
     premio: "What did it leave in return?",
     premioPlaceholder: "A coin",
     premioAyuda: "It gets told inside the letter.",

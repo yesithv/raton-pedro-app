@@ -78,6 +78,20 @@ export function t(clave, vars) {
     (vars[nombre] === undefined ? hueco : String(vars[nombre])));
 }
 
+/**
+ * El nombre traducido de algo de un catálogo de assets, o el que traiga el propio asset.
+ *
+ * Lo comparten las animaciones del asistente y los ratones que se eligen: las dos listas
+ * funcionan igual, se traducen POR ID y no dentro del asset. Los `.json` describen el
+ * MATERIAL —fps, cuadros, archivo—, no la interfaz; meter ahí tres títulos por idioma
+ * obligaría a tocar los assets para corregir una palabra. Y si el id no está traducido —una
+ * foto recién añadida a mano— se enseña el título del catálogo, que al menos dice algo.
+ */
+export function nombreDelCatalogo(clave, entry) {
+  const traducido = t(clave);
+  return traducido === clave ? (entry.title ?? "") : traducido;
+}
+
 export const idioma = () => actual.id;
 
 /** Lo que el usuario eligió alguna vez, si sigue existiendo.

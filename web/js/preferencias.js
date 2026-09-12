@@ -1,5 +1,5 @@
 // Lo poco que sobrevive a cerrar la app: el tema, el idioma, el micrófono, la rejilla y
-// el ratón elegido para la foto.
+// los dos ratones elegidos, el de la foto y el de la carta.
 //
 // Existe por una razón concreta: `localStorage` PUEDE LANZAR. En una ventana privada, con
 // las cookies de sitio bloqueadas o dentro de un iframe sin permiso, leerlo o escribirlo
@@ -24,10 +24,12 @@ export const CLAVES = {
   idioma: "idioma",
   mic: "mic",
   rejilla: "rejilla",
-  // Cuál de los ratones del catálogo sale en la foto. Se guarda el `id`, no la ruta del
-  // archivo: las rutas cambian cuando llegan los PNG buenos y la elección tiene que
-  // sobrevivir a eso.
+  // Cuál de los ratones del catálogo sale en la foto, y cuál va dibujado en la carta. Son
+  // DOS elecciones y no una: se puede llevar el morado en la foto y el clásico en la
+  // carta. Se guarda el `id` y no la ruta del archivo, porque las rutas cambian cuando
+  // llegan los PNG buenos y la elección tiene que sobrevivir a eso.
   raton: "raton",
+  ratonCarta: "ratonCarta",
 };
 
 /** El valor guardado, o `null` si no hay o no se puede leer. */

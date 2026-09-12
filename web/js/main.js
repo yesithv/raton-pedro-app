@@ -4,8 +4,10 @@ import { CanvasRecorder, isSupported as recSupported } from "./recorder.js";
 import { STEPS } from "./flow.js";
 import { drawCertificate, dientes, estados, LIMITES, limpiar,
          SIZE as CERT_SIZE } from "./certificate.js";
-import { t, IDIOMAS, idioma, idiomaInicial, fijarIdioma } from "./i18n.js";
-import { CLAVES, leer, guardar, olvidar, leerBooleano, guardarBooleano } from "./preferencias.js";
+import { t, IDIOMAS, idioma, idiomaInicial, fijarIdioma,
+         nombreDelCatalogo } from "./i18n.js";
+import { CLAVES, guardar, olvidar, leerBooleano, guardarBooleano } from "./preferencias.js";
+import { cargarRatones, SelectorDeRatones } from "./ratones.js";
 
 const ANALYZE_EVERY = 10;   // misma cadencia que el dispositivo (seccion 2 de la arquitectura)
 const OFFSCREEN = 10.0;     // origen del overlay cuando no debe verse: el shader lo descarta
@@ -53,11 +55,9 @@ const state = {
   step: "inicio",
   catalog: [],
   fxIndex: 0,
-  // El catalogo de ratones de la foto y el `id` del elegido. El id y no el indice: el
-  // orden del catalogo cambia en cuanto se añade una foto por delante, y quien tuviera
-  // elegido el tercero se encontraria con otro.
+  // El catalogo de ratones, compartido por las dos pantallas que dejan elegir uno: la
+  // camara y la carta. Cual esta elegido en cada una lo sabe su SelectorDeRatones.
   ratones: [],
-  raton: null,
   meta: null,
   transform: { x: 0.5, y: 0.72, scaleFactor: 0.35 },
   facing: "environment",
@@ -72,6 +72,7 @@ const state = {
 };
 
 let compositor, analyzer, solver, recorder, cameraVideo, overlayVideo, cameraTrack;
+let selectorFoto, selectorCarta;
 
 // Lo ultimo que se produjo, guardado para poder REPINTARLO en otro idioma. Un resultado en
 // pantalla no se puede volver a generar -el clip tardo cuarenta segundos en grabarse- pero
@@ -241,20 +242,7 @@ function resumeLoop() {
 // Catalogo de efectos
 // ---------------------------------------------------------------------------
 
-/**
- * El nombre traducido de algo del catalogo, o el que traiga el propio asset.
- *
- * Lo comparten las animaciones y los ratones porque las dos listas funcionan igual: se
- * traducen POR ID y no dentro del asset. Los `.json` describen el MATERIAL -fps, cuadros,
- * archivo-, no la interfaz; meter ahi tres titulos por idioma obligaria a tocar los
- * assets para corregir una palabra. Y si el id no esta traducido -una foto recien añadida
- * a mano- se enseña el titulo del catalogo, que al menos dice algo.
- */
-function nombreDelCatalogo(clave, entry) {
-  const traducido = t(clave);
-  return traducido === clave ? (entry.title ?? "") : traducido;
-}
-
+/** El nombre de la animacion que se esta enseñando, traducido por su `id`. */
 function tituloEfecto(entry) {
   return nombreDelCatalogo(`efectos.${entry.id}`, entry);
 }
@@ -305,92 +293,48 @@ async function cycleEffect(delta) {
 }
 
 // ---------------------------------------------------------------------------
-// El raton de la foto
+// Los ratones que se eligen
 // ---------------------------------------------------------------------------
 
 /**
- * El raton que sale si no hay catalogo, y por que existe este respaldo.
+ * Los dos selectores: el de la foto y el de la carta.
  *
- * `assets/ratones.json` es lo que se edita cuando llegan fotos nuevas, o sea lo que
- * alguien va a tocar a mano alguna vez. Si ese dia se queda una coma de mas, la app NO se
- * queda sin raton: se cae al clasico, que es el PNG que el HTML ya trae puesto. Perder la
- * foto entera por un catalogo de OPCIONES seria cambiar una funcion que funciona por otra
- * que ya estaba.
+ * Se crean JUNTOS, en el arranque, aunque el de la carta no se vea hasta que se abre el
+ * formulario: asi el catalogo se lee una sola vez y las dos pantallas quedan pintadas y
+ * con su eleccion recuperada antes de que nadie llegue a mirarlas.
+ *
+ * Lo unico que cambia entre los dos es QUE HACE cada pantalla con el raton ya
+ * decodificado; todo lo demas -pintar, marcar, esperar al PNG, guardar- lo pone
+ * `SelectorDeRatones`.
  */
-const RATON_RESPALDO = {
-  id: "clasico", title: "Ratón Pérez", archivo: "assets/raton_perez.png",
-};
+async function crearSelectores() {
+  const alFallar = (entry) => fail(SelectorDeRatones.avisoRoto(entry));
 
-const nombreRaton = (entry) => nombreDelCatalogo(`ratones.${entry.id}`, entry);
+  selectorFoto = new SelectorDeRatones({
+    contenedor: el("ratones"),
+    ratones: state.ratones,
+    clave: CLAVES.raton,
+    // La camara cambia el <img> del visor. Se le pasa `entry.archivo` y no `img.src`
+    // porque la ruta relativa es la que la app usa en todas partes -y la que la prueba
+    // mira-; el PNG ya esta decodificado, asi que el navegador lo sirve de memoria.
+    alElegir: (entry) => {
+      el("sticker").src = entry.archivo;
+      if (STEPS[state.step].sticker) positionSticker();
+    },
+    alFallar,
+  });
 
-async function cargarRatones() {
-  try {
-    const lista = (await (await fetch("assets/ratones.json")).json()).ratones;
-    if (lista?.length) return lista;
-  } catch (e) {
-    console.warn(`ratones: ${e.message}`);
-  }
-  return [RATON_RESPALDO];
-}
+  selectorCarta = new SelectorDeRatones({
+    contenedor: el("cert-raton"),
+    ratones: state.ratones,
+    clave: CLAVES.ratonCarta,
+    // La carta se queda con la IMAGEN ya decodificada: el papel es un lienzo y el raton se
+    // dibuja dentro, no se enseña un <img>.
+    alElegir: (entry, img) => { certRaton = img; },
+    alFallar,
+  });
 
-/** Las miniaturas. Se repintan tambien al cambiar de idioma: llevan el nombre debajo. */
-function pintarRatones() {
-  el("ratones").replaceChildren(...state.ratones.map((entry) => {
-    const b = document.createElement("button");
-    b.type = "button";
-    b.dataset.raton = entry.id;
-    b.setAttribute("aria-pressed", String(entry.id === state.raton));
-    const img = document.createElement("img");
-    img.src = entry.archivo;
-    // El `alt` va VACIO a proposito: el nombre esta ahi al lado, en texto, y con los dos
-    // un lector de pantalla lee cada opcion dos veces.
-    img.alt = "";
-    img.draggable = false;
-    const nombre = document.createElement("span");
-    nombre.textContent = nombreRaton(entry);
-    b.append(img, nombre);
-    b.onclick = () => aplicarRaton(entry.id);
-    return b;
-  }));
-}
-
-/**
- * Deja puesto el raton elegido: el PNG del visor, las miniaturas y la preferencia.
- *
- * El archivo se DECODIFICA antes de tocar el <img>, y no es un adorno: al asignar `src` el
- * navegador deja la imagen en "no disponible" hasta que termina de cargar, y composeShot()
- * se salta al raton cuando `naturalWidth` vale 0. Sin esa espera, disparar justo despues
- * de elegir sacaba una foto SIN RATON -el visor lo enseñaba y el archivo no lo tenia-, que
- * es de los fallos que nadie reproduce luego.
- *
- * Y si la foto no se puede cargar, se queda la anterior y devuelve `false`: una opcion
- * rota no puede dejar la camara sin personaje.
- */
-async function aplicarRaton(id, persistir = true) {
-  const entry = state.ratones.find((r) => r.id === id) ?? state.ratones[0];
-  if (!entry) return false;
-
-  const img = el("sticker");
-  if (img.getAttribute("src") !== entry.archivo) {
-    const previa = new Image();
-    previa.src = entry.archivo;
-    try {
-      await previa.decode();
-    } catch (e) {
-      return fail(t("opciones.ratonSinFoto", { nombre: nombreRaton(entry) }));
-    }
-    img.src = entry.archivo;
-    if (STEPS[state.step].sticker) positionSticker();
-  }
-
-  state.raton = entry.id;
-  for (const b of el("ratones").children) {
-    b.setAttribute("aria-pressed", String(b.dataset.raton === entry.id));
-  }
-  // En el arranque no se guarda nada: lo que se lee es lo que ya habia, y escribirlo otra
-  // vez convertiria el valor de fabrica en una eleccion del usuario.
-  if (persistir) guardar(CLAVES.raton, entry.id);
-  return true;
+  await Promise.all([selectorFoto.recuperar(), selectorCarta.recuperar()]);
 }
 
 // ---------------------------------------------------------------------------
@@ -441,17 +385,10 @@ async function setCamera(facing) {
 async function boot() {
   state.catalog = (await (await fetch("assets/catalog.json")).json()).effects;
 
-  // El catalogo de ratones se carga aqui y no en `setupAjustes()` porque su selector vive
-  // en las opciones de CAMARA, a las que no se llega sin haber pasado por aqui.
+  // El catalogo de ratones se lee aqui y no en `setupAjustes()` porque las dos pantallas
+  // que dejan elegir uno -la camara y la carta- estan detras de este arranque.
   state.ratones = await cargarRatones();
-  pintarRatones();
-  const elegido = leer(CLAVES.raton) ?? state.ratones[0].id;
-  // Si la foto elegida ya no carga -el archivo cambio de nombre entre dos versiones- se
-  // vuelve al primero, que es el que el HTML ya trae puesto. Sin esto la camara enseñaria
-  // un raton y el selector tendria marcado otro.
-  if (!(await aplicarRaton(elegido, false)) && elegido !== state.ratones[0].id) {
-    await aplicarRaton(state.ratones[0].id, false);
-  }
+  await crearSelectores();
 
   compositor = new Compositor(el("stage"));
   await compositor.init();
@@ -833,7 +770,9 @@ async function toggleTorch() {
 const cert = {
   nombre: "", fecha: hoyISO(), diente: "primero", estado: "super", premio: "", nota: "",
 };
-let certRaton;          // el PNG del personaje, ya decodificado
+// El PNG del personaje que va dibujado en el papel, ya decodificado. Lo pone el selector
+// de la carta: hasta que se pudo elegir era siempre el mismo y se cargaba al vuelo aqui.
+let certRaton;
 
 function hoyISO() {
   const d = new Date();
@@ -926,12 +865,7 @@ function prepararGuardadoCert() {
   }, "image/png");
 }
 
-async function abrirCertificado() {
-  if (!certRaton) {
-    certRaton = new Image();
-    certRaton.src = "assets/raton_perez.png";
-    try { await certRaton.decode(); } catch { /* sin el personaje, el resto se dibuja */ }
-  }
+function abrirCertificado() {
   el("cert-fecha").value = cert.fecha;
   el("cert-nombre").value = cert.nombre;
   el("cert-premio").value = cert.premio;
@@ -1135,7 +1069,9 @@ function refrescarIdioma() {
   setupIdioma();
   pintarPaso();
   pintarEfecto();
-  if (state.ratones.length) pintarRatones();
+  // Los dos, aunque solo uno este a la vista: las miniaturas llevan el nombre debajo.
+  selectorFoto?.pintar();
+  selectorCarta?.pintar();
   if (el("cert-diente").children.length) pintarChipsCarta();
   contarNota();
   contarPremio();

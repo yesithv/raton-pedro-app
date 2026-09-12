@@ -517,6 +517,20 @@
           <div id="cert-estado" class="chips" role="group" data-t-aria="carta.comoEstaba"></div>
         </div>
 
+        <!-- QUIÉN firma el papel. Es el mismo selector que el de la cámara —mismas
+             miniaturas, mismo catálogo, mismo módulo— y va aquí, con el resto de los
+             datos, porque es un dato más de la carta: se elige antes de escribirla y
+             aparece al pulsar ESCRIBIR LA CARTA, como el nombre o el premio.
+
+             La elección es SUYA y no la de la cámara: se puede llevar el morado en la foto
+             y el clásico en la carta. Compartirla ahorraría un toque y a cambio cambiaría
+             una pantalla desde la otra sin decir nada. -->
+        <div class="field">
+          <span data-t="carta.queRaton"></span>
+          <div id="cert-raton" class="ratones" role="group" data-t-aria="carta.queRaton"></div>
+          <span class="ayuda" data-t="carta.queRatonAyuda"></span>
+        </div>
+
         <label class="field">
           <span><span data-t="carta.premio"></span> <i data-t="carta.opcional"></i></span>
           <input id="cert-premio" type="text" autocomplete="off"
