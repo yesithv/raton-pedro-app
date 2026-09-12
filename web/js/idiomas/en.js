@@ -87,6 +87,13 @@ export default {
     camara: "Camera",
   },
 
+  ratones: {
+    clasico: "Classic",
+    azul: "Blue",
+    verde: "Green",
+    morado: "Purple",
+  },
+
   efectos: {
     entra_y_es_descubierto: "Walks in and gets caught",
     es_descubierto_y_se_esconde: "Gets caught and hides",
@@ -130,6 +137,10 @@ export default {
     titulo: "The camera",
     cerrar: "Close the options",
     listo: "Done",
+    raton: "Mouse in the photo",
+    ratonPie: "The one that shows up when you take the photo. The letter always has the " +
+              "classic one.",
+    ratonSinFoto: "Couldn't load “{nombre}”. Keeping the previous one.",
     rejilla: "Grid",
     rejillaPie: "The thirds lines over the viewfinder, like the phone's own camera.",
     mic: "Record your voice too",

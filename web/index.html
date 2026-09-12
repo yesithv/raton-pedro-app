@@ -353,6 +353,24 @@
     </div>
 
     <div id="camopts-scroll" class="hoja-scroll">
+      <!-- QUIÉN sale en la foto, y va lo primero: es lo único de esta hoja que cambia lo
+           que se ve en la foto y no cómo se ve. Los deslizadores de debajo afinan una
+           escena; esto elige al personaje.
+
+           Está AQUÍ y no en los ajustes de la app a propósito: se abre con el ••• del
+           paso FOTO, o sea con la cámara encendida y el ratón a la vista, así que al
+           tocar una miniatura el cambio se ve al momento sobre el visor. En los ajustes
+           -que se abren desde el arranque, antes de encender nada- se elegiría a ciegas.
+
+           Se esconde fuera del paso FOTO, que es el único donde hace algo: esta misma
+           hoja se abre también desde el asistente de vídeo, y allí el ratón lo pone la
+           animación. Un control que no hace nada donde está es peor que no tenerlo. -->
+      <section class="grupo" id="raton-grupo">
+        <h3 data-t="opciones.raton"></h3>
+        <div id="ratones" class="ratones" role="group" data-t-aria="opciones.raton"></div>
+        <p class="fine texto-hoja" id="raton-pie" data-t="opciones.ratonPie"></p>
+      </section>
+
       <section class="grupo">
         <label class="fila">
           <span>

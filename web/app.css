@@ -653,6 +653,10 @@ button:disabled { opacity: 0.5; cursor: default; }
 
 .grupo { padding: 12px 0 16px; border-top: 1px solid var(--borde); }
 .grupo:first-child { border-top: 0; padding-top: 4px; }
+/* El selector de ratón se esconde fuera del paso FOTO, y entonces el que abre la hoja
+   es el de debajo: sin esto, la primera sección aparecería con una línea de separación
+   encima de nada. */
+#raton-grupo[hidden] + .grupo { border-top: 0; padding-top: 4px; }
 .grupo h3 {
   margin: 0 0 10px;
   font-size: 12px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase;
@@ -673,6 +677,33 @@ button:disabled { opacity: 0.5; cursor: default; }
 /* Los nombres de idioma son más largos que "Claro" u "Oscuro" y no llevan glifo. */
 #idioma button { font-size: 12.5px; padding: 13px 4px; }
 .segmento button[aria-pressed="true"] {
+  background: var(--accent); color: var(--accent-ink); border-color: transparent;
+}
+
+/* El selector de ratón: se elige MIRANDO, no leyendo.
+   Por eso la miniatura manda y el nombre va debajo en pequeño — entre cuatro ratones que
+   se diferencian en el color de la ropa, la palabra "morado" llega después de haberlo
+   visto. Cuatro columnas fijas: en un móvil de 390 px salen a 76 px, que es donde un
+   personaje de cuerpo entero todavía se reconoce. */
+.ratones { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+.ratones button {
+  display: grid; gap: 6px; justify-items: center;
+  padding: 8px 4px 6px;
+  border-radius: var(--r-pill);
+  font-size: 11.5px; font-weight: 600; line-height: 1.15; text-align: center;
+  /* Sin esto, un nombre largo -"Chándal morado" en una pantalla estrecha- ensancha su
+     columna y las cuatro dejan de medir lo mismo. */
+  min-width: 0; overflow-wrap: anywhere;
+}
+.ratones img {
+  /* `contain` y no `cover`: las fotos que sustituyan a estas no tienen por qué venir con
+     la misma proporción, y recortarlas cortaría al ratón por la cabeza. */
+  width: 100%; height: 74px; object-fit: contain; object-position: bottom;
+  /* El PNG viene con transparencia y sin sombra: sobre el panel claro, un ratón oscuro
+     flotando se lee como un recorte pegado. La misma sombra que lleva en el visor. */
+  filter: drop-shadow(0 2px 4px var(--sombra));
+}
+.ratones button[aria-pressed="true"] {
   background: var(--accent); color: var(--accent-ink); border-color: transparent;
 }
 

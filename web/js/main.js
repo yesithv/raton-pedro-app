@@ -5,7 +5,7 @@ import { STEPS } from "./flow.js";
 import { drawCertificate, dientes, estados, LIMITES, limpiar,
          SIZE as CERT_SIZE } from "./certificate.js";
 import { t, IDIOMAS, idioma, idiomaInicial, fijarIdioma } from "./i18n.js";
-import { CLAVES, guardar, olvidar, leerBooleano, guardarBooleano } from "./preferencias.js";
+import { CLAVES, leer, guardar, olvidar, leerBooleano, guardarBooleano } from "./preferencias.js";
 
 const ANALYZE_EVERY = 10;   // misma cadencia que el dispositivo (seccion 2 de la arquitectura)
 const OFFSCREEN = 10.0;     // origen del overlay cuando no debe verse: el shader lo descarta
@@ -53,6 +53,11 @@ const state = {
   step: "inicio",
   catalog: [],
   fxIndex: 0,
+  // El catalogo de ratones de la foto y el `id` del elegido. El id y no el indice: el
+  // orden del catalogo cambia en cuanto se añade una foto por delante, y quien tuviera
+  // elegido el tercero se encontraria con otro.
+  ratones: [],
+  raton: null,
   meta: null,
   transform: { x: 0.5, y: 0.72, scaleFactor: 0.35 },
   facing: "environment",
@@ -237,17 +242,21 @@ function resumeLoop() {
 // ---------------------------------------------------------------------------
 
 /**
- * El nombre de la animacion que se esta enseñando.
+ * El nombre traducido de algo del catalogo, o el que traiga el propio asset.
  *
- * Se traduce POR ID y no dentro del asset: el `.json` que acompaña al video lo genera
- * `tools/build_effect.py` y describe el MATERIAL -fps, cuadros, luma de referencia-, no la
- * interfaz. Meter ahi tres titulos por idioma obligaria a regenerar los assets para
- * corregir una palabra. Si el id no esta traducido, se enseña el titulo del asset, que al
- * menos dice algo.
+ * Lo comparten las animaciones y los ratones porque las dos listas funcionan igual: se
+ * traducen POR ID y no dentro del asset. Los `.json` describen el MATERIAL -fps, cuadros,
+ * archivo-, no la interfaz; meter ahi tres titulos por idioma obligaria a tocar los
+ * assets para corregir una palabra. Y si el id no esta traducido -una foto recien añadida
+ * a mano- se enseña el titulo del catalogo, que al menos dice algo.
  */
+function nombreDelCatalogo(clave, entry) {
+  const traducido = t(clave);
+  return traducido === clave ? (entry.title ?? "") : traducido;
+}
+
 function tituloEfecto(entry) {
-  const traducido = t(`efectos.${entry.id}`);
-  return traducido === `efectos.${entry.id}` ? (entry.title ?? "") : traducido;
+  return nombreDelCatalogo(`efectos.${entry.id}`, entry);
 }
 
 function pintarEfecto() {
@@ -293,6 +302,95 @@ async function cycleEffect(delta) {
     await loadEffect((state.fxIndex + delta + n) % n);
     if (STEPS[state.step].loop) overlayVideo.play().catch(() => {});
   } catch (e) { fail(e.message); }
+}
+
+// ---------------------------------------------------------------------------
+// El raton de la foto
+// ---------------------------------------------------------------------------
+
+/**
+ * El raton que sale si no hay catalogo, y por que existe este respaldo.
+ *
+ * `assets/ratones.json` es lo que se edita cuando llegan fotos nuevas, o sea lo que
+ * alguien va a tocar a mano alguna vez. Si ese dia se queda una coma de mas, la app NO se
+ * queda sin raton: se cae al clasico, que es el PNG que el HTML ya trae puesto. Perder la
+ * foto entera por un catalogo de OPCIONES seria cambiar una funcion que funciona por otra
+ * que ya estaba.
+ */
+const RATON_RESPALDO = {
+  id: "clasico", title: "Ratón Pérez", archivo: "assets/raton_perez.png",
+};
+
+const nombreRaton = (entry) => nombreDelCatalogo(`ratones.${entry.id}`, entry);
+
+async function cargarRatones() {
+  try {
+    const lista = (await (await fetch("assets/ratones.json")).json()).ratones;
+    if (lista?.length) return lista;
+  } catch (e) {
+    console.warn(`ratones: ${e.message}`);
+  }
+  return [RATON_RESPALDO];
+}
+
+/** Las miniaturas. Se repintan tambien al cambiar de idioma: llevan el nombre debajo. */
+function pintarRatones() {
+  el("ratones").replaceChildren(...state.ratones.map((entry) => {
+    const b = document.createElement("button");
+    b.type = "button";
+    b.dataset.raton = entry.id;
+    b.setAttribute("aria-pressed", String(entry.id === state.raton));
+    const img = document.createElement("img");
+    img.src = entry.archivo;
+    // El `alt` va VACIO a proposito: el nombre esta ahi al lado, en texto, y con los dos
+    // un lector de pantalla lee cada opcion dos veces.
+    img.alt = "";
+    img.draggable = false;
+    const nombre = document.createElement("span");
+    nombre.textContent = nombreRaton(entry);
+    b.append(img, nombre);
+    b.onclick = () => aplicarRaton(entry.id);
+    return b;
+  }));
+}
+
+/**
+ * Deja puesto el raton elegido: el PNG del visor, las miniaturas y la preferencia.
+ *
+ * El archivo se DECODIFICA antes de tocar el <img>, y no es un adorno: al asignar `src` el
+ * navegador deja la imagen en "no disponible" hasta que termina de cargar, y composeShot()
+ * se salta al raton cuando `naturalWidth` vale 0. Sin esa espera, disparar justo despues
+ * de elegir sacaba una foto SIN RATON -el visor lo enseñaba y el archivo no lo tenia-, que
+ * es de los fallos que nadie reproduce luego.
+ *
+ * Y si la foto no se puede cargar, se queda la anterior y devuelve `false`: una opcion
+ * rota no puede dejar la camara sin personaje.
+ */
+async function aplicarRaton(id, persistir = true) {
+  const entry = state.ratones.find((r) => r.id === id) ?? state.ratones[0];
+  if (!entry) return false;
+
+  const img = el("sticker");
+  if (img.getAttribute("src") !== entry.archivo) {
+    const previa = new Image();
+    previa.src = entry.archivo;
+    try {
+      await previa.decode();
+    } catch (e) {
+      return fail(t("opciones.ratonSinFoto", { nombre: nombreRaton(entry) }));
+    }
+    img.src = entry.archivo;
+    if (STEPS[state.step].sticker) positionSticker();
+  }
+
+  state.raton = entry.id;
+  for (const b of el("ratones").children) {
+    b.setAttribute("aria-pressed", String(b.dataset.raton === entry.id));
+  }
+  // En el arranque no se guarda nada: lo que se lee es lo que ya habia, y escribirlo otra
+  // vez convertiria el valor de fabrica en una eleccion del usuario.
+  if (persistir) guardar(CLAVES.raton, entry.id);
+  return true;
 }
 
 // ---------------------------------------------------------------------------
@@ -342,6 +440,18 @@ async function setCamera(facing) {
 
 async function boot() {
   state.catalog = (await (await fetch("assets/catalog.json")).json()).effects;
+
+  // El catalogo de ratones se carga aqui y no en `setupAjustes()` porque su selector vive
+  // en las opciones de CAMARA, a las que no se llega sin haber pasado por aqui.
+  state.ratones = await cargarRatones();
+  pintarRatones();
+  const elegido = leer(CLAVES.raton) ?? state.ratones[0].id;
+  // Si la foto elegida ya no carga -el archivo cambio de nombre entre dos versiones- se
+  // vuelve al primero, que es el que el HTML ya trae puesto. Sin esto la camara enseñaria
+  // un raton y el selector tendria marcado otro.
+  if (!(await aplicarRaton(elegido, false)) && elegido !== state.ratones[0].id) {
+    await aplicarRaton(state.ratones[0].id, false);
+  }
 
   compositor = new Compositor(el("stage"));
   await compositor.init();
@@ -1025,6 +1135,7 @@ function refrescarIdioma() {
   setupIdioma();
   pintarPaso();
   pintarEfecto();
+  if (state.ratones.length) pintarRatones();
   if (el("cert-diente").children.length) pintarChipsCarta();
   contarNota();
   contarPremio();
@@ -1088,7 +1199,13 @@ function abrirHoja(id) {
   el(`${id}-scroll`).scrollTo(0, 0);
 }
 const abrirAjustes = () => abrirHoja("ajustes");
-const abrirCamOpts = () => abrirHoja("camopts");
+const abrirCamOpts = () => {
+  // El selector de raton solo donde hace algo. Esta misma hoja se abre tambien desde el
+  // asistente de video, y alli el raton lo pone la animacion elegida: un control que no
+  // cambia nada donde esta es peor que no tenerlo, porque se toca y no pasa nada.
+  el("raton-grupo").hidden = state.step !== "foto";
+  abrirHoja("camopts");
+};
 
 function setupAjustes() {
   // El microfono es una PREFERENCIA y sobrevive a cerrar la app; el ajuste fino no, que
