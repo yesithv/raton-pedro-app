@@ -10,6 +10,26 @@ import { CLAVES, guardar, olvidar, leerBooleano, guardarBooleano } from "./prefe
 const ANALYZE_EVERY = 10;   // misma cadencia que el dispositivo (seccion 2 de la arquitectura)
 const OFFSCREEN = 10.0;     // origen del overlay cuando no debe verse: el shader lo descarta
 
+/**
+ * El video no entra en la primera version.
+ *
+ * El MVP son la FOTO y la CARTA. El asistente de video -escanear, superficie, tamaño,
+ * editar, grabar- sigue entero y funcionando: lo unico que se cierra es la PUERTA, en los
+ * dos sitios por los que se entra, y en los dos se explica por que en vez de no hacer nada.
+ *
+ * NO SE BORRA NADA, y esa es la decision: el compositor, el analizador y la grabacion son
+ * lo unico que esta verificado de verdad en este repositorio -la prueba de web/test/ lo
+ * recorre entero y ha cazado tres fallos reales-. Borrar el camino de entrada dejaria esa
+ * prueba sin forma de llegar, y entonces habria que aparcarla, que es exactamente lo que
+ * no se hace aqui.
+ *
+ * De ahi `?video=1`: con ese parametro la puerta se abre igual que antes. Lo usan la
+ * prueba del asistente y quien siga trabajando en el video. No es una funcion escondida
+ * para el usuario -nadie escribe eso en la barra del telefono-, es la llave de servicio
+ * que mantiene viva la comprobacion.
+ */
+const VIDEO_ACTIVO = new URLSearchParams(location.search).has("video");
+
 const el = (id) => document.getElementById(id);
 
 // Valores de fabrica. Estan aqui y no dentro de `state` porque "Restablecer" necesita
@@ -1152,8 +1172,38 @@ function setupAjustes() {
   };
 }
 
+/**
+ * Deja las dos puertas del video de acuerdo con VIDEO_ACTIVO.
+ *
+ * Lo pinta el codigo y no el HTML porque si no el atributo miente en cuanto se abre la
+ * puerta: escrito a mano, con `?video=1` la tarjeta funcionaba y seguia anunciandose como
+ * deshabilitada. Un `aria-disabled` que no es verdad es peor que no ponerlo, porque quien
+ * usa un lector de pantalla se lo cree y no lo intenta.
+ *
+ * `aria-disabled` y no `disabled`: un boton deshabilitado de verdad no emite el clic, y
+ * entonces no habria forma de explicar por que no pasa nada.
+ */
+function pintarPuertaVideo() {
+  const video = el("go-video");
+  video.classList.toggle("proxima", !VIDEO_ACTIVO);
+  video.setAttribute("aria-disabled", String(!VIDEO_ACTIVO));
+  // El acento marca lo que hay que pulsar, asi que va con la accion principal de cada
+  // caso: la foto en el MVP, el video cuando se esta trabajando en el.
+  video.classList.toggle("on", VIDEO_ACTIVO);
+  el("go-photo").classList.toggle("on", !VIDEO_ACTIVO);
+  el("cam-modos").querySelector('[data-modo="video"]')
+    .setAttribute("aria-disabled", String(!VIDEO_ACTIVO));
+}
+
+/** La puerta al asistente de video: o lleva, o explica por que no. */
+function irAlVideo() {
+  if (VIDEO_ACTIVO) return setStep("escanear");
+  toast(t("inicio.videoAviso"));
+}
+
 function setupControls() {
-  el("go-video").onclick = () => setStep("escanear");
+  pintarPuertaVideo();
+  el("go-video").onclick = irAlVideo;
   el("go-photo").onclick = () => setStep("foto");
   el("snap").onclick = capturePhoto;
   el("flip").onclick = () => setCamera(state.facing === "user" ? "environment" : "user");
@@ -1167,7 +1217,7 @@ function setupControls() {
   el("foto-mas").onclick = abrirCamOpts;
   el("foto-ultima").onclick = () => { el("shot").hidden = false; };
   for (const b of el("cam-modos").children) {
-    b.onclick = () => setStep(b.dataset.modo === "foto" ? "foto" : "escanear");
+    b.onclick = () => (b.dataset.modo === "foto" ? setStep("foto") : irAlVideo());
   }
   el("place").onclick = () => setStep("superficie");
   el("next-superficie").onclick = () => setStep("tamano");
