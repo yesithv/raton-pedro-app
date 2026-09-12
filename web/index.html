@@ -397,18 +397,29 @@
 
 <!-- La carta del Ratón: primero los datos, y la carta al final -->
 <div id="cert" data-paso="datos" hidden>
-  <!-- Cerrar vive fuera de los dos pasos: en el paso del documento no había salida. -->
-  <button id="cert-volver" class="icon esquina-atras" aria-label="Volver a los datos" title="Volver">
-    <svg class="ic" aria-hidden="true"><use href="#ic-atras"/></svg>
-  </button>
-  <button id="cert-close" class="icon esquina-cerrar" aria-label="Cerrar la carta" title="Cerrar">
-    <svg class="ic" aria-hidden="true"><use href="#ic-cerrar"/></svg>
-  </button>
+  <!-- La barra de navegación, FIJA y con los dos botones SIEMPRE puestos. Antes eran dos
+       botones sueltos flotando sobre el texto y el de volver solo aparecía en el segundo
+       paso: en el primero la esquina de la izquierda estaba vacía, y una esquina que unas
+       veces tiene botón y otras no obliga a mirar antes de tocar.
+
+       La convención es la misma que en el resto de la app -izquierda se vuelve, derecha se
+       cierra- y aquí, además, es una FILA de la rejilla y no algo superpuesto: así el
+       formulario empieza debajo de la barra por construcción, sin reservarle hueco a mano
+       con un padding que hay que acordarse de cuadrar. -->
+  <div class="barra-nav">
+    <button id="cert-volver" class="icon" aria-label="Volver" title="Volver">
+      <svg class="ic" aria-hidden="true"><use href="#ic-atras"/></svg>
+    </button>
+    <div class="barra-nav-titulo" id="cert-paso-titulo">Los datos</div>
+    <button id="cert-close" class="icon" aria-label="Cerrar la carta" title="Cerrar">
+      <svg class="ic" aria-hidden="true"><use href="#ic-cerrar"/></svg>
+    </button>
+  </div>
 
   <div id="cert-scroll">
 
     <!-- Paso 1: los datos -->
-    <div id="cert-datos">
+    <div id="cert-datos" class="cert-columna">
       <h2 class="titulo-hoja">La carta del Ratón</h2>
       <p class="fine texto-hoja">Rellena lo que sepas y el Ratón escribe la
          carta. Lo único imprescindible es el nombre.</p>
@@ -460,7 +471,7 @@
     </div>
 
     <!-- Paso 2: el documento -->
-    <div id="cert-doc">
+    <div id="cert-doc" class="cert-columna">
       <h2 class="titulo-hoja" id="cert-doc-titulo">Ya está escrita</h2>
       <p class="fine texto-hoja">Guárdala en el carrete o mándala a la impresora.</p>
       <div id="cert-preview">
@@ -469,17 +480,22 @@
     </div>
   </div>
 
+  <!-- La banda de abajo llega de borde a borde -el degradado tiene que tapar el texto que
+       pasa por debajo- pero los botones van en la MISMA columna que el formulario, para
+       que el borde del botón caiga donde cae el borde de los campos. -->
   <div id="cert-actions">
-    <!-- Paso 1 -->
-    <button id="cert-generar" class="primary">Escribir la carta</button>
+    <div class="cert-columna">
+      <!-- Paso 1 -->
+      <button id="cert-generar" class="primary">Escribir la carta</button>
 
-    <!-- Paso 2 -->
-    <button id="cert-share" hidden class="primary">Guardar en Fotos</button>
-    <div class="actions" id="cert-acciones-doc">
-      <button id="cert-print" class="btn">Imprimir</button>
-      <a id="cert-save" class="btn" download="carta-del-raton-perez.png">Descargar</a>
+      <!-- Paso 2 -->
+      <button id="cert-share" hidden class="primary">Guardar en Fotos</button>
+      <div class="actions" id="cert-acciones-doc">
+        <button id="cert-print" class="btn">Imprimir</button>
+        <a id="cert-save" class="btn" download="carta-del-raton-perez.png">Descargar</a>
+      </div>
+      <div id="cert-tip" class="tip"></div>
     </div>
-    <div id="cert-tip" class="tip"></div>
   </div>
 </div>
 

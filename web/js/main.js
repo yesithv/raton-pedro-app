@@ -671,9 +671,24 @@ function pintarChips(contenedor, opciones, campo) {
 function generarCertificado() {
   drawCertificate(el("cert-canvas"), cert, certRaton);
   prepararGuardadoCert();
-  el("cert").dataset.paso = "documento";
-  el("cert-scroll").scrollTo(0, 0);
+  pasoCert("documento");
   el("cert-doc-titulo").textContent = "Ya está escrita";
+}
+
+/**
+ * Cambia de paso y deja la pantalla entera de acuerdo con el nuevo.
+ *
+ * Va junto y no repartido por los sitios que cambian de paso porque son TRES cosas que
+ * tienen que moverse a la vez -el atributo, el rótulo de la barra y el desplazamiento- y
+ * separadas se olvida siempre alguna: el rótulo se quedaba diciendo el paso anterior.
+ *
+ * El rótulo dice EN QUÉ PASO SE ESTÁ, no cómo se llama la pantalla: el nombre ya lo dice
+ * el titular grande de debajo, y repetirlo dos veces a dos tamaños no informa de nada.
+ */
+function pasoCert(paso) {
+  el("cert").dataset.paso = paso;
+  el("cert-paso-titulo").textContent = paso === "documento" ? "La carta" : "Los datos";
+  el("cert-scroll").scrollTo(0, 0);
 }
 
 /** El nombre es lo único que no se puede dejar en blanco: sin él no hay a quién escribir. */
@@ -720,10 +735,15 @@ async function abrirCertificado() {
   pintarChips(el("cert-diente"), DIENTES, "diente");
   pintarChips(el("cert-estado"), ESTADOS, "estado");
   revisarNombre();
+  // El paso se fija ANTES de enseñar la pantalla: al revés, quien vuelve a entrar después
+  // de haber escrito una carta ve un fotograma del documento anterior antes del formulario.
   el("cert").dataset.paso = "datos";     // siempre se entra por los datos
   el("cert").hidden = false;
-  el("cert-scroll").scrollTo(0, 0);
+  pasoCert("datos");
 }
+
+/** Cierra la carta y devuelve al inicio, que es de donde se entra. */
+function cerrarCertificado() { el("cert").hidden = true; }
 
 /**
  * La cuenta de lo que queda por escribir, para los campos que tienen límite.
@@ -805,13 +825,16 @@ function setupCertificado() {
   // se separan en cuanto alguien cambie un tamaño del dibujo.
   el("go-cert").onclick = abrirCertificado;
   el("cert-generar").onclick = () => { if (revisarNombre()) generarCertificado(); };
+  // Arriba a la izquierda se VUELVE, y vuelve siempre: desde la carta, al formulario; desde
+  // el formulario, al inicio, que es de donde se vino. Antes el botón no existía en el
+  // primer paso, y la única salida era la X: quien entraba a mirar el formulario tenía que
+  // CERRAR para volver, que no es lo mismo aunque acabe en el mismo sitio.
   // Volver a los datos conserva lo escrito: se corrige una errata sin repetirlo todo.
-  // Vive arriba a la izquierda, como el volver de todas las demas pantallas.
   el("cert-volver").onclick = () => {
-    el("cert").dataset.paso = "datos";
-    el("cert-scroll").scrollTo(0, 0);
+    if (el("cert").dataset.paso === "documento") pasoCert("datos");
+    else cerrarCertificado();
   };
-  el("cert-close").onclick = () => { el("cert").hidden = true; };
+  el("cert-close").onclick = cerrarCertificado;
   el("cert-print").onclick = () => window.print();
 }
 
