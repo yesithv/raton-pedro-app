@@ -1048,6 +1048,107 @@ check('el documento se genera con los datos del formulario', () =>
   assert.notEqual(otro.datos, lleno.datos, 'cambiar el nombre no cambió la carta'));
 
 // ---------------------------------------------------------------------------
+// El ratón de la CARTA, que es otra elección
+// ---------------------------------------------------------------------------
+// El mismo selector que el de la cámara —mismo módulo, mismo catálogo, mismas
+// miniaturas— pero con su propia elección: se puede llevar el morado en la foto y el
+// clásico en la carta. Aquí arriba la cámara ya se quedó en el MORADO, así que lo que
+// este bloque comprueba de paso es que eso NO se ha colado en la carta.
+console.log('el ratón de la carta');
+
+/**
+ * La carta de ahora, guardada en la página para compararla con la siguiente.
+ *
+ * Se queda DENTRO del navegador a propósito: el lienzo son 1240x1754, o sea más de dos
+ * millones de píxeles, y traérselos por el puente de Playwright dos veces para restarlos
+ * aquí sería mover ocho megas para contestar a una pregunta de dos números.
+ */
+const guardarCarta = () => page.evaluate(() => {
+  const c = document.getElementById('cert-canvas');
+  window.__carta = c.getContext('2d').getImageData(0, 0, c.width, c.height).data;
+});
+
+/**
+ * En qué se diferencia la carta de ahora de la guardada.
+ *
+ * Se compara PÍXEL A PÍXEL y solo se miran los que cambian, y eso es lo que hace que la
+ * comprobación no repita aquí las coordenadas con las que `drawCertificate` coloca al
+ * ratón: si algún día se mueve de sitio, esto lo sigue. El grano del papel es determinista
+ * -está escrito así a propósito en `certificate.js`- así que dos cartas con los mismos
+ * datos solo se diferencian en el ratón.
+ */
+const compararCarta = () => page.evaluate(() => {
+  const c = document.getElementById('cert-canvas');
+  const ahora = c.getContext('2d').getImageData(0, 0, c.width, c.height).data;
+  const antes = window.__carta;
+  let distintos = 0, dRojo = 0, dAzul = 0;
+  for (let i = 0; i < ahora.length; i += 4) {
+    const d = Math.abs(ahora[i] - antes[i]) + Math.abs(ahora[i + 1] - antes[i + 1]) +
+              Math.abs(ahora[i + 2] - antes[i + 2]);
+    if (d > 30) {
+      distintos++;
+      dRojo += ahora[i] - antes[i];
+      dAzul += ahora[i + 2] - antes[i + 2];
+    }
+  }
+  return {
+    distintos,
+    // Donde cambió: cuánto ha subido el azul por encima de lo que ha bajado el rojo. Es lo
+    // que distingue un chándal morado de uno rojo, y no depende de dónde esté dibujado.
+    azulSobreRojo: distintos ? (dAzul - dRojo) / distintos : 0,
+  };
+});
+
+// La carta que está en pantalla lleva el ratón de fábrica: es la referencia.
+await guardarCarta();
+
+await page.click('#cert-volver');
+const selectorCarta = await page.evaluate(() => ({
+  ids: [...document.querySelectorAll('#cert-raton button')].map((b) => b.dataset.raton),
+  marcados: [...document.querySelectorAll('#cert-raton button[aria-pressed="true"]')]
+    .map((b) => b.dataset.raton),
+  nombres: [...document.querySelectorAll('#cert-raton button span')].map((e) => e.textContent),
+  enLaCamara: localStorage.getItem('raton'),
+}));
+check('la carta trae el mismo selector, con los cuatro ratones', () => {
+  assert.deepEqual(selectorCarta.ids, catalogoRatones.map((r) => r.id));
+  assert.deepEqual(selectorCarta.nombres, ['Clásico', 'Azul', 'Verde', 'Morado']);
+});
+// LA INDEPENDENCIA, que es la decisión que se tomó: elegir en la cámara no puede cambiar
+// la carta. Arriba se eligió el morado para la foto y aquí sigue marcado el clásico.
+check('el ratón de la carta es SUYO, no el que se eligió en la cámara', () => {
+  assert.equal(selectorCarta.enLaCamara, 'morado', 'la cámara no se quedó en el morado');
+  assert.deepEqual(selectorCarta.marcados, ['clasico'],
+    `marcados: ${selectorCarta.marcados.join(', ') || 'ninguno'}`);
+});
+
+await page.click('#cert-raton button[data-raton="morado"]');
+await page.waitForFunction(
+  () => document.querySelector('#cert-raton button[data-raton="morado"]')
+          .getAttribute('aria-pressed') === 'true', null, { timeout: 15_000 });
+const guardadoCarta = await page.evaluate(() => ({
+  carta: localStorage.getItem('ratonCarta'),
+  camara: localStorage.getItem('raton'),
+}));
+check('la elección de la carta se guarda en su propia clave', () => {
+  assert.equal(guardadoCarta.carta, 'morado', 'la carta no guardó su ratón');
+  assert.equal(guardadoCarta.camara, 'morado', 'la carta pisó la elección de la cámara');
+});
+
+await page.click('#cert-generar');
+await page.waitForTimeout(600);
+const cambioLaCarta = await compararCarta();
+console.log(`  la carta cambió en ${cambioLaCarta.distintos} píxeles · ` +
+            `${cambioLaCarta.azulSobreRojo.toFixed(1)} de azul sobre rojo`);
+check('elegir otro ratón cambia el que va dibujado en el papel', () => {
+  assert(cambioLaCarta.distintos > 2000,
+    `solo cambiaron ${cambioLaCarta.distintos} píxeles: el papel salió con el mismo ratón`);
+  assert(cambioLaCarta.azulSobreRojo > 40,
+    `donde cambió no es un chándal morado: ${cambioLaCarta.azulSobreRojo.toFixed(1)}`);
+});
+await shot('10b_carta_con_el_raton_elegido');
+
+// ---------------------------------------------------------------------------
 // Las palabras del padre
 // ---------------------------------------------------------------------------
 // Dos cosas distintas que comprobar: que se ESCRIBEN dentro de la carta como un párrafo
