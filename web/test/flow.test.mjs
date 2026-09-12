@@ -33,22 +33,39 @@ const browser = await chromium.launch({
   ],
 });
 
+// El idioma del navegador se FIJA, y no es un detalle de la prueba: la app detecta el del
+// teléfono en la primera visita, así que sin esto el recorrido correría en el idioma del
+// runner —inglés en CI— y todas las comprobaciones de texto de aquí abajo fallarían por un
+// motivo que no es el que están vigilando. La detección se prueba aparte, al final, en su
+// propio contexto.
 const ctx = await browser.newContext({
   viewport: { width: 412, height: 892 },
   deviceScaleFactor: 2,
   permissions: ['camera', 'microphone'],
+  locale: 'es-ES',
 });
 const page = await ctx.newPage();
 
 const problems = [];
-page.on('pageerror', (e) => problems.push(`pageerror: ${e.message}`));
-page.on('console', (m) => { if (m.type() === 'error') problems.push(`console: ${m.text()}`); });
-// 304 es "no ha cambiado, usa tu copia": la respuesta correcta a una revalidación de
-// caché, y la que da el servidor al recargar. ok() solo acepta 200-299, así que hay que
-// dejarla pasar a mano o la prueba se cae por un acierto del servidor.
-page.on('response', (r) => {
-  if (!r.ok() && r.status() !== 304) problems.push(`http ${r.status()}: ${r.url()}`);
-});
+
+/**
+ * Deja una pestaña vigilada: errores de página, de consola y respuestas malas.
+ *
+ * Es una función y no cuatro líneas sueltas porque la prueba abre una SEGUNDA pestaña -la
+ * del idioma detectado- y una pestaña sin vigilar es una pestaña donde un error de
+ * JavaScript no cuenta como fallo.
+ */
+const vigilar = (p) => {
+  p.on('pageerror', (e) => problems.push(`pageerror: ${e.message}`));
+  p.on('console', (m) => { if (m.type() === 'error') problems.push(`console: ${m.text()}`); });
+  // 304 es "no ha cambiado, usa tu copia": la respuesta correcta a una revalidación de
+  // caché, y la que da el servidor al recargar. ok() solo acepta 200-299, así que hay que
+  // dejarla pasar a mano o la prueba se cae por un acierto del servidor.
+  p.on('response', (r) => {
+    if (!r.ok() && r.status() !== 304) problems.push(`http ${r.status()}: ${r.url()}`);
+  });
+};
+vigilar(page);
 
 const shot = async (name) => {
   await page.waitForTimeout(400);
@@ -180,35 +197,96 @@ check('el tema elegido sobrevive a recargar', () => {
 });
 await page.click('#tema button[data-tema="auto"]');
 
-// El idioma: por ahora SOLO el selector. Lo que hay que comprobar es que se puede
-// elegir, que la elección se queda puesta, y -sobre todo- que la app NO miente diciendo
-// que ya está traducida: el pie tiene que avisar de que los textos llegan después.
+// ---------------------------------------------------------------------------
+// El idioma
+// ---------------------------------------------------------------------------
+// Ya no es un selector que solo se acuerda de lo que pulsaste: cambia la app entera y en
+// caliente. Lo que hay que demostrar es lo que un usuario notaría si se rompiera —que la
+// pantalla cambia DE VERDAD de palabras, que el `<html lang>` va con ellas, y que volver
+// al castellano lo devuelve todo— y una cosa que no se ve pero se paga cara: que los tres
+// catálogos traen exactamente las mismas claves.
 const idiomas = await page.$$eval('#idioma button', (bs) => bs.map((b) => b.dataset.idioma));
 check('el selector de idioma ofrece las tres opciones', () =>
   assert.deepEqual(idiomas, ['es', 'en', 'pt']));
 
-await page.click('#idioma button[data-idioma="en"]');
-const trasIdioma = await page.evaluate(() => ({
+const pantallaEnIdioma = () => page.evaluate(() => ({
   marcado: [...document.querySelectorAll('#idioma button[aria-pressed="true"]')]
     .map((b) => b.dataset.idioma),
-  pie: document.getElementById('idioma-pie').textContent,
   lang: document.documentElement.lang,
+  pie: document.getElementById('idioma-pie').textContent,
+  // Un texto del HTML, uno de un atributo y el título del documento: las tres formas de
+  // marcar que tiene `i18n.js`, cada una por un camino distinto.
+  empezar: document.getElementById('start').textContent,
+  ajustesAria: document.getElementById('ajustes-abrir').getAttribute('aria-label'),
+  titulo: document.title,
+  secciones: [...document.querySelectorAll('#ajustes-scroll h3')].map((h) => h.textContent),
 }));
-check('elegir un idioma lo deja elegido y avisa de que aún no traduce', () => {
-  assert.deepEqual(trasIdioma.marcado, ['en'], 'la opción no quedó marcada');
-  assert(/más adelante|español/i.test(trasIdioma.pie),
-    `el pie no avisa de que los textos faltan: "${trasIdioma.pie}"`);
-  // `lang` se queda en es a propósito: los textos SIGUEN en castellano, y decirle otra
-  // cosa al lector de pantalla es peor que no ofrecer el idioma.
-  assert.equal(trasIdioma.lang, 'es', 'el <html lang> miente sobre el idioma real');
+
+const enEspanol = await pantallaEnIdioma();
+await page.click('#idioma button[data-idioma="en"]');
+const enIngles = await pantallaEnIdioma();
+await page.click('#idioma button[data-idioma="pt"]');
+const enPortugues = await pantallaEnIdioma();
+
+check('elegir un idioma traduce la pantalla, no solo el selector', () => {
+  assert.deepEqual(enIngles.marcado, ['en'], 'la opción no quedó marcada');
+  assert.equal(enIngles.empezar, 'Turn on the camera',
+    `el botón de arranque no se tradujo: "${enIngles.empezar}"`);
+  assert.equal(enIngles.ajustesAria, 'Settings',
+    `los atributos no se traducen: aria-label = "${enIngles.ajustesAria}"`);
+  assert(enIngles.titulo.includes('prototype'),
+    `el <title> se quedó sin traducir: "${enIngles.titulo}"`);
+  assert.deepEqual(enIngles.secciones, ['Theme', 'Language']);
 });
+check('el <html lang> dice el idioma que se está viendo', () => {
+  // Antes se quedaba en "es" a propósito, porque los textos seguían en castellano y
+  // mentirle al lector de pantalla era peor. Ahora los textos están, así que el atributo
+  // tiene que decir la verdad: es lo que usan el lector de pantalla y el guionado.
+  assert.equal(enEspanol.lang, 'es');
+  assert.equal(enIngles.lang, 'en');
+  assert.equal(enPortugues.lang, 'pt');
+});
+check('el pie confirma el cambio en el idioma recién elegido', () => {
+  // Quien acaba de tocar el selector necesita leer la confirmación ya traducida: es la
+  // única prueba a la vista de que el cambio ha surtido efecto.
+  assert(/español/i.test(enEspanol.pie), enEspanol.pie);
+  assert(/english/i.test(enIngles.pie), enIngles.pie);
+  assert(/portugu/i.test(enPortugues.pie), enPortugues.pie);
+});
+
 await page.click('#idioma button[data-idioma="es"]');
+const devuelto = await pantallaEnIdioma();
+check('volver al castellano lo devuelve todo', () => {
+  assert.deepEqual(devuelto, enEspanol, 'quedó algo del idioma anterior en la pantalla');
+});
+
+// Los tres catálogos, clave a clave. Es la comprobación que no se puede hacer mirando la
+// pantalla y la que más falta hace: añadir un texto en `es.js` y olvidarlo en los otros dos
+// no rompe NADA hasta que alguien cambia de idioma, y entonces ya no hay quien lo vea
+// venir. Se comparan las rutas completas, así que también canta una clave de más.
+const claves = await page.evaluate(async () => {
+  const { CATALOGOS } = await import('./js/i18n.js');
+  const rutas = (n, prefijo = '') => (
+    n && typeof n === 'object' && !Array.isArray(n)
+      ? Object.entries(n).flatMap(([k, v]) => rutas(v, prefijo ? `${prefijo}.${k}` : k))
+      : [prefijo]);
+  return Object.fromEntries(CATALOGOS.map((c) => [c.id, rutas(c).sort()]));
+});
+check('los tres idiomas traen exactamente las mismas claves', () => {
+  const original = claves.es;
+  assert(original.length > 100, `el catálogo se quedó en ${original.length} claves`);
+  for (const [id, suyas] of Object.entries(claves)) {
+    const faltan = original.filter((k) => !suyas.includes(k));
+    const sobran = suyas.filter((k) => !original.includes(k));
+    assert.deepEqual({ faltan, sobran }, { faltan: [], sobran: [] },
+      `"${id}" no cuadra con el castellano`);
+  }
+});
 
 // Los ajustes de la app NO llevan nada de la cámara: eso vive en las opciones de cámara,
 // que es donde los deslizadores sirven porque se ve la escena al moverlos.
-const dentroDeAjustes = await page.$$eval('#ajustes-scroll h3', (hs) => hs.map((h) => h.textContent));
 check('los ajustes de la app son solo tema e idioma', () =>
-  assert.deepEqual(dentroDeAjustes, ['Tema', 'Idioma']));
+  assert.deepEqual(enEspanol.secciones, ['Tema', 'Idioma']));
 
 await page.click('#ajustes-listo');
 const ajustesTrasListo = await page.getAttribute('#ajustes', 'hidden');
@@ -912,6 +990,52 @@ check('una nota del largo máximo sigue cabiendo en el peor caso', () => {
   assert(caja.con.fin > caja.sin.fin, 'la nota no ha alargado la carta: ¿se está dibujando?');
 });
 
+// ---------------------------------------------------------------------------
+// La carta, en los tres idiomas
+// ---------------------------------------------------------------------------
+// Es la mitad del trabajo de traducir esta app y la que más fácil se queda a medias: una
+// interfaz en inglés que escupe una carta en castellano no está traducida, y encima el
+// papel es justo lo que lee el niño.
+//
+// Y `LIMITES.nota` -que salió de MEDIR el dibujo- se midió en castellano. Cada idioma
+// escribe con otro largo, así que el peor caso se comprueba en los tres: si una
+// traducción se pasa de larga, el que se sale del papel es el que la lleva, y sin esto se
+// vería en la impresora de alguien.
+const porIdioma = await page.evaluate(async ({ datos, n }) => {
+  const { fijarIdioma, IDIOMAS } = await import('./js/i18n.js');
+  const { drawCertificate, LIMITES, dientes } = await import('./js/certificate.js');
+  const lienzo = document.createElement('canvas');
+  const salida = {};
+  for (const { id } of IDIOMAS) {
+    fijarIdioma(id);
+    const nota = 'x '.repeat(n).slice(0, LIMITES.nota).trim();
+    salida[id] = {
+      caja: drawCertificate(lienzo, { ...datos, fecha: '2026-09-11', nota }).__caja,
+      dibujo: lienzo.toDataURL('image/png'),
+      primerDiente: dientes()[0].etiqueta,
+    };
+  }
+  fijarIdioma('es');          // se deja como estaba: quedan comprobaciones detrás
+  return salida;
+}, { datos: PEOR, n: limite });
+
+check('la carta se dibuja distinta en cada idioma', () => {
+  const dibujos = Object.values(porIdioma).map((x) => x.dibujo);
+  assert.equal(new Set(dibujos).size, dibujos.length,
+    'dos idiomas pintan la MISMA carta: el papel se quedó sin traducir');
+  const fichas = Object.values(porIdioma).map((x) => x.primerDiente);
+  assert.equal(new Set(fichas).size, fichas.length,
+    `las fichas del formulario no cambian de idioma: ${fichas.join(' · ')}`);
+});
+check('el peor caso cabe en el papel en los tres idiomas', () => {
+  for (const [id, x] of Object.entries(porIdioma)) {
+    assert(x.caja.cabe,
+      `en "${id}" la carta se sale con ${limite} caracteres: acaba en ${x.caja.fin}`);
+    assert(x.caja.tam >= 28,
+      `en "${id}" la letra se encogió por debajo del suelo: ${x.caja.tam}px`);
+  }
+});
+
 // Que la nota salga DENTRO de la carta y no como una cita aparte no se puede afirmar
 // mirando píxeles, pero sí se puede comprobar lo que la delataría: que el dibujo cambia
 // al escribirla, y que no se le añaden comillas por el camino.
@@ -975,6 +1099,47 @@ await page.waitForSelector('#cert:not([hidden])', { timeout: 10_000 });
 await page.click('#cert-volver');
 const vueltoAlInicio = !(await page.isVisible('#cert')) && await page.isVisible('#ui-inicio');
 check('desde los datos, volver sale al inicio', () => assert(vueltoAlInicio));
+
+// ---------------------------------------------------------------------------
+// El idioma del teléfono manda la primera vez
+// ---------------------------------------------------------------------------
+// En un contexto NUEVO, sin nada guardado, como quien abre el enlace por primera vez. Es
+// la única forma de probarlo: en el de arriba ya hay una elección en localStorage, y una
+// elección siempre gana a la detección -si alguien pidió castellano teniendo el teléfono
+// en inglés, fue a propósito-.
+console.log('idioma del teléfono');
+const ctxIngles = await browser.newContext({
+  viewport: { width: 412, height: 892 },
+  permissions: ['camera'],
+  locale: 'en-GB',
+});
+const paginaInglesa = await ctxIngles.newPage();
+vigilar(paginaInglesa);
+await paginaInglesa.goto(`${BASE}/web/index.html`, { waitUntil: 'networkidle' });
+const recienLlegado = await paginaInglesa.evaluate(() => ({
+  lang: document.documentElement.lang,
+  empezar: document.getElementById('start').textContent,
+}));
+check('quien abre la app con el teléfono en inglés la ve en inglés', () => {
+  assert.equal(recienLlegado.lang, 'en', `arrancó en "${recienLlegado.lang}"`);
+  assert.equal(recienLlegado.empezar, 'Turn on the camera', recienLlegado.empezar);
+});
+
+// Y lo elegido a mano gana a la detección, también después de recargar: es una
+// preferencia, no una corazonada del navegador.
+await paginaInglesa.click('#ajustes-abrir');
+await paginaInglesa.waitForSelector('#ajustes:not([hidden])', { timeout: 5_000 });
+await paginaInglesa.click('#idioma button[data-idioma="pt"]');
+await paginaInglesa.reload({ waitUntil: 'networkidle' });
+const trasRecargarIdioma = await paginaInglesa.evaluate(() => ({
+  lang: document.documentElement.lang,
+  empezar: document.getElementById('start').textContent,
+}));
+check('el idioma elegido a mano gana a la detección y sobrevive a recargar', () => {
+  assert.equal(trasRecargarIdioma.lang, 'pt', `volvió en "${trasRecargarIdioma.lang}"`);
+  assert.equal(trasRecargarIdioma.empezar, 'Ligar a câmara', trasRecargarIdioma.empezar);
+});
+await ctxIngles.close();
 
 await browser.close();
 

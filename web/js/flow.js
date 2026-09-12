@@ -3,6 +3,12 @@
 // legitimo, copiar su redaccion palabra por palabra no aporta nada y ademas se puede
 // escribir mas claro.
 //
+// AQUI YA NO HAY TEXTOS, solo comportamiento: que gesto admite el paso, si se ve el
+// reticulo, si el personaje va en bucle y a donde se vuelve. El titulo y la pista de cada
+// paso viven en `idiomas/` bajo `pasos.<nombre>`, y main.js los busca por el nombre del
+// paso. Mezclados aqui, cada idioma nuevo obligaba a tocar este archivo -que es logica- y
+// a mantener tres copias de la maquina de estados.
+//
 // Todos los pasos que muestran al personaje lo reproducen en BUCLE. Es lo que hace la
 // referencia -el raton esta animado mientras lo colocas- y ademas elimina una
 // dependencia fragil: mostrar un "frame de pose" exige poder BUSCAR en el video, y hay
@@ -17,25 +23,17 @@
 
 export const STEPS = {
   inicio: {
-    title: "",
-    hint: "",
     overlay: false,
     reticle: false,
     gesture: "none",
   },
   escanear: {
-    title: "ESCANEAR",
-    hint: "Apunta al suelo o a la cama y mueve el teléfono despacio.\n" +
-          "Cuando el círculo se quede quieto, tócalo para dejar ahí al ratón.",
     overlay: false,
     reticle: true,
     gesture: "move",
     back: "inicio",
   },
   superficie: {
-    title: "POSICIÓN",
-    hint: "Ya tengo la superficie. Arrastra hacia arriba o hacia abajo para acercar o " +
-          "alejar al ratón.",
     overlay: true,
     reticle: false,
     gesture: "moveY",
@@ -43,8 +41,6 @@ export const STEPS = {
     back: "escanear",
   },
   tamano: {
-    title: "TAMAÑO",
-    hint: "Pellizca para ajustar el tamaño. Cuanto más pequeño, más creíble.",
     overlay: true,
     reticle: false,
     gesture: "scale",
@@ -52,8 +48,6 @@ export const STEPS = {
     back: "superficie",
   },
   editar: {
-    title: "EDITAR",
-    hint: "Elige qué hace el ratón.",
     overlay: true,
     reticle: false,
     gesture: "none",
@@ -69,11 +63,11 @@ export const STEPS = {
   // camara, no un frame del atlas color|matte. Una foto no necesita animacion, y el
   // <video> del overlay es justo la pieza que mas se rompe en un movil (autoplay,
   // codecs, decodificadores ocupados). Para una imagen fija, un <img> siempre pinta.
+  //
+  // Su pista es corta a proposito: en FOTO no es una caja de instrucciones, es una
+  // pastilla que se va sola a los cuatro segundos, como los avisos de la camara del
+  // telefono.
   foto: {
-    title: "FOTO",
-    // Corto a proposito: en FOTO esto no es una caja de instrucciones, es una pastilla
-    // que se va sola a los cuatro segundos, como los avisos de la camara del telefono.
-    hint: "Arrastra al ratón y pellízcalo para cambiar su tamaño.",
     overlay: false,
     sticker: true,
     reticle: false,
@@ -82,9 +76,6 @@ export const STEPS = {
   },
 
   grabar: {
-    title: "GRABAR",
-    hint: "Pulsa el botón rojo. Se detiene solo al acabar la animación.\n" +
-          "Puedes hablar mientras grabas: tu voz entra en el video.",
     overlay: true,
     reticle: false,
     gesture: "none",

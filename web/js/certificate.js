@@ -21,7 +21,18 @@
 //
 // Los campos salen de la convención española real del Ratoncito Pérez -nombre, fecha,
 // qué diente, ESTADO del diente y la recompensa-, que es más específica que la del tooth
-// fairy anglosajón, donde solo se registran nombre y fecha.
+// fairy anglosajón, donde solo se registran nombre y fecha. Se mantienen los cinco en los
+// tres idiomas: son los campos del producto, no una particularidad del castellano, y
+// recortarlos fuera de España convertiría la carta en el certificado escueto del que se
+// venía huyendo.
+//
+// EL PAPEL TAMBIÉN SE TRADUCE, y esa es la parte que cuesta: una interfaz en inglés que
+// escupe una carta en castellano no está traducida, está a medias, y además lo que el
+// niño lee es justo el papel. Ni una frase de aquí está escrita en este archivo: todas
+// salen de `idiomas/`, incluidos los meses y la tabla de dientes, porque la concordancia
+// de género -"me LA llevé envueltA"- es gramática del idioma y no del dibujo.
+
+import { t } from "./i18n.js";
 
 export const SIZE = { w: 1240, h: 1754 };
 
@@ -54,37 +65,33 @@ const REDONDA = 'ui-rounded, "SF Pro Rounded", "Varela Round", "Trebuchet MS", '
 /** Solo para los rótulos en versalitas del sello y la cabecera. */
 const SANS = '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
 
-const MESES = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio",
-               "agosto", "septiembre", "octubre", "noviembre", "diciembre"];
-
-/** "2026-09-11" -> "11 de septiembre de 2026". Sin Date: evita el desfase de zona. */
+/**
+ * "2026-09-11" -> "11 de septiembre de 2026". Sin Date: evita el desfase de zona.
+ *
+ * El formato lo pone el idioma (`carta.fechaLarga`) y no `Intl.DateTimeFormat`: el
+ * formato largo de Intl varía entre navegadores, y esta carta se IMPRIME. Una fecha que
+ * cambia de forma según el teléfono delata la plantilla.
+ */
 export function fechaLarga(iso) {
   const [a, m, d] = (iso || "").split("-").map(Number);
   if (!a || !m || !d) return "";
-  return `${d} de ${MESES[m - 1]} de ${a}`;
+  return t("carta.fechaLarga", { d, mes: t("carta.meses")[m - 1], a });
 }
 
-// `pronombre` y `posesivo` no son un lujo: "una muela" es femenino y sin ellos la carta
-// dice "lo envolví" y "el tuyo" de una muela.
-export const DIENTES = [
-  { id: "primero", etiqueta: "El primero", objeto: "tu primer diente",
-    pronombre: "lo", posesivo: "El tuyo", terminacion: "o" },
-  { id: "arriba", etiqueta: "Uno de arriba", objeto: "un diente de arriba",
-    pronombre: "lo", posesivo: "El tuyo", terminacion: "o" },
-  { id: "abajo", etiqueta: "Uno de abajo", objeto: "un diente de abajo",
-    pronombre: "lo", posesivo: "El tuyo", terminacion: "o" },
-  { id: "muela", etiqueta: "Una muela", objeto: "tu muela",
-    pronombre: "la", posesivo: "La tuya", terminacion: "a" },
-];
+// Funciones y no constantes, y ese es todo el cambio: la tabla depende del idioma actual,
+// así que no se puede congelar en una constante de módulo -se quedaría con el idioma que
+// hubiera al cargar el archivo, que es antes de que el usuario elija-.
+//
+// `pronombre`, `posesivo` y `terminacion` no son un lujo: "una muela" es femenino y sin
+// ellos la carta dice "lo envolví" y "el tuyo" de una muela. Cada idioma trae los suyos y
+// usa en su plantilla los que su gramática necesita; el inglés, que no concuerda en
+// género, deja `terminacion` vacía y no la nombra.
+export const dientes = () => t("carta.dientes");
 
-// Ninguna frase riñe al niño: la que avisa lo hace de parte del cepillo y con gracia.
-export const ESTADOS = [
-  { id: "super", etiqueta: "Súper limpio",
-    frase: "Se notaba a la legua que te lavas los dientes todos los días." },
-  { id: "limpio", etiqueta: "Limpio", frase: "Se nota que los cuidas." },
-  { id: "mejorable", etiqueta: "Se puede mejorar",
-    frase: "Al cepillo le gustaría verte un poco más a menudo." },
-];
+// Ninguna frase riñe al niño: la que avisa lo hace de parte del cepillo y con gracia. Vale
+// para los tres idiomas, que es una decisión de producto y por eso se traduce el tono, no
+// solo las palabras.
+export const estados = () => t("carta.estados");
 
 /**
  * Los límites de los campos, en un solo sitio.
@@ -107,7 +114,9 @@ export const ESTADOS = [
  *
  * La comprobación de `web/test/` dibuja una nota de exactamente `nota` caracteres en el
  * peor caso y falla si el texto alcanza la despedida, así que el número no puede quedarse
- * obsoleto en silencio.
+ * obsoleto en silencio. Y lo hace EN LOS TRES IDIOMAS: el número se midió en castellano,
+ * pero cada idioma escribe con otro largo, y una traducción que se pase se saldría del
+ * papel en la impresora de alguien.
  */
 export const LIMITES = {
   nombre: 28,
@@ -159,23 +168,22 @@ const TOPE = 1330;
 
 /** Lo que la carta cuenta siempre, antes de las palabras del padre. */
 function parrafosDeLaCarta(datos) {
-  const d = DIENTES.find((x) => x.id === datos.diente) ?? DIENTES[0];
-  const e = ESTADOS.find((x) => x.id === datos.estado) ?? ESTADOS[0];
+  const tabla = dientes();
+  const d = tabla.find((x) => x.id === datos.diente) ?? tabla[0];
+  const estadosDelDiente = estados();
+  const e = estadosDelDiente.find((x) => x.id === datos.estado) ?? estadosDelDiente[0];
   const premio = limpiar(datos.premio, LIMITES.premio);
   const nota = limpiar(datos.nota, LIMITES.nota);
 
   const ps = [
-    "Anoche entré en tu cuarto de puntillas. Estabas durmiendo tan a gusto que no quise " +
-    "despertarte.",
-    `Debajo de la almohada encontré ${d.objeto}. ${e.frase} Me ${d.pronombre} llevé ` +
-    `envuelt${d.terminacion} en un pañuelo a mi museo, donde guardo los dientes más ` +
-    `valientes del mundo. ${d.posesivo} ya tiene su sitio, con tu nombre debajo.`,
+    t("carta.parrafoEntrada"),
+    t("carta.parrafoDiente", { ...d, frase: e.frase }),
   ];
-  if (premio) ps.push(`A cambio te dejé ${premio} en su lugar.`);
+  if (premio) ps.push(t("carta.parrafoPremio", { premio }));
   // Las palabras del padre entran aquí, en medio de la carta y sin marca ninguna: es el
   // Ratón quien las dice.
   if (nota) ps.push(nota);
-  ps.push("Volveré cuando se caiga el siguiente.");
+  ps.push(t("carta.parrafoCierre"));
   return ps;
 }
 
@@ -335,8 +343,8 @@ function sello(ctx, cx, cy, r) {
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
   // Arriba mirando hacia afuera; abajo mirando hacia dentro, como en un sello real.
-  textoEnArco(ctx, "MUSEO DE LOS DIENTES", cx, cy, r - 20, -Math.PI / 2, false, 1.8);
-  textoEnArco(ctx, "RATÓN PÉREZ", cx, cy, r - 20, Math.PI / 2, true, 2.5);
+  textoEnArco(ctx, t("carta.selloArriba"), cx, cy, r - 20, -Math.PI / 2, false, 1.8);
+  textoEnArco(ctx, t("carta.selloAbajo"), cx, cy, r - 20, Math.PI / 2, true, 2.5);
 
   diente(ctx, cx, cy, 1.05, "transparent", MAGENTA);
   ctx.restore();
@@ -568,11 +576,17 @@ export function drawCertificate(canvas, datos, raton) {
   ctx.textAlign = "center";
   ctx.fillStyle = SUAVE;
   ctx.font = `600 22px ${SANS}`;
-  espaciado(ctx, "MUSEO DE LOS DIENTES", cx, 150, 7);
+  espaciado(ctx, t("carta.membrete"), cx, 150, 7);
 
+  // El encabezado se AJUSTA, y eso llegó con los idiomas: "Carta del Ratón Pérez" cabía
+  // holgado a 62 px, pero nadie garantiza que quepa la traducción -"A letter from Ratón
+  // Pérez" ya es cuatro caracteres más larga- y un título que se sale por los dos lados
+  // no se arregla desde el idioma. Encogerlo es lo que ya se hacía con el nombre del niño.
   ctx.fillStyle = TINTA;
-  ctx.font = `700 62px ${REDONDA}`;
-  ctx.fillText("Carta del Ratón Pérez", cx, 228);
+  const encabezado = t("carta.encabezado");
+  ctx.font = `700 ${ajustar(ctx, encabezado, COLUMNA, 62, 40,
+                            (x) => `700 ${x}px ${REDONDA}`)}px ${REDONDA}`;
+  ctx.fillText(encabezado, cx, 228);
 
   filete(ctx, cx, 266, 420);
 
@@ -589,15 +603,15 @@ export function drawCertificate(canvas, datos, raton) {
   ctx.textAlign = "left";
   const nombre = limpiar(datos.nombre, LIMITES.nombre);
   if (nombre) {
-    const tam = ajustar(ctx, `Hola, ${nombre}:`, COLUMNA, 54, 32,
-                        (t) => `700 ${t}px ${REDONDA}`);
+    const saludo = t("carta.saludo", { nombre });
+    const tam = ajustar(ctx, saludo, COLUMNA, 54, 32, (x) => `700 ${x}px ${REDONDA}`);
     ctx.fillStyle = TINTA;
     ctx.font = `700 ${tam}px ${REDONDA}`;
-    ctx.fillText(`Hola, ${nombre}:`, MARGEN, 402);
+    ctx.fillText(saludo, MARGEN, 402);
   } else {
     ctx.fillStyle = "rgba(138, 122, 95, 0.55)";
     ctx.font = `700 54px ${REDONDA}`;
-    ctx.fillText("Hola…", MARGEN, 402);
+    ctx.fillText(t("carta.saludoVacio"), MARGEN, 402);
   }
 
   // --- El cuerpo de la carta ----------------------------------------------
@@ -627,13 +641,15 @@ export function drawCertificate(canvas, datos, raton) {
   // La posdata es de la carta, no un pie de página: por eso va aquí y en el mismo sitio
   // donde acaba el texto, no clavada abajo del todo.
   ctx.fillStyle = ORO;
-  ctx.font = `600 30px ${REDONDA}`;
+  const posdata = t("carta.posdata");
+  ctx.font = `600 ${ajustar(ctx, posdata, COLUMNA, 30, 22,
+                            (x) => `600 ${x}px ${REDONDA}`)}px ${REDONDA}`;
   // Si ni al tamaño más apretado cabe, la posdata se queda en TOPE y se monta sobre la
   // última línea. Es feo, pero es el último recurso: el formulario limita la nota a
   // LIMITE_NOTA justo para que esto no llegue a pasar, y la prueba lo vigila.
   const yDeseado = y + 14;
   const yPosdata = Math.min(yDeseado, TOPE);
-  ctx.fillText("P. D. ¡Sigue cuidando esos dientes!", MARGEN, yPosdata);
+  ctx.fillText(posdata, MARGEN, yPosdata);
 
   // --- Despedida, firma, sello y personaje ---------------------------------
   // Cada pieza con su sitio: el personaje pegado al margen izquierdo, el sello entre
@@ -642,7 +658,7 @@ export function drawCertificate(canvas, datos, raton) {
   const yCierre = Math.max(yPosdata + 88, 1306);
   ctx.fillStyle = TINTA;
   ctx.font = `400 32px ${REDONDA}`;
-  ctx.fillText("Con cariño,", 640, yCierre);
+  ctx.fillText(t("carta.despedida"), 640, yCierre);
 
   firmaRatonPerez(ctx, 632, yCierre + 126, 0.62, TINTA);
 
