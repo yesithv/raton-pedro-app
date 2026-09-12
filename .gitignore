@@ -3,14 +3,19 @@ __pycache__/
 out/
 /assets/*.mp4
 
-# Flutter / Android
+# Flutter / Android / iOS
 app/.dart_tool/
 app/build/
 app/.flutter-plugins*
 app/android/.gradle/
 app/android/local.properties
-app/ios/
 
 # El shader vive en shaders/ y es fuente única de verdad. copy_shaders.gradle lo copia
 # aquí en cada build; versionarlo crearía una segunda copia que se queda atrás.
 app/android/app/src/main/assets/shaders/
+# El mismo shader, en Metal: lo genera tools/shader_a_msl.py y SÍ se versiona, al reves
+# que el de Android. El motivo es que en iOS no hay un paso de build que pueda generarlo
+# -no hay Gradle-, asi que el proyecto de Xcode tiene que encontrarlo ya escrito. Que no
+# se quede atras lo vigila el CI, que lo regenera y compara.
+
+# Lo efimero de iOS lo ignora app/ios/.gitignore, que viene con el proyecto.

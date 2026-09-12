@@ -1,0 +1,108 @@
+name: CI iOS
+
+# Que el proyecto de iOS COMPILA, y que su shader no se ha separado del original. Nada
+# más, y eso ya es mucho: aquí no hay ningún Mac delante, así que este workflow es la única
+# forma de enterarse de que algo se ha roto antes de que exista un iPhone donde probarlo.
+#
+# Lo que demuestra: que el esqueleto de Xcode es válido, que el Info.plist parsea y lleva
+# los tres permisos, que las dependencias de Dart resuelven en iOS, que CocoaPods monta el
+# proyecto, y que el shader de Metal sigue siendo el mismo que el de Android y el de web.
+#
+# Lo que NO demuestra, y conviene no confundirlo: que la app HAGA algo. La capa nativa de
+# iOS no existe todavía —ver docs/exportar-a-moviles.md—, así que esto arranca en un
+# iPhone y se queda en negro en cuanto pide la cámara. Compilar y funcionar son cosas
+# distintas.
+#
+# `--no-codesign` es lo que permite todo esto sin cuenta de Apple: compila el binario y se
+# salta la firma. Instalarlo en un teléfono de verdad sí necesita la cuenta, y es otra fase.
+#
+# OJO CON EL COSTE: los runners de macOS se facturan a 10x los minutos en repositorios
+# privados (en los públicos no cuentan). Por eso el trabajo se reparte —lo que se puede
+# comprobar en Linux se comprueba en Linux— y corre SOLO cuando cambia algo que puede
+# romperlo, igual que hace `CI Android`.
+on:
+  push:
+    branches: [main]
+    paths:
+      - "app/**"
+      - "shaders/**"
+      - "tools/shader_a_msl.py"
+      - ".github/workflows/ci-ios.yml"
+  pull_request:
+    paths:
+      - "app/**"
+      - "shaders/**"
+      - "tools/shader_a_msl.py"
+      - ".github/workflows/ci-ios.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # La misma versión exacta que `CI Android`. Los dos proyectos los genera y los monta la
+  # misma herramienta: si se separan, uno de los dos empieza a fallar solo.
+  FLUTTER_VERSION: "3.47.3"
+
+jobs:
+  # Va en Linux y no en el Mac a propósito: no necesita nada de Apple, y aquí los minutos
+  # no se facturan a 10x. Además así falla en un minuto en vez de esperar a que compile
+  # todo el proyecto de iOS para decir que el shader está viejo.
+  shader:
+    name: Shader · el Metal sigue siendo el mismo
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Herramientas de Khronos
+        run: sudo apt-get update -q && sudo apt-get install -y -q glslang-tools spirv-tools spirv-cross
+      # Regenera desde shaders/composite.frag y compara con lo versionado. Si alguien toca
+      # el shader compartido y no regenera, aquí se entera. La comprobación es SEMÁNTICA,
+      # no textual: compara el Metal generado, así que un comentario nuevo en el .frag no
+      # la hace saltar, y un cambio en la matemática sí.
+      - run: python3 tools/shader_a_msl.py --comprobar
+
+  ios:
+    name: iOS · compila sin firmar
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+
+      - run: flutter pub get
+        working-directory: app
+
+      # Que el Metal generado sea Metal de verdad. Es la única comprobación que no se
+      # puede hacer fuera de un Mac: el compilador de shaders viene con Xcode. Se hace
+      # aparte del proyecto porque el .metal todavía no está en el target de Xcode —no hay
+      # código Swift que lo use—, y sin esto nadie lo compilaría nunca.
+      - name: Compilar el shader de Metal
+        run: |
+          xcrun -sdk iphoneos metal -c app/ios/Runner/Shaders/composite.metal \
+                -o "$RUNNER_TEMP/composite.air"
+          echo "  ok  composite.metal compila para iphoneos"
+
+      # Sin firma y sin cuenta de Apple. Si esto pasa, el proyecto es válido.
+      - name: Compilar la app
+        working-directory: app
+        run: flutter build ios --no-codesign --debug
+
+      # Que el paquete lleve los tres permisos. Sin ellos iOS no enseña el diálogo: CIERRA
+      # la app en el momento de pedir la cámara, sin mensaje y sin registro. Es un fallo
+      # que solo se ve en un teléfono, o sea, justo el que conviene cazar aquí.
+      - name: Comprobar los permisos del paquete
+        working-directory: app
+        run: |
+          PLIST=build/ios/iphoneos/Runner.app/Info.plist
+          for clave in NSCameraUsageDescription NSMicrophoneUsageDescription \
+                       NSPhotoLibraryAddUsageDescription; do
+            if ! /usr/libexec/PlistBuddy -c "Print :$clave" "$PLIST" >/dev/null 2>&1; then
+              echo "::error::Al paquete le falta $clave: la app se cerraría al pedir el permiso."
+              exit 1
+            fi
+            echo "  ok  $clave"
+          done
