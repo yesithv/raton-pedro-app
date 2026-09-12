@@ -54,24 +54,47 @@ Reproduce paso por paso el asistente de la app de referencia:
 | **FOTO** | La cámara del teléfono imitada: visor 4:3, cuadrícula y obturador | Arrastrar y pellizcar |
 | **CARTA** | La que deja el Ratón, para imprimir o dejar bajo la almohada | Rellenar |
 
+## Volver a la izquierda, cerrar a la derecha
+
+Una sola convención, en todas las pantallas y siempre a la misma altura: **arriba a la
+izquierda se vuelve, arriba a la derecha se cierra.** El cromo del asistente lo tenía al
+revés —casa a la izquierda, flecha a la derecha—, que además dejaba la acción de salir en
+el sitio de volver.
+
+Los dos iconos van en **SVG**, definidos una vez con `<symbol>` y reutilizados con `<use>`.
+No son caracteres de texto (`✕ ← ⌂`): un carácter lo dibuja la fuente del sistema, se ve
+distinto en cada teléfono, no siempre existe y no hay forma de darle un grosor de trazo.
+Era el problema 4 del brief de rediseño, y la prueba falla si alguien vuelve a meter uno.
+
+La única pantalla sin ✕ es la **cámara**: de ahí no se cierra nada, se vuelve al inicio,
+así que lleva la flecha. Y eso deja la derecha libre para la píldora de controles, que es
+donde la tiene el teléfono.
+
 ## Ajustes: un botón, un sitio
 
-Todo lo configurable vive en una hoja: el engranaje de arriba a la derecha del arranque, y
-*Ajustes* bajo los controles una vez encendida la cámara. Los dos abren lo mismo.
+**Dos hojas, y la línea que las separa es dónde estás cuando las abres.** Empezó siendo
+una sola con todo dentro, y ahí el tema de la app convivía con el grano del compositor,
+que no tienen nada que ver.
 
-Es una **hoja inferior** y no una pantalla entera a propósito: los deslizadores del ajuste
-fino solo sirven si se ve la escena mientras se mueven.
-
-| Sección | Qué hay | Se guarda |
+| | Se abre desde | Qué hay |
 |---|---|---|
-| **Tema** | Automático, claro u oscuro | Sí |
-| **Al grabar** | Micrófono | Sí |
-| **Ajuste fino de la imagen** *(doblado)* | Los seis parámetros del grading, el rango limitado y **Restablecer** | No |
-| **Diagnóstico** *(oculto)* | El HUD de uniforms, fps y escena | — |
+| **Ajustes** | El engranaje del arranque | Tema · Idioma |
+| **La cámara** | El `•••` de FOTO y *Cámara* en la barra del asistente | Cuadrícula · Micrófono · Ajuste fino *(doblado)* · Diagnóstico *(oculto)* |
+
+Las dos son **hojas inferiores** y no pantallas enteras, y la de la cámara se queda más
+baja todavía —62 % de la pantalla frente al 86 %— porque los deslizadores del ajuste fino
+solo sirven **viendo la escena mientras se mueven**. Es el motivo entero por el que están
+ahí y no en los ajustes de la app: con la hoja alta no se ve nada y el control es inútil.
+
+El **idioma es por ahora solo el selector**. Traducir los textos es otro trabajo, y lo que
+no se puede hacer es poner un selector mudo y callárselo: guarda la elección y **dice
+debajo** que los textos llegan después. El `<html lang>` se queda en `es` a propósito —los
+textos siguen en castellano, y mentirle al lector de pantalla sobre en qué idioma está lo
+que va a leer es peor que no ofrecer el idioma.
 
 Dos decisiones que no son obvias:
 
-- **El ajuste fino no se guarda, y el tema y el micrófono sí.** Una preferencia vale para
+- **El ajuste fino no se guarda, y el tema, el idioma, la cuadrícula y el micrófono sí.** Una preferencia vale para
   siempre; un afinado es de una escena concreta, y heredar de noche el arreglo que se hizo
   ayer en otro cuarto es peor que empezar de cero. Por eso **Restablecer** está dentro, al
   lado de lo que puede estropear: hasta ahora se podía dejar la imagen inservible sin más
@@ -155,7 +178,9 @@ caja de instrucciones encima del visor — eso es justo lo que delata que no es 
 El aviso del paso pasa a ser una pastilla que se desvanece a los cuatro segundos, y los
 controles de la app se reparten como en el teléfono: la ✕ para salir, una píldora arriba a
 la derecha con luz, girar al ratón y *Ajustes*, y abajo la miniatura de la última foto, el
-carrusel **VÍDEO · FOTO** y el botón de cambiar de cámara.
+botón de cambiar de cámara —los dos **a la altura del disparador**, como en el
+teléfono, porque desde la fila de abajo no se llega sin mover la mano— y el carrusel
+**VÍDEO · FOTO** debajo.
 
 Dos diferencias deliberadas:
 

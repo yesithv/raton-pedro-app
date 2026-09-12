@@ -431,6 +431,42 @@ Lo que **no** se imita, y es a propósito: el control de zoom. El `0,5 / 1×` de
 óptico y Safari en iOS no expone el zoom por `getUserMedia`. Uno digital recorta y pierde
 calidad, que es lo contrario de lo que hace el nativo; antes de fingirlo, mejor no ponerlo.
 
+## La convención de los botones de navegación
+
+Una sola regla, en todas las pantallas: **izquierda se vuelve, derecha se cierra**, y
+siempre a la misma altura. El cromo del asistente lo tenía al revés —casa a la izquierda,
+flecha a la derecha—, lo que además ponía la acción de salir justo donde la mano espera la
+de volver.
+
+Los dos iconos van en SVG, definidos una vez y reutilizados. No son caracteres de texto:
+el brief lo señalaba (problema 4) y era cierto — un `✕` lo dibuja la fuente del sistema, se
+ve distinto en cada teléfono y no admite grosor de trazo. La prueba falla si alguien vuelve
+a meter uno.
+
+La excepción razonada es la **cámara**: de ahí no se cierra nada, se vuelve al inicio, así
+que lleva flecha y no aspa. Y eso deja la derecha libre para la píldora de controles, que
+es donde la tiene el teléfono.
+
+## Dos hojas de configuración, no una
+
+La línea que las separa es **dónde estás cuando las abres**:
+
+- **Ajustes** (engranaje del arranque): tema e idioma. No hablan de la cámara.
+- **La cámara** (el `•••` de FOTO y *Cámara* en la barra del asistente): cuadrícula,
+  micrófono, ajuste fino y diagnóstico.
+
+Empezó siendo una sola hoja con todo dentro, y ahí el tema de la app convivía con el grano
+del compositor. Además la hoja de cámara se queda al 62 % de la pantalla y no al 86 %:
+los deslizadores del ajuste fino **solo sirven viendo la escena mientras se mueven**, que
+es el motivo entero por el que están ahí. Con la hoja alta el control es inútil, y eso lo
+vi mirando la pantalla, no leyendo el código.
+
+**El idioma es por ahora solo el selector.** Traducir los textos es otro trabajo. Lo que no
+se puede hacer es poner un selector que no hace nada y callárselo: guarda la elección y
+dice debajo que los textos llegan después. Y el `<html lang>` se queda en `es`, porque los
+textos siguen en castellano y mentirle al lector de pantalla sobre eso es peor que no
+ofrecer el idioma.
+
 ## Ronda 1 de interfaz
 
 `docs/diseno-ronda-1.pdf` es lo que devolvió el brief de `prompt-rediseno-ui.md`, y

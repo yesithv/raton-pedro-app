@@ -64,6 +64,44 @@ const check = (label, fn) => {
 console.log('arranque');
 await page.goto(`${BASE}/web/index.html`, { waitUntil: 'networkidle' });
 
+// ---------------------------------------------------------------------------
+// La convención de los botones de navegación
+// ---------------------------------------------------------------------------
+// IZQUIERDA se vuelve, DERECHA se cierra, en todas las pantallas y siempre a la misma
+// altura. Y dibujados en SVG, no escritos con caracteres (✕ ← ⌂): un carácter lo dibuja
+// la fuente del sistema, se ve distinto en cada teléfono y no siempre existe.
+const nav = await page.evaluate(() => {
+  const lados = (sel) => [...document.querySelectorAll(sel)].map((e) => {
+    const c = getComputedStyle(e);
+    return { izq: c.left !== 'auto', der: c.right !== 'auto',
+             icono: e.querySelector('use')?.getAttribute('href') ?? null };
+  });
+  // Los botones de navegación de toda la app: los de esquina y los de las cabeceras.
+  const todos = [...document.querySelectorAll(
+    '.esquina-cerrar, .esquina-atras, .hoja-head button, #chrome button, #foto-salir')];
+  return {
+    atras: lados('.esquina-atras'),
+    cerrar: lados('.esquina-cerrar'),
+    iconos: todos.map((e) => e.querySelector('use')?.getAttribute('href') ?? e.textContent.trim()),
+    // El cromo del asistente: volver a la izquierda, cerrar a la derecha.
+    chrome: [...document.querySelectorAll('#chrome > *')].map((e) => e.id || e.tagName),
+  };
+});
+
+check('volver va siempre a la izquierda y cerrar siempre a la derecha', () => {
+  assert(nav.atras.length > 0 && nav.cerrar.length > 0, 'no hay botones de esquina');
+  for (const b of nav.atras) assert(b.izq && !b.der, 'un "volver" no está a la izquierda');
+  for (const b of nav.cerrar) assert(b.der && !b.izq, 'un "cerrar" no está a la derecha');
+});
+check('el cromo del asistente sigue la convención', () =>
+  assert.deepEqual(nav.chrome, ['back', 'step-title', 'home'],
+    'el orden del cromo no es volver · título · cerrar'));
+check('ningún botón de navegación se dibuja con un carácter de texto', () => {
+  const conCaracter = nav.iconos.filter((i) => i && !i.startsWith('#ic-'));
+  assert.equal(conCaracter.length, 0,
+    `estos van con carácter y no con SVG: ${conCaracter.join(' ')}`);
+});
+
 console.log('ajustes y temas');
 // Se prueban ANTES de encender la cámara porque ahí es donde vive el botón de ajustes y
 // donde el usuario lo usa: eligiendo con qué luz quiere la app antes de empezar.
@@ -129,35 +167,35 @@ check('el tema elegido sobrevive a recargar', () => {
 });
 await page.click('#tema button[data-tema="auto"]');
 
-// El ajuste fino puede dejar la imagen inservible; "Restablecer" es la salida, y hasta
-// ahora no existía. Se mueve un deslizador, se comprueba que se movió, y se restablece.
-const leerKey = () => page.evaluate(() => ({
-  input: Number(document.getElementById('s-key').value),
-  visible: document.getElementById('s-key-v').textContent,
-}));
-await page.click('#avanzado summary');
-const keyDeFabrica = await leerKey();
-await page.$eval('#s-key', (i) => {
-  i.value = i.max;
-  i.dispatchEvent(new Event('input', { bubbles: true }));
-});
-const keyTocado = await leerKey();
-await page.click('#ajustes-reset');
-const keyRestablecido = await leerKey();
-check('el ajuste fino se mueve y "Restablecer" lo devuelve', () => {
-  assert.notEqual(keyTocado.input, keyDeFabrica.input, 'el deslizador no se movió');
-  assert.equal(keyTocado.visible, String(keyTocado.input.toFixed(2)),
-    'el número de al lado no sigue al deslizador');
-  assert.deepEqual(keyRestablecido, keyDeFabrica, 'Restablecer no volvió a los valores de fábrica');
-});
+// El idioma: por ahora SOLO el selector. Lo que hay que comprobar es que se puede
+// elegir, que la elección se queda puesta, y -sobre todo- que la app NO miente diciendo
+// que ya está traducida: el pie tiene que avisar de que los textos llegan después.
+const idiomas = await page.$$eval('#idioma button', (bs) => bs.map((b) => b.dataset.idioma));
+check('el selector de idioma ofrece las tres opciones', () =>
+  assert.deepEqual(idiomas, ['es', 'en', 'pt']));
 
-// El diagnóstico son números crudos y no tiene por qué verlos un padre a las dos de la
-// mañana: siete toques en el título, el gesto de siempre.
-const dxAlEmpezar = await page.getAttribute('#diagnostico', 'hidden');
-for (let i = 0; i < 7; i++) await page.click('#ajustes-titulo');
-const dxTrasSieteToques = await page.getAttribute('#diagnostico', 'hidden');
-check('el diagnóstico no está a la vista de entrada', () => assert.equal(dxAlEmpezar, ''));
-check('siete toques en el título lo destapan', () => assert.equal(dxTrasSieteToques, null));
+await page.click('#idioma button[data-idioma="en"]');
+const trasIdioma = await page.evaluate(() => ({
+  marcado: [...document.querySelectorAll('#idioma button[aria-pressed="true"]')]
+    .map((b) => b.dataset.idioma),
+  pie: document.getElementById('idioma-pie').textContent,
+  lang: document.documentElement.lang,
+}));
+check('elegir un idioma lo deja elegido y avisa de que aún no traduce', () => {
+  assert.deepEqual(trasIdioma.marcado, ['en'], 'la opción no quedó marcada');
+  assert(/más adelante|español/i.test(trasIdioma.pie),
+    `el pie no avisa de que los textos faltan: "${trasIdioma.pie}"`);
+  // `lang` se queda en es a propósito: los textos SIGUEN en castellano, y decirle otra
+  // cosa al lector de pantalla es peor que no ofrecer el idioma.
+  assert.equal(trasIdioma.lang, 'es', 'el <html lang> miente sobre el idioma real');
+});
+await page.click('#idioma button[data-idioma="es"]');
+
+// Los ajustes de la app NO llevan nada de la cámara: eso vive en las opciones de cámara,
+// que es donde los deslizadores sirven porque se ve la escena al moverlos.
+const dentroDeAjustes = await page.$$eval('#ajustes-scroll h3', (hs) => hs.map((h) => h.textContent));
+check('los ajustes de la app son solo tema e idioma', () =>
+  assert.deepEqual(dentroDeAjustes, ['Tema', 'Idioma']));
 
 await page.click('#ajustes-listo');
 const ajustesTrasListo = await page.getAttribute('#ajustes', 'hidden');
@@ -305,10 +343,59 @@ check('el overlay cambia la imagen más que el ruido de la escena', () =>
   assert(senal > Math.max(ruido * 3, 0.002),
     `el overlay no destaca sobre el ruido: señal ${senal.toFixed(5)}, dispersión ${ruido.toFixed(5)}`));
 
-const hud = await page.evaluate(() => {
-  document.getElementById('ajustes-bar').click();
-  return new Promise((r) => setTimeout(() => r(document.getElementById('dbg').textContent), 900));
+// ---------------------------------------------------------------------------
+// Las opciones de cámara
+// ---------------------------------------------------------------------------
+// Se abren desde DENTRO de la cámara -el botón de la barra del asistente y el ••• de
+// FOTO-, que es el único sitio donde los deslizadores sirven de algo: mueves uno y ves
+// la escena cambiar. En los ajustes de la app no pintaban nada.
+await page.click('#camopts-bar');
+await page.waitForSelector('#camopts:not([hidden])', { timeout: 5_000 });
+const dentroDeCamara = await page.evaluate(() => ({
+  ajustesCerrados: document.getElementById('ajustes').hidden,
+  tieneAjusteFino: !!document.querySelector('#camopts #avanzado'),
+  tieneRejilla: !!document.querySelector('#camopts #s-rejilla'),
+  tieneTema: !!document.querySelector('#camopts #tema'),
+}));
+check('el botón de la barra abre las opciones de CÁMARA, no los ajustes', () => {
+  assert(dentroDeCamara.ajustesCerrados, 'se abrieron los ajustes de la app');
+  assert(dentroDeCamara.tieneAjusteFino, 'el ajuste fino no está en las opciones de cámara');
+  assert(dentroDeCamara.tieneRejilla, 'la cuadrícula no está en las opciones de cámara');
+  assert(!dentroDeCamara.tieneTema, 'el tema se ha colado en las opciones de cámara');
 });
+
+// El ajuste fino puede dejar la imagen inservible; "Restablecer" es la salida. Se mueve
+// un deslizador, se comprueba que se movió, y se restablece.
+const leerKey = () => page.evaluate(() => ({
+  input: Number(document.getElementById('s-key').value),
+  visible: document.getElementById('s-key-v').textContent,
+}));
+await page.click('#avanzado summary');
+const keyDeFabrica = await leerKey();
+await page.$eval('#s-key', (i) => {
+  i.value = i.max;
+  i.dispatchEvent(new Event('input', { bubbles: true }));
+});
+const keyTocado = await leerKey();
+await page.click('#ajustes-reset');
+const keyRestablecido = await leerKey();
+check('el ajuste fino se mueve y "Restablecer" lo devuelve', () => {
+  assert.notEqual(keyTocado.input, keyDeFabrica.input, 'el deslizador no se movió');
+  assert.equal(keyTocado.visible, String(keyTocado.input.toFixed(2)),
+    'el número de al lado no sigue al deslizador');
+  assert.deepEqual(keyRestablecido, keyDeFabrica, 'Restablecer no volvió a los valores de fábrica');
+});
+
+// El diagnóstico son números crudos y no tiene por qué verlos un padre a las dos de la
+// mañana: siete toques en el título, el gesto de siempre.
+const dxAlEmpezar = await page.getAttribute('#diagnostico', 'hidden');
+for (let i = 0; i < 7; i++) await page.click('#camopts-titulo');
+const dxTrasSieteToques = await page.getAttribute('#diagnostico', 'hidden');
+check('el diagnóstico no está a la vista de entrada', () => assert.equal(dxAlEmpezar, ''));
+check('siete toques en el título lo destapan', () => assert.equal(dxTrasSieteToques, null));
+
+const hud = await page.evaluate(() =>
+  new Promise((r) => setTimeout(() => r(document.getElementById('dbg').textContent), 900)));
 const exposure = hud.match(/uExposureMatch ([\d.]+) ([\d.]+) ([\d.]+)/);
 check('SceneAnalyzer resuelve un vec3 de exposición', () => {
   assert(exposure, `el HUD no trae uExposureMatch:\n${hud}`);
@@ -316,6 +403,7 @@ check('SceneAnalyzer resuelve un vec3 de exposición', () => {
     assert(Number(v) > 0 && Number(v) < 3, `exposición fuera de rango: ${v}`);
   }
 });
+await page.click('#camopts-listo');
 
 // Ninguna página puede escribir en la galería: o hay hoja del sistema (y el botón que la
 // abre es la acción principal) o solo queda la descarga (y entonces la principal es esa).
@@ -340,7 +428,6 @@ const revisarGuardado = (kind, guardado) => check(
   });
 
 console.log('grabación');
-await page.click('#ajustes-listo');
 await page.click('#record');
 await page.waitForSelector('#rec-badge:not([hidden])', { timeout: 10_000 });
 await shot('5_grabando');
