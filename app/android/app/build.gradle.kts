@@ -1,3 +1,5 @@
+import java.util.Properties
+
 plugins {
     id("com.android.application")
     // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
@@ -15,28 +17,60 @@ android {
     }
 
     defaultConfig {
-        // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
         applicationId = "com.ironcoding.perezar"
-        // You can update the following values to match your application needs.
-        // For more information, see: https://flutter.dev/to/review-gradle-config.
         // ARCore exige API 24 como minimo. La arquitectura hablaba de Android 9 (API 28);
         // conviene fijarlo con los numeros reales del mercado objetivo antes de cerrarlo,
         // ver correccion #4 de docs/plan-de-trabajo.md.
         minSdk = maxOf(flutter.minSdkVersion, 24)
         targetSdk = flutter.targetSdkVersion
-        // Uses the version code from pubspec.yaml. When using split APKs, 1000 * ABI_VERSION
-        // is added automatically by Flutter. (https://developer.android.com/studio/build/configure-apk-splits#configure-APK-versions)
-        // You can force using the value of versionCode by specifying the `-P force-version-code-ignoring-abi=true`
-        // flag during build.
+        // Los dos salen del `version:` de pubspec.yaml, que es la unica fuente de
+        // verdad: "0.1.0+1" da versionName 0.1.0 y versionCode 1. Google Play EXIGE que
+        // el versionCode suba en cada subida y no deja reutilizar ninguno, ni siquiera de
+        // una version retirada; el versionName es solo lo que lee el usuario.
         versionCode = flutter.versionCode
         versionName = flutter.versionName
     }
 
+    // La firma de release, de dos sitios y ninguno dentro del repositorio:
+    //
+    //   - En local, `android/key.properties`, que esta en .gitignore junto con *.jks.
+    //     Ver `key.properties.ejemplo` al lado y docs/publicar-android.md.
+    //   - En CI, las mismas cuatro cosas por variables de entorno, desde los secretos.
+    //
+    // Y SI NO HAY NINGUNA DE LAS DOS, NO SE ROMPE NADA: se firma con la clave de
+    // depuracion, como hacia la plantilla. Es lo que permite que `CI Android` siga
+    // construyendo en cada PR sin tener acceso a la clave de verdad, y que cualquiera
+    // pueda clonar el repositorio y compilar sin pedirle nada a nadie.
+    //
+    // El precio de esa comodidad es que un release SIN clave sale firmado con la de
+    // depuracion y lo parece todo menos en el certificado, asi que el workflow de release
+    // lo comprueba a proposito antes de dar el archivo por bueno: un .aab asi lo rechaza
+    // Google Play, pero media hora mas tarde y con el navegador ya abierto.
+    val propiedadesFirma = Properties().apply {
+        val archivo = rootProject.file("key.properties")
+        if (archivo.exists()) archivo.inputStream().use { load(it) }
+    }
+    fun deFirma(clave: String, variable: String): String? =
+        propiedadesFirma.getProperty(clave) ?: System.getenv(variable)
+
+    val almacen = deFirma("storeFile", "ANDROID_KEYSTORE_FILE")
+    val hayClavePropia = almacen != null && file(almacen).exists()
+
+    signingConfigs {
+        if (hayClavePropia) {
+            create("release") {
+                storeFile = file(almacen!!)
+                storePassword = deFirma("storePassword", "ANDROID_KEYSTORE_PASSWORD")
+                keyAlias = deFirma("keyAlias", "ANDROID_KEY_ALIAS")
+                keyPassword = deFirma("keyPassword", "ANDROID_KEY_PASSWORD")
+            }
+        }
+    }
+
     buildTypes {
         release {
-            // TODO: Add your own signing config for the release build.
-            // Signing with the debug keys for now, so `flutter run --release` works.
-            signingConfig = signingConfigs.getByName("debug")
+            signingConfig = if (hayClavePropia) signingConfigs.getByName("release")
+                            else signingConfigs.getByName("debug")
         }
     }
 }

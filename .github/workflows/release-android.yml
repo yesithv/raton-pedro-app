@@ -1,0 +1,133 @@
+name: Release Android
+
+# El paquete que se sube a Google Play. NO corre solo: se lanza a mano desde la pestaña
+# Actions, o al empujar una etiqueta `v*`.
+#
+# Va aparte de `CI Android` a propósito. Aquel corre en cada PR y demuestra que la app
+# COMPILA Y ARRANCA; este produce un artefacto firmado que se puede publicar, que es una
+# cosa distinta y mucho más lenta. Mezclarlos significaría firmar en cada commit —o sea,
+# exponer la clave en cada commit— para nada.
+#
+# HACE FALTA CONFIGURAR CUATRO SECRETOS, una sola vez, en
+# Settings -> Secrets and variables -> Actions:
+#
+#   ANDROID_KEYSTORE_BASE64   el .jks entero, en base64:  base64 -w0 perezar.jks
+#   ANDROID_KEYSTORE_PASSWORD la contraseña del almacén
+#   ANDROID_KEY_ALIAS         el alias de la clave dentro del almacén
+#   ANDROID_KEY_PASSWORD      la contraseña de esa clave
+#
+# Sin ellos el workflow NO falla a medias: lo comprueba en el primer paso y se detiene con
+# un mensaje que dice qué falta. Un fallo de Gradle veinte minutos después, por una
+# variable vacía, es de los que cuestan una tarde entera de leer registros.
+#
+# Y LA CLAVE NO SE PIERDE NUNCA. Google Play identifica una app por su firma: si se pierde
+# el .jks, no hay forma de publicar una actualización de esta app —hay que subir otra
+# distinta, con otro identificador, y los usuarios que la tengan instalada se quedan en la
+# versión vieja para siempre—. Guardarlo solo en estos secretos NO es una copia de
+# seguridad: quien tenga el repositorio tiene que tener el archivo aparte.
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+concurrency:
+  group: release-android
+  cancel-in-progress: false
+
+env:
+  # La misma versión que fija `CI Android`. Un salto de Flutter puede cambiar el Gradle
+  # generado, y esto produce el archivo que va a la tienda: aquí menos sorpresas todavía.
+  FLUTTER_VERSION: "3.47.3"
+
+jobs:
+  aab:
+    name: Android · bundle firmado
+    runs-on: ubuntu-latest
+    steps:
+      - name: Comprobar que están los cuatro secretos
+        env:
+          KEYSTORE: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          STORE_PASS: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          KEY_PASS: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          faltan=""
+          [ -n "$KEYSTORE" ]   || faltan="$faltan ANDROID_KEYSTORE_BASE64"
+          [ -n "$STORE_PASS" ] || faltan="$faltan ANDROID_KEYSTORE_PASSWORD"
+          [ -n "$ALIAS" ]      || faltan="$faltan ANDROID_KEY_ALIAS"
+          [ -n "$KEY_PASS" ]   || faltan="$faltan ANDROID_KEY_PASSWORD"
+          if [ -n "$faltan" ]; then
+            echo "::error::Faltan secretos para firmar:$faltan"
+            echo "Se configuran en Settings -> Secrets and variables -> Actions."
+            echo "Ver la cabecera de .github/workflows/release-android.yml."
+            exit 1
+          fi
+          echo "Los cuatro secretos están."
+
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+
+      # El almacén se escribe FUERA del árbol del repositorio: dentro, un `flutter clean`
+      # o un `git add -A` despistado podría llevárselo por delante o, peor, subirlo.
+      - name: Reconstruir el almacén de claves
+        env:
+          KEYSTORE: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+        run: |
+          echo "$KEYSTORE" | base64 -d > "$RUNNER_TEMP/perezar.jks"
+          # Que exista y no esté vacío. Un base64 mal pegado produce un archivo de 0 bytes
+          # y el error de Gradle no dice eso, dice "keystore password was incorrect".
+          test -s "$RUNNER_TEMP/perezar.jks"
+
+      - run: flutter pub get
+        working-directory: app
+      - run: flutter analyze
+        working-directory: app
+      - run: flutter test
+        working-directory: app
+
+      # El bundle, que es lo que pide Google Play. El APK va también, para poder instalar
+      # a mano en un teléfono sin pasar por la tienda: es la única forma de probarlo de
+      # verdad antes de publicar.
+      - name: Construir el bundle y el APK
+        working-directory: app
+        env:
+          ANDROID_KEYSTORE_FILE: ${{ runner.temp }}/perezar.jks
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          flutter build appbundle --release
+          flutter build apk --release
+
+      # Que lo construido esté FIRMADO DE VERDAD, y no con la clave de depuración. Sin esta
+      # comprobación, un secreto mal puesto produce un .aab que Play rechaza al subirlo,
+      # que es media hora más tarde y con el navegador abierto.
+      - name: Comprobar que no salió firmado con la clave de depuración
+        run: |
+          APK=app/build/app/outputs/flutter-apk/app-release.apk
+          firmante=$("$ANDROID_HOME"/build-tools/*/apksigner verify --print-certs "$APK" \
+                     | grep -m1 "Signer #1 certificate DN" || true)
+          echo "$firmante"
+          case "$firmante" in
+            *"CN=Android Debug"*)
+              echo "::error::El release salió firmado con la clave de DEPURACIÓN."
+              exit 1 ;;
+          esac
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: perezar-release
+          path: |
+            app/build/app/outputs/bundle/release/app-release.aab
+            app/build/app/outputs/flutter-apk/app-release.apk
+          if-no-files-found: error
+          retention-days: 90
