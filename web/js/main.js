@@ -342,7 +342,7 @@ function loop(now) {
     state.fps = (frames * 1000) / (now - fpsT);
     frames = 0;
     fpsT = now;
-    if (!el("ajustes").hidden && !el("diagnostico").hidden) updateHud(params);
+    if (!el("camopts").hidden && !el("diagnostico").hidden) updateHud(params);
   }
 }
 
@@ -797,6 +797,7 @@ function setupCertificado() {
   el("go-cert").onclick = abrirCertificado;
   el("cert-generar").onclick = () => { if (revisarNombre()) generarCertificado(); };
   // Volver a los datos conserva lo escrito: se corrige una errata sin repetirlo todo.
+  // Vive arriba a la izquierda, como el volver de todas las demas pantallas.
   el("cert-volver").onclick = () => {
     el("cert").dataset.paso = "datos";
     el("cert-scroll").scrollTo(0, 0);
@@ -866,12 +867,60 @@ function setupTema() {
 }
 
 /**
- * La hoja de ajustes. Un solo sitio donde se configura la app, en vez de un conmutador
- * de tema en el arranque y un panel de deslizadores colgando de la barra.
+ * El selector de idioma, y por ahora SOLO el selector.
  *
- * El ajuste fino sigue estando -no se le quita nada a nadie- pero doblado y con un
- * "Restablecer" al lado, que es lo que faltaba: hasta ahora se podia dejar la imagen
- * inservible sin forma de volver salvo recargar.
+ * Traducir los textos es otro trabajo. Lo que no se puede hacer es poner un selector que
+ * no hace nada y callarselo: quien lo toque y siga viendo todo en castellano pensara que
+ * la app esta rota. Por eso guarda la eleccion, la pone en el <html lang> -que es lo que
+ * usan el lector de pantalla y el corrector del teclado- y DICE debajo que los textos
+ * llegan despues.
+ */
+const IDIOMAS = [
+  { id: "es", nombre: "Español", pie: "La app está en español." },
+  { id: "en", nombre: "English",
+    pie: "Guardado. Los textos en inglés llegan más adelante; por ahora se ve en español." },
+  { id: "pt", nombre: "Português",
+    pie: "Guardado. Os textos em português chegam mais tarde; por enquanto aparece em espanhol." },
+];
+
+function idiomaActual() {
+  try { return localStorage.getItem("idioma") || "es"; } catch (e) { return "es"; }
+}
+
+function aplicarIdioma(id) {
+  try { localStorage.setItem("idioma", id); } catch (e) { /* vale para esta sesion */ }
+  // El documento SIGUE en castellano hasta que existan los textos, asi que `lang` se
+  // queda en "es": mentirle al lector de pantalla sobre en que idioma esta lo que va a
+  // leer es peor que no ofrecer el idioma.
+  for (const boton of el("idioma").children) {
+    boton.setAttribute("aria-pressed", String(boton.dataset.idioma === id));
+  }
+  el("idioma-pie").textContent = IDIOMAS.find((x) => x.id === id).pie;
+}
+
+function setupIdioma() {
+  el("idioma").replaceChildren(...IDIOMAS.map((x) => {
+    const b = document.createElement("button");
+    b.type = "button";
+    b.dataset.idioma = x.id;
+    b.setAttribute("aria-pressed", "false");
+    b.textContent = x.nombre;
+    b.onclick = () => aplicarIdioma(x.id);
+    return b;
+  }));
+  aplicarIdioma(idiomaActual());
+}
+
+/**
+ * DOS hojas, y la linea que las separa es donde estas cuando las abres.
+ *
+ * AJUSTES son los de la app -tema e idioma-: se abren desde el arranque, antes de
+ * encender la camara. OPCIONES DE CAMARA son las de lo que estas mirando -cuadricula,
+ * microfono, ajuste fino, diagnostico-: se abren desde dentro de la camara, que es el
+ * unico sitio donde los deslizadores sirven de algo porque se ve la escena al moverlos.
+ *
+ * Antes era una sola hoja con todo dentro, y ahi el tema de la app convivia con el grano
+ * del compositor, que no tienen nada que ver.
  */
 
 const DESLIZADORES = [
@@ -892,10 +941,12 @@ function sincronizarAjustes() {
   el("ui-foto").dataset.rejilla = state.cfg.rejilla ? "si" : "no";
 }
 
-function abrirAjustes() {
-  el("ajustes").hidden = false;
-  el("ajustes-scroll").scrollTo(0, 0);
+function abrirHoja(id) {
+  el(id).hidden = false;
+  el(`${id}-scroll`).scrollTo(0, 0);
 }
+const abrirAjustes = () => abrirHoja("ajustes");
+const abrirCamOpts = () => abrirHoja("camopts");
 
 function setupAjustes() {
   // El microfono es una PREFERENCIA y sobrevive a cerrar la app; el ajuste fino no, que
@@ -907,18 +958,24 @@ function setupAjustes() {
   } catch (e) { /* sin almacenamiento, el valor de fabrica */ }
 
   setupTema();
+  setupIdioma();
   sincronizarAjustes();
 
+  // El engranaje del arranque abre los AJUSTES. El ••• de la camara y el boton de la
+  // barra del asistente abren las OPCIONES DE CAMARA: los dos se pulsan estando dentro
+  // de la camara, que es donde esos controles sirven.
   el("ajustes-abrir").onclick = abrirAjustes;
-  el("ajustes-bar").onclick = abrirAjustes;
+  el("camopts-bar").onclick = abrirCamOpts;
 
-  const cerrar = () => { el("ajustes").hidden = true; };
-  el("ajustes-close").onclick = cerrar;
-  el("ajustes-listo").onclick = cerrar;
-  // Tocar fuera de la hoja cierra; dentro, no. El velo ES #ajustes, asi que basta con
-  // comprobar que el toque no venia de un hijo.
-  el("ajustes").onclick = (e) => { if (e.target === el("ajustes")) cerrar(); };
-  addEventListener("keydown", (e) => { if (e.key === "Escape" && !el("ajustes").hidden) cerrar(); });
+  for (const id of ["ajustes", "camopts"]) {
+    const cerrar = () => { el(id).hidden = true; };
+    el(`${id}-close`).onclick = cerrar;
+    el(`${id}-listo`).onclick = cerrar;
+    // Tocar fuera de la hoja cierra; dentro, no. El velo ES la hoja, asi que basta con
+    // comprobar que el toque no venia de un hijo.
+    el(id).onclick = (e) => { if (e.target === el(id)) cerrar(); };
+    addEventListener("keydown", (e) => { if (e.key === "Escape" && !el(id).hidden) cerrar(); });
+  }
 
   for (const [id, key, digits] of DESLIZADORES) {
     el(id).oninput = () => {
@@ -966,7 +1023,7 @@ function setupAjustes() {
     toast("Diagnóstico activado");
   };
   if (new URLSearchParams(location.search).has("dev")) el("diagnostico").hidden = false;
-  el("ajustes-titulo").onclick = () => {
+  el("camopts-titulo").onclick = () => {
     if (++toques >= 7 && el("diagnostico").hidden) abrirDiagnostico();
   };
 }
@@ -983,7 +1040,7 @@ function setupControls() {
 
   // Los controles propios de la camara.
   el("foto-salir").onclick = () => setStep("inicio");
-  el("foto-mas").onclick = abrirAjustes;
+  el("foto-mas").onclick = abrirCamOpts;
   el("foto-ultima").onclick = () => { el("shot").hidden = false; };
   for (const b of el("cam-modos").children) {
     b.onclick = () => setStep(b.dataset.modo === "foto" ? "foto" : "escanear");

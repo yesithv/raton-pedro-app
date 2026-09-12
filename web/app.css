@@ -174,6 +174,21 @@ button:disabled { opacity: 0.5; cursor: default; }
 .icon.on { background: var(--accent); color: var(--accent-ink); border-color: transparent; }
 .tiny { padding: 5px 10px; font-size: 11px; opacity: 0.65; border-radius: 8px; }
 
+/* --- Los dos iconos de navegación ---
+   Un solo par de trazos para toda la app: 2,1 de grosor y las puntas redondas, que es lo
+   que los hace parecer de la misma mano que el resto de los iconos del inicio. */
+.ic { width: 21px; height: 21px; display: block; }
+.ic.grande { width: 27px; height: 27px; }
+
+/* La convención, en un sitio: IZQUIERDA se vuelve, DERECHA se cierra. Siempre a la misma
+   altura, para no tener que buscarlo en cada pantalla. */
+.esquina-cerrar, .esquina-atras {
+  position: absolute; z-index: 2;
+  top: max(10px, env(safe-area-inset-top));
+}
+.esquina-atras { left: 14px; }
+.esquina-cerrar { right: 14px; }
+
 /* --- Arranque ---
    El personaje primero y el permiso al final: quien abre esto de noche necesita saber en
    dos segundos qué va a pasar, no leer una declaración de intenciones. */
@@ -506,15 +521,15 @@ button:disabled { opacity: 0.5; cursor: default; }
 }
 .disparador:active span { transform: scale(0.9); background: #d4d4d4; }
 
-#cam-fila {
-  display: grid; grid-template-columns: 56px 1fr 56px;
-  align-items: center; gap: 10px; width: 100%;
+/* La fila del obturador. Columna fija para cada uno: la miniatura empieza oculta, y sin
+   esto el disparador se descentraría hasta que se hace la primera foto. */
+#cam-disparo {
+  display: grid; grid-template-columns: 1fr auto 1fr;
+  align-items: center; width: 100%;
 }
-/* Columna fija para cada uno: la miniatura empieza oculta, y sin esto los modos caian
-   en su columna de 46 px y el boton de girar se les montaba encima. */
-.cam-miniatura { grid-column: 1; }
-#cam-modos { grid-column: 2; }
-#cam-fila > .cam-btn { grid-column: 3; }
+.cam-miniatura { grid-column: 1; justify-self: center; }
+.disparador { grid-column: 2; }
+#cam-disparo > .cam-btn { grid-column: 3; justify-self: center; }
 
 /* La miniatura de la última foto, como el carrete del teléfono. */
 .cam-miniatura {
@@ -544,12 +559,12 @@ button:disabled { opacity: 0.5; cursor: default; }
    mirando la escena mientras se mueven, así que la hoja deja ver el tercio de arriba;
    y el velo de detrás es el mismo recurso que el resto de la app usa sobre el vídeo:
    oscurece sin tapar. */
-#ajustes {
+.hoja {
   position: fixed; inset: 0; z-index: 44;
   display: grid; align-items: end;
   background: var(--sombra);
 }
-#ajustes-hoja {
+.hoja-panel {
   background: var(--bg);
   border-radius: 26px 26px 0 0;
   box-shadow: 0 -10px 40px var(--sombra);
@@ -557,20 +572,24 @@ button:disabled { opacity: 0.5; cursor: default; }
   display: grid; grid-template-rows: auto 1fr auto;
   min-height: 0;
 }
-#ajustes-head {
+/* Las opciones de CÁMARA se quedan más bajas: los deslizadores del ajuste fino solo
+   sirven viendo la escena mientras se mueven, y con la hoja al 86% no se ve nada. Es el
+   motivo entero por el que están aquí y no en los ajustes de la app. */
+#camopts .hoja-panel { max-height: 62vh; }
+.hoja-head {
   display: flex; align-items: center; gap: 10px;
   padding: 16px 14px 4px 20px;
 }
-#ajustes-head .titulo-hoja { flex: 1; margin: 0; }
-#ajustes-scroll {
+.hoja-head .titulo-hoja { flex: 1; margin: 0; }
+.hoja-scroll {
   overflow-y: auto; -webkit-overflow-scrolling: touch;
   padding: 8px 20px 4px;
 }
-#ajustes-pie {
+.hoja-pie {
   padding: 10px 20px max(12px, env(safe-area-inset-bottom));
   background: linear-gradient(to top, var(--bg) 70%, transparent);
 }
-#ajustes-listo { width: 100%; }
+.hoja-pie .primary { width: 100%; }
 
 .grupo { padding: 12px 0 16px; border-top: 1px solid var(--borde); }
 .grupo:first-child { border-top: 0; padding-top: 4px; }
@@ -591,6 +610,8 @@ button:disabled { opacity: 0.5; cursor: default; }
   font-size: 13px; font-weight: 600;
 }
 .segmento button .glifo { font-size: 19px; line-height: 1; }
+/* Los nombres de idioma son más largos que "Claro" u "Oscuro" y no llevan glifo. */
+#idioma button { font-size: 12.5px; padding: 13px 4px; }
 .segmento button[aria-pressed="true"] {
   background: var(--accent); color: var(--accent-ink); border-color: transparent;
 }
@@ -645,7 +666,9 @@ button:disabled { opacity: 0.5; cursor: default; }
   position: fixed; inset: 0; z-index: 40;
   background: var(--bg);
   display: grid; gap: 12px;
-  padding: max(16px, env(safe-area-inset-top)) 16px max(16px, env(safe-area-inset-bottom));
+  /* El hueco de arriba deja sitio al botón de cerrar de la esquina: sin él, el vídeo o
+     la foto le pasan por debajo y hay que adivinar dónde tocar. */
+  padding: calc(max(16px, env(safe-area-inset-top)) + 52px) 16px max(16px, env(safe-area-inset-bottom));
 }
 #clip { grid-template-rows: 1fr auto auto auto; }
 #shot { grid-template-rows: 1fr auto auto; }
@@ -700,13 +723,11 @@ button:disabled { opacity: 0.5; cursor: default; }
 #cert[data-paso="datos"] #cert-doc,
 #cert[data-paso="datos"] #cert-share,
 #cert[data-paso="datos"] #cert-acciones-doc,
+/* En el primer paso no hay a dónde volver: la flecha aparece con la carta ya escrita. */
+#cert[data-paso="datos"] #cert-volver,
 #cert[data-paso="documento"] #cert-datos,
 #cert[data-paso="documento"] #cert-generar { display: none; }
 
-#cert-close {
-  position: absolute; z-index: 2;
-  top: max(10px, env(safe-area-inset-top)); right: 14px;
-}
 
 .titulo-hoja {
   margin: 0 0 6px;
@@ -815,7 +836,7 @@ button:disabled { opacity: 0.5; cursor: default; }
 /* #toast va DESPUES de #ajustes en el documento, que es lo que hace posible este
    selector: con la hoja abierta el aviso sube a la parte de arriba, donde no tapa el
    control que lo ha provocado. */
-#ajustes:not([hidden]) ~ #toast {
+.hoja:not([hidden]) ~ #toast {
   bottom: auto;
   top: calc(max(12px, env(safe-area-inset-top)) + 8px);
 }

@@ -20,6 +20,24 @@
 </head>
 <body>
 
+<!-- Los dos iconos de navegación, definidos una sola vez y usados con <use>.
+     Van en SVG y no como caracteres de texto (✕, ←) porque un carácter lo dibuja la
+     fuente del sistema: se ve distinto en cada teléfono, no siempre existe, y no hay
+     forma de darle un grosor de trazo. Era el problema 4 del brief de rediseño.
+
+     LA CONVENCIÓN, y se aplica en toda la app: arriba a la IZQUIERDA se vuelve, arriba a
+     la DERECHA se cierra. Siempre en el mismo sitio, para no tener que buscarlo. -->
+<svg hidden aria-hidden="true" xmlns="http://www.w3.org/2000/svg"><defs>
+  <symbol id="ic-atras" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+          stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M14.5 5.5 8 12l6.5 6.5"/>
+  </symbol>
+  <symbol id="ic-cerrar" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+          stroke-width="2.1" stroke-linecap="round">
+    <path d="m6.5 6.5 11 11M17.5 6.5l-11 11"/>
+  </symbol>
+</defs></svg>
+
 <canvas id="stage"></canvas>
 
 <video id="camera" playsinline muted autoplay></video>
@@ -59,10 +77,16 @@
 </div>
 
 <!-- Cromo permanente -->
+<!-- Izquierda se vuelve, derecha se cierra. Antes era al revés -casa a la izquierda y
+     flecha a la derecha-, que además dejaba la acción de salir en el sitio de volver. -->
 <div id="chrome" hidden>
-  <button id="home" class="icon" title="Inicio" aria-label="Inicio">⌂</button>
+  <button id="back" class="icon" title="Atrás" aria-label="Volver al paso anterior">
+    <svg class="ic" aria-hidden="true"><use href="#ic-atras"/></svg>
+  </button>
   <div id="step-title"></div>
-  <button id="back" class="icon" title="Atrás" aria-label="Atrás">←</button>
+  <button id="home" class="icon" title="Cerrar" aria-label="Cerrar y volver al inicio">
+    <svg class="ic" aria-hidden="true"><use href="#ic-cerrar"/></svg>
+  </button>
 </div>
 
 <!-- Instrucciones por paso -->
@@ -145,7 +169,7 @@
     <button id="photo" class="icon" title="Foto" aria-label="Foto">◎</button>
   </div>
 
-  <button id="ajustes-bar" class="tiny">Ajustes</button>
+  <button id="camopts-bar" class="tiny">Cámara</button>
 </div>
 
 <!-- Paso FOTO: la cámara del teléfono, imitada.
@@ -167,11 +191,8 @@
 <div id="ui-foto" hidden>
 
   <div class="cam-banda" id="cam-arriba">
-    <button id="foto-salir" class="cam-btn" aria-label="Salir de la cámara" title="Salir">
-      <svg viewBox="0 0 24 24" width="27" height="27" fill="none" stroke="currentColor"
-           stroke-width="2.2" stroke-linecap="round" aria-hidden="true">
-        <path d="m6 6 12 12M18 6 6 18"/>
-      </svg>
+    <button id="foto-salir" class="cam-btn" aria-label="Volver al inicio" title="Volver">
+      <svg class="ic grande" aria-hidden="true"><use href="#ic-atras"/></svg>
     </button>
     <div class="cam-grupo">
       <button id="foto-luz" class="cam-btn" aria-label="Luz" title="Luz">
@@ -200,15 +221,15 @@
   </div>
 
   <div class="cam-banda" id="cam-abajo">
-    <button id="snap" class="disparador" aria-label="Tomar foto"><span></span></button>
-    <div id="cam-fila">
+    <!-- La fila del obturador, como en el teléfono: la última foto a un lado y el botón
+         de cambiar de cámara AL OTRO, los dos a la altura del disparador y al alcance
+         del pulgar. Estaba abajo, junto al carrusel, y desde ahí no se llega sin mover
+         la mano. -->
+    <div id="cam-disparo">
       <button id="foto-ultima" class="cam-miniatura" hidden aria-label="Ver la última foto">
         <img alt="">
       </button>
-      <div id="cam-modos" role="group" aria-label="Modo">
-        <button data-modo="video" aria-pressed="false">VÍDEO</button>
-        <button data-modo="foto" aria-pressed="true">FOTO</button>
-      </div>
+      <button id="snap" class="disparador" aria-label="Tomar foto"><span></span></button>
       <button id="flip" class="cam-btn" aria-label="Cambiar de cámara" title="Cambiar de cámara">
         <svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor"
              stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -217,30 +238,65 @@
         </svg>
       </button>
     </div>
+    <div id="cam-modos" role="group" aria-label="Modo">
+      <button data-modo="video" aria-pressed="false">VÍDEO</button>
+      <button data-modo="foto" aria-pressed="true">FOTO</button>
+    </div>
   </div>
 </div>
 
-<!-- Ajustes: una hoja, un solo sitio donde se configura la app.
-     Es una hoja INFERIOR y no una pantalla entera a propósito: los deslizadores del
-     ajuste fino solo sirven si se ve la escena mientras se mueven. -->
-<div id="ajustes" hidden>
-  <div id="ajustes-hoja" role="dialog" aria-modal="true" aria-labelledby="ajustes-titulo">
+<!-- DOS hojas, y la línea que las separa es dónde estás cuando las abres.
+     Antes era una sola con todo dentro, y ahí el tema de la app convivía con el grano
+     del compositor, que no tienen nada que ver.
 
-    <div id="ajustes-head">
+       - AJUSTES son los de la app: se abren desde el arranque, antes de encender la
+         cámara, y no hablan de la cámara.
+       - OPCIONES DE CÁMARA son las de lo que estás mirando: se abren desde dentro de la
+         cámara -el ••• de FOTO y el botón de la barra del asistente- y los deslizadores
+         solo sirven viendo la escena mientras se mueven, que es justo dónde estás. -->
+
+<div id="ajustes" class="hoja" hidden>
+  <div class="hoja-panel" role="dialog" aria-modal="true" aria-labelledby="ajustes-titulo">
+    <div class="hoja-head">
       <h2 class="titulo-hoja" id="ajustes-titulo">Ajustes</h2>
-      <button id="ajustes-close" class="icon" aria-label="Cerrar los ajustes" title="Cerrar">✕</button>
+      <button id="ajustes-close" class="icon" aria-label="Cerrar los ajustes" title="Cerrar">
+        <svg class="ic" aria-hidden="true"><use href="#ic-cerrar"/></svg>
+      </button>
     </div>
 
-    <div id="ajustes-scroll">
-
+    <div id="ajustes-scroll" class="hoja-scroll">
       <section class="grupo">
         <h3>Tema</h3>
         <div id="tema" class="segmento" role="group" aria-label="Tema"></div>
         <p class="fine texto-hoja" id="tema-pie"></p>
       </section>
 
+      <!-- Solo el selector. Los textos traducidos son otro trabajo, y prometerlos con un
+           selector que no hace nada sería peor que no tenerlo: por eso lo dice debajo. -->
       <section class="grupo">
-        <h3>La cámara</h3>
+        <h3>Idioma</h3>
+        <div id="idioma" class="segmento" role="group" aria-label="Idioma"></div>
+        <p class="fine texto-hoja" id="idioma-pie"></p>
+      </section>
+    </div>
+
+    <div class="hoja-pie">
+      <button id="ajustes-listo" class="primary">Listo</button>
+    </div>
+  </div>
+</div>
+
+<div id="camopts" class="hoja" hidden>
+  <div class="hoja-panel" role="dialog" aria-modal="true" aria-labelledby="camopts-titulo">
+    <div class="hoja-head">
+      <h2 class="titulo-hoja" id="camopts-titulo">La cámara</h2>
+      <button id="camopts-close" class="icon" aria-label="Cerrar las opciones" title="Cerrar">
+        <svg class="ic" aria-hidden="true"><use href="#ic-cerrar"/></svg>
+      </button>
+    </div>
+
+    <div id="camopts-scroll" class="hoja-scroll">
+      <section class="grupo">
         <label class="fila">
           <span>
             <b>Cuadrícula</b>
@@ -248,10 +304,6 @@
           </span>
           <input id="s-rejilla" type="checkbox" checked>
         </label>
-      </section>
-
-      <section class="grupo">
-        <h3>Al grabar</h3>
         <label class="fila">
           <span>
             <b>Grabar también tu voz</b>
@@ -261,8 +313,7 @@
         </label>
       </section>
 
-      <!-- Todo lo que antes estaba a un toque del usuario vive aquí, doblado.
-           No se esconde: se aparta. Quien lo abra tiene que poder deshacerlo, y por eso
+      <!-- Doblado, no escondido. Quien lo abra tiene que poder deshacerlo, y por eso
            "Restablecer" está dentro y no en otra pantalla. -->
       <details id="avanzado" class="grupo">
         <summary>Ajuste fino de la imagen</summary>
@@ -296,21 +347,22 @@
         <h3>Diagnóstico</h3>
         <div id="dbg"></div>
       </section>
-
     </div>
 
-    <div id="ajustes-pie">
-      <button id="ajustes-listo" class="primary">Listo</button>
+    <div class="hoja-pie">
+      <button id="camopts-listo" class="primary">Listo</button>
     </div>
   </div>
 </div>
 
 <!-- Resultado: video -->
 <div id="clip" hidden>
+  <button id="clip-close" class="icon esquina-cerrar" aria-label="Cerrar el vídeo" title="Cerrar">
+    <svg class="ic" aria-hidden="true"><use href="#ic-cerrar"/></svg>
+  </button>
   <video id="clip-video" controls playsinline></video>
   <div id="clip-meta"></div>
   <div class="actions">
-    <button id="clip-close">Cerrar</button>
     <button id="clip-share" hidden class="primary">Guardar en el carrete</button>
     <a id="clip-save" class="btn" download="raton-perez.webm">Descargar archivo</a>
   </div>
@@ -319,9 +371,11 @@
 
 <!-- Resultado: foto -->
 <div id="shot" hidden>
+  <button id="shot-close" class="icon esquina-cerrar" aria-label="Cerrar la foto" title="Cerrar">
+    <svg class="ic" aria-hidden="true"><use href="#ic-cerrar"/></svg>
+  </button>
   <img id="shot-img" alt="Foto compuesta">
   <div class="actions">
-    <button id="shot-close">Cerrar</button>
     <button id="shot-share" hidden class="primary">Guardar en Fotos</button>
     <a id="shot-save" class="btn" download="raton-perez.png">Descargar archivo</a>
   </div>
@@ -331,7 +385,12 @@
 <!-- La carta del Ratón: primero los datos, y la carta al final -->
 <div id="cert" data-paso="datos" hidden>
   <!-- Cerrar vive fuera de los dos pasos: en el paso del documento no había salida. -->
-  <button id="cert-close" class="icon" aria-label="Cerrar la carta" title="Cerrar">✕</button>
+  <button id="cert-volver" class="icon esquina-atras" aria-label="Volver a los datos" title="Volver">
+    <svg class="ic" aria-hidden="true"><use href="#ic-atras"/></svg>
+  </button>
+  <button id="cert-close" class="icon esquina-cerrar" aria-label="Cerrar la carta" title="Cerrar">
+    <svg class="ic" aria-hidden="true"><use href="#ic-cerrar"/></svg>
+  </button>
 
   <div id="cert-scroll">
 
@@ -404,7 +463,6 @@
     <!-- Paso 2 -->
     <button id="cert-share" hidden class="primary">Guardar en Fotos</button>
     <div class="actions" id="cert-acciones-doc">
-      <button id="cert-volver">Editar</button>
       <button id="cert-print" class="btn">Imprimir</button>
       <a id="cert-save" class="btn" download="carta-del-raton-perez.png">Descargar</a>
     </div>
