@@ -187,7 +187,6 @@ export default {
   carta: {
     pasoDatos: "The details",
     pasoCarta: "The letter",
-    cerrar: "Close the letter",
     titulo: "The mouse's letter",
     entradilla: "Fill in what you know and the mouse writes the letter. The name is the " +
                 "only thing it can't do without.",

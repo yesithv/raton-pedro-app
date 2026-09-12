@@ -203,7 +203,6 @@ export default {
     // --- La pantalla ---------------------------------------------------------
     pasoDatos: "Los datos",
     pasoCarta: "La carta",
-    cerrar: "Cerrar la carta",
     titulo: "La carta del Ratón",
     entradilla: "Rellena lo que sepas y el Ratón escribe la carta. Lo único " +
                 "imprescindible es el nombre.",

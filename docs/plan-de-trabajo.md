@@ -451,7 +451,7 @@ es donde la tiene el teléfono.
 
 La línea que las separa es **dónde estás cuando las abres**:
 
-- **Ajustes** (engranaje de arriba a la derecha, en el arranque y en INICIO): tema e
+- **Ajustes** (deslizadores de arriba a la derecha, en el arranque y en INICIO): tema e
   idioma. No hablan de la cámara. El botón vive fuera de `#boot` a propósito: dentro
   desaparecía al encender la cámara y dejaba el tema y el idioma sin puerta.
 - **La cámara** (el `•••` de FOTO y *Cámara* en la barra del asistente, ya no en INICIO):

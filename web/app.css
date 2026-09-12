@@ -197,8 +197,8 @@ button:disabled { opacity: 0.5; cursor: default; }
    desplaza: superpuesta habría que reservarle hueco a mano con un padding, y ese número
    se descuadra en cuanto la barra cambia de alto.
 
-   Los dos botones están SIEMPRE: una esquina que unas veces tiene botón y otras no obliga
-   a mirar antes de tocar, y el título se descentra al aparecer y desaparecer el hueco. */
+   Los botones que haya no cambian de sitio entre pasos: una esquina que unas veces tiene
+   botón y otras no obliga a mirar antes de tocar. */
 .barra-nav {
   display: flex; align-items: center; gap: 10px;
   padding: max(10px, env(safe-area-inset-top)) 12px 6px;
@@ -210,11 +210,15 @@ button:disabled { opacity: 0.5; cursor: default; }
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 .barra-nav .icon { flex: none; }
+/* La esquina que no lleva botón sigue ocupando su sitio. Es lo que mantiene el rótulo
+   CENTRADO en la barra y no corrido medio botón hacia el lado vacío, que es justo el tipo
+   de descuadre que se nota sin saber decir por qué. */
+.barra-nav-hueco { flex: none; width: 44px; height: 44px; }
 
 /* --- Arranque ---
    El personaje primero y el permiso al final: quien abre esto de noche necesita saber en
    dos segundos qué va a pasar, no leer una declaración de intenciones. */
-/* El engranaje de los ajustes: arriba a la derecha, y el MISMO en el arranque y en el
+/* El botón de los ajustes: arriba a la derecha, y el MISMO en el arranque y en el
    INICIO. Va fijo y por encima de todo lo que pinta esas dos pantallas -#boot está en
    30- porque ya no vive dentro de ninguna de las dos: si viviera dentro del arranque,
    desaparecería con él en cuanto se enciende la cámara, que es justo lo que pasaba. */
@@ -269,7 +273,7 @@ button:disabled { opacity: 0.5; cursor: default; }
 #inicio-head h2 {
   margin: 0;
   font-size: 26px; font-weight: 800; letter-spacing: -0.02em; line-height: 1.1;
-  /* Hueco para el engranaje, que cae justo encima de la primera línea. Va en el titular
+  /* Hueco para el botón de ajustes, que cae justo encima de la primera línea. Va en el titular
      y no en el contenedor para no estrechar también la frase de debajo, que empieza por
      debajo del botón y tiene el ancho entero. */
   padding-right: 52px;

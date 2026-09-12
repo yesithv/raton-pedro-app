@@ -190,7 +190,6 @@ export default {
   carta: {
     pasoDatos: "Os dados",
     pasoCarta: "A carta",
-    cerrar: "Fechar a carta",
     titulo: "A carta do Rato",
     entradilla: "Preenche o que souberes e o Rato escreve a carta. A única coisa " +
                 "imprescindível é o nome.",
