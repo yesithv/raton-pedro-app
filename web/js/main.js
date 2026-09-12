@@ -930,9 +930,10 @@ function setupCertificado() {
  * Y se presentan LOS TRES A LA VEZ, no como un boton que rota. Un icono que cambia al
  * tocarlo obliga a dar toques hasta acertar y nunca dice cuantas opciones hay; el tema es
  * de las poquisimas cosas que un usuario quiere elegir, y elegir necesita ver la lista.
+ *
+ * El glifo se queda aqui y el nombre se va a `idiomas/`: un simbolo de luna no se traduce,
+ * y ponerlo en los tres catalogos solo daria tres sitios donde equivocarse.
  */
-// El glifo se queda aqui y el nombre se va a `idiomas/`: un simbolo de luna no se
-// traduce, y ponerlo en los tres catalogos solo daria tres sitios donde equivocarse.
 const TEMAS = [
   { id: "auto", glifo: "\u25D0" },
   { id: "claro", glifo: "\u2600" },
