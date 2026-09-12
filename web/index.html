@@ -131,7 +131,19 @@
 <div id="bar" hidden>
 
   <div id="ui-inicio" class="pane" hidden>
-    <button id="go-video" class="card on">
+    <!-- El vídeo NO entra en el MVP: la primera versión son la foto y la carta.
+         Se queda a la vista, y eso es deliberado: quitarla de golpe haría que quien ya
+         conoce la app creyera que se ha roto algo, y además esconde la mitad de lo que el
+         producto va a ser. Lo que se va es la PROMESA de que lleva a algún sitio.
+
+         Tres cosas cambian a la vez, y las tres dicen lo mismo desde ángulos distintos:
+         el galón de la derecha —que significa "esto te lleva a otra pantalla"— se
+         sustituye por una pastilla que dice PRÓXIMAMENTE; el pie deja de anunciar cuánto
+         tarda y dice cuándo llega; y `aria-disabled` lo cuenta para quien no ve nada de
+         eso. No lleva `disabled` a secas a propósito: un botón deshabilitado de verdad no
+         emite el clic, y entonces no habría forma de explicar POR QUÉ no pasa nada, que
+         es justo lo que convierte un botón mudo en una app rota. -->
+    <button id="go-video" class="card">
       <span class="ic">
         <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor"
              stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
@@ -139,10 +151,16 @@
         </svg>
       </span>
       <span><b data-t="inicio.video"></b><em data-t="inicio.videoPie"></em></span>
+      <!-- Las dos van en el HTML y el CSS enseña la que toca, según la clase `proxima`
+           que pone `pintarPuertaVideo()`. Así el estado lo decide UNA constante del
+           código y no hay forma de que el atributo y el dibujo digan cosas distintas,
+           que es justo lo que pasó al escribirlo a mano: con la puerta abierta, la
+           tarjeta seguía anunciándose como deshabilitada. -->
       <span class="chev">
         <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor"
              stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m10 6 6 6-6 6"/></svg>
       </span>
+      <span class="insignia" data-t="inicio.proximamente"></span>
     </button>
     <button id="go-photo" class="card">
       <span class="ic">
@@ -275,6 +293,7 @@
       </button>
     </div>
     <div id="cam-modos" role="group" data-t-aria="camara.modo">
+      <!-- Mismo motivo que la tarjeta del inicio: se ve, pero avisa en vez de llevar. -->
       <button data-modo="video" aria-pressed="false" data-t="camara.modoVideo"></button>
       <button data-modo="foto" aria-pressed="true" data-t="camara.modoFoto"></button>
     </div>

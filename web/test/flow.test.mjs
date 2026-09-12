@@ -67,9 +67,12 @@ const vigilar = (p) => {
 };
 vigilar(page);
 
-const shot = async (name) => {
-  await page.waitForTimeout(400);
-  await page.screenshot({ path: `${OUT}/${name}.png` });
+// La pestaña es un parámetro porque la prueba abre más de una -el recorrido normal, el
+// del MVP sin la llave del vídeo, el del idioma detectado- y una captura de la pestaña
+// equivocada engaña sin fallar: enseña un estado real, pero no el que dice su nombre.
+const shot = async (name, pestana = page) => {
+  await pestana.waitForTimeout(400);
+  await pestana.screenshot({ path: `${OUT}/${name}.png` });
 };
 
 let failures = 0;
@@ -79,7 +82,12 @@ const check = (label, fn) => {
 };
 
 console.log('arranque');
-await page.goto(`${BASE}/web/index.html`, { waitUntil: 'networkidle' });
+// `?video=1` abre la puerta al asistente de vídeo, que en la primera versión está cerrada
+// para el usuario. La composición, el analizador y la grabación son lo ÚNICO verificado de
+// verdad en este repositorio, y esta prueba es la que los protege: sin la llave no habría
+// forma de llegar hasta ellos, y la alternativa —aparcar el recorrido— es justo lo que no
+// se hace aquí. Que la puerta esté cerrada sin la llave se comprueba al final, aparte.
+await page.goto(`${BASE}/web/index.html?video=1`, { waitUntil: 'networkidle' });
 
 // ---------------------------------------------------------------------------
 // La convención de los botones de navegación
@@ -1119,6 +1127,83 @@ check('desde la carta se sale deshaciendo el camino: primero los datos, luego el
 // botones juntos que hacen lo mismo obligan a elegir entre dos cosas que no se diferencian.
 const sinX = await page.evaluate(() => !document.getElementById('cert-close'));
 check('la carta ya no lleva X de cerrar', () => assert(sinX));
+
+// ---------------------------------------------------------------------------
+// El vídeo no entra en la primera versión
+// ---------------------------------------------------------------------------
+// En un contexto NUEVO y SIN `?video=1`, que es como lo abre el usuario. Lo que se vigila
+// no es solo que no se pueda entrar: es que al tocarlo se EXPLIQUE por qué. Un botón que
+// no hace nada y no dice nada se lee como una app rota, que es peor que no tenerlo.
+console.log('el vídeo, fuera del MVP');
+const ctxMvp = await browser.newContext({
+  viewport: { width: 412, height: 892 },
+  permissions: ['camera', 'microphone'],
+  locale: 'es-ES',
+});
+const paginaMvp = await ctxMvp.newPage();
+vigilar(paginaMvp);
+await paginaMvp.goto(`${BASE}/web/index.html`, { waitUntil: 'networkidle' });
+await paginaMvp.click('#start');
+await paginaMvp.waitForSelector('#ui-inicio:not([hidden])', { timeout: 30_000 });
+
+const inicioMvp = await paginaMvp.evaluate(() => {
+  const video = document.getElementById('go-video');
+  const foto = document.getElementById('go-photo');
+  return {
+    videoDeshabilitado: video.getAttribute('aria-disabled') === 'true',
+    // El galón dice "esto abre otra pantalla". Si no abre ninguna, no puede VERSE —está
+    // en el HTML, y quien decide cuál de los dos se enseña es el CSS según el estado—.
+    videoConGalon: getComputedStyle(video.querySelector('.chev')).display !== 'none',
+    videoConInsignia: getComputedStyle(video.querySelector('.insignia')).display !== 'none'
+      ? video.querySelector('.insignia').textContent.trim() : '',
+    // La FOTO pasa a ser la acción principal: es lo que el MVP quiere que se pulse.
+    fotoEsPrincipal: foto.classList.contains('on'),
+    videoEsPrincipal: video.classList.contains('on'),
+  };
+});
+check('el vídeo se ve, pero ya no promete que lleve a ningún sitio', () => {
+  assert(inicioMvp.videoDeshabilitado, 'la tarjeta de vídeo no dice aria-disabled');
+  assert(!inicioMvp.videoConGalon, 'sigue enseñando el galón de "te lleva a otra pantalla"');
+  assert(inicioMvp.videoConInsignia.length > 0, 'no se ve la insignia que dice que llega después');
+});
+check('la foto es ahora la acción principal del inicio', () => {
+  assert(inicioMvp.fotoEsPrincipal, 'la foto no lleva el acento');
+  assert(!inicioMvp.videoEsPrincipal, 'el vídeo sigue llevando el acento');
+});
+
+// `force`: `aria-disabled` es informativo, no bloquea nada —el navegador emite el clic
+// igual, que es justo lo que se está comprobando—. Playwright se planta por precaución
+// ante cualquier cosa que se anuncie como deshabilitada, así que hay que decírselo.
+await paginaMvp.click('#go-video', { force: true });
+await paginaMvp.waitForSelector('#toast:not([hidden])', { timeout: 5_000 });
+const trasTocarVideo = await paginaMvp.evaluate(() => ({
+  aviso: document.getElementById('toast').textContent,
+  // Y sobre todo: NO se ha entrado en el asistente.
+  enInicio: !document.getElementById('ui-inicio').hidden,
+  reticulo: !document.getElementById('reticle').hidden,
+}));
+check('tocar el vídeo explica por qué no pasa nada, y no entra en el asistente', () => {
+  assert(trasTocarVideo.enInicio, 'se salió del inicio');
+  assert(!trasTocarVideo.reticulo, 'entró en ESCANEAR');
+  assert(/segunda versión/i.test(trasTocarVideo.aviso),
+    `el aviso no dice cuándo llega: "${trasTocarVideo.aviso}"`);
+});
+await shot('11_video_proximamente', paginaMvp);
+
+// Y la otra puerta: el carrusel de modos de la cámara del paso FOTO.
+await paginaMvp.click('#go-photo');
+await paginaMvp.waitForSelector('#ui-foto:not([hidden])', { timeout: 10_000 });
+await paginaMvp.click('#cam-modos button[data-modo="video"]', { force: true });
+const trasModoVideo = await paginaMvp.evaluate(() => ({
+  enFoto: !document.getElementById('ui-foto').hidden,
+  deshabilitado: document.querySelector('#cam-modos button[data-modo="video"]')
+                   .getAttribute('aria-disabled') === 'true',
+}));
+check('el modo VÍDEO de la cámara tampoco entra, y también lo dice', () => {
+  assert(trasModoVideo.deshabilitado, 'el modo VÍDEO no dice aria-disabled');
+  assert(trasModoVideo.enFoto, 'el carrusel de modos se salió de FOTO');
+});
+await ctxMvp.close();
 
 // ---------------------------------------------------------------------------
 // El idioma del teléfono manda la primera vez

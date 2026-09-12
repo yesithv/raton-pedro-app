@@ -1,7 +1,18 @@
 # Prototipo web
 
-Cámara en vivo, composición del ratón, **grabación de video con micrófono** y captura de
-foto, en el navegador del teléfono. Sin instalar nada.
+Cámara en vivo, composición del ratón, captura de foto y la carta del Ratón Pérez, en el
+navegador del teléfono. Sin instalar nada.
+
+> **El vídeo no entra en la primera versión.** El MVP son la **foto** y la **carta**. El
+> asistente de vídeo —escanear, superficie, tamaño, editar, grabar— sigue entero y
+> funcionando; lo único que está cerrada es la puerta, y al tocarla la app dice cuándo
+> llega en vez de no hacer nada.
+>
+> Se abre con **`?video=1`** en la dirección. No es una función escondida para el usuario
+> —nadie escribe eso en la barra de un teléfono—: es la llave de servicio que usan la
+> prueba del asistente y quien siga trabajando en el vídeo. Sin ella no habría forma de
+> llegar al compositor, al analizador y a la grabación, que son lo único verificado de
+> verdad en este repositorio, y la alternativa sería aparcar esa prueba.
 
 **Qué es:** la forma más barata de tener la composición en las manos y en un cuarto real.
 El shader es literalmente el mismo archivo que va al nativo (`shaders/composite.frag`), y

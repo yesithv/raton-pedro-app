@@ -308,6 +308,31 @@ button:disabled { opacity: 0.5; cursor: default; }
 .card.on em { color: rgba(255, 244, 242, 0.82); }
 .card .chev { margin-left: auto; opacity: 0.5; }
 .card svg { display: block; }
+
+/* --- Lo que todavía no está ---
+   El vídeo no entra en la primera versión. La tarjeta se queda a la vista —quitarla haría
+   creer que la app se ha roto, y además esconde la mitad de lo que el producto va a ser—,
+   pero deja de PARECER que lleva a algún sitio.
+
+   Por eso la insignia ocupa el hueco del galón y no se añade al lado: el galón es lo que
+   dice "esto abre otra pantalla", y una tarjeta con galón Y con "próximamente" se
+   contradice a sí misma. Y por eso el atenuado es 0.72 y no 0.5: tiene que leerse como
+   algo que viene, no como algo averiado. */
+.card.proxima { opacity: 0.72; }
+/* El galón y la insignia se excluyen: el galón significa "esto abre otra pantalla", y una
+   tarjeta con galón Y con "próximamente" se contradice a sí misma. */
+.card.proxima .chev { display: none; }
+.card:not(.proxima) .insignia { display: none; }
+.card.proxima .ic { background: var(--ic-fondo); }
+.insignia {
+  margin-left: auto; flex: none;
+  font-size: 10.5px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--dim);
+  border: 1px solid var(--borde);
+  border-radius: var(--r-pill);
+  padding: 5px 9px;
+  white-space: nowrap;
+}
 #ui-inicio .fine { margin: 2px 0 0; }
 
 /* Texto de apoyo: pequeño, tenue y centrado. Se usa en el arranque y bajo las tarjetas. */
@@ -583,6 +608,7 @@ button:disabled { opacity: 0.5; cursor: default; }
   padding: 7px 13px; border-radius: 999px;
   -webkit-tap-highlight-color: transparent;
 }
+#cam-modos button[aria-disabled="true"] { opacity: 0.45; }
 #cam-modos button[aria-pressed="true"] {
   color: var(--accent-ink);
   background: var(--accent);
@@ -924,11 +950,26 @@ button:disabled { opacity: 0.5; cursor: default; }
 
 #toast {
   position: fixed; z-index: 45;
-  left: 50%; bottom: 120px; transform: translateX(-50%);
+  bottom: 120px;
+  /* Centrado con márgenes automáticos y NO con `left: 50%` + `translateX(-50%)`, que es
+     como estaba. La diferencia importa: a un elemento fijo con `left: 50%` el navegador le
+     da como ancho disponible lo que queda de ahí al borde derecho —media pantalla—, así
+     que se partía en tres líneas y el `max-width` no llegaba a aplicarse nunca. Con los
+     dos bordes en cero, el ancho disponible es la pantalla entera y manda el `max-width`. */
+  left: 0; right: 0;
+  margin-inline: auto;
+  width: fit-content;
   background: var(--toast-fondo); color: var(--toast-texto);
   border-radius: 999px; padding: 10px 18px;
   font-size: 13px;
   box-shadow: 0 8px 24px var(--sombra);
+  /* Hasta ahora todos los avisos cabían en una línea corta, así que la pastilla no tenía
+     ni techo de ancho ni saltos: el primer mensaje largo se habría salido por los dos
+     lados de un teléfono. `pre-line` respeta el salto que trae el texto del catálogo, que
+     es donde se decide dónde parte la frase —y no en un ancho de pantalla concreto—. */
+  max-width: min(32rem, calc(100vw - 32px));
+  white-space: pre-line;
+  text-align: center;
 }
 
 /* #toast va DESPUES de #ajustes en el documento, que es lo que hace posible este
