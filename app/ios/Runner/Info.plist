@@ -1,0 +1,86 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>CADisableMinimumFrameDurationOnPhone</key>
+	<true/>
+	<key>CFBundleDevelopmentRegion</key>
+	<string>es</string>
+	<key>CFBundleDisplayName</key>
+	<string>Ratón Pérez</string>
+	<key>CFBundleExecutable</key>
+	<string>$(EXECUTABLE_NAME)</string>
+	<key>CFBundleIdentifier</key>
+	<string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
+	<key>CFBundleInfoDictionaryVersion</key>
+	<string>6.0</string>
+	<key>CFBundleName</key>
+	<string>perezar</string>
+	<key>CFBundlePackageType</key>
+	<string>APPL</string>
+	<key>CFBundleShortVersionString</key>
+	<string>$(FLUTTER_BUILD_NAME)</string>
+	<key>CFBundleSignature</key>
+	<string>????</string>
+	<key>CFBundleVersion</key>
+	<string>$(FLUTTER_BUILD_NUMBER)</string>
+	<!-- LOS TRES PERMISOS, con su porqué escrito para el usuario y no para Apple.
+	     iOS enseña estas frases DENTRO del cuadro de diálogo del sistema, la primera vez
+	     que la app pide cada cosa, y son obligatorias: sin ellas la app no pide el
+	     permiso, se cierra.
+
+	     DE MOMENTO SOLO EN CASTELLANO, y es una limitación conocida, no un olvido: la app
+	     habla tres idiomas, pero traducir estas tres frases no se hace aquí —hay que
+	     registrar un InfoPlist.strings por idioma en el proyecto de Xcode, y eso pide
+	     Xcode—. Va apuntado en docs/exportar-a-moviles.md junto a lo demás que necesita un
+	     Mac. Mientras tanto el castellano es el idioma original de la app, así que nadie
+	     ve una clave sin traducir: ve una frase, en el idioma de origen. -->
+	<key>NSCameraUsageDescription</key>
+	<string>Para ver el cuarto y poner al Ratón Pérez encima. El vídeo no sale del teléfono.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Para que tu voz entre en el vídeo mientras grabas. Puedes desactivarlo en los ajustes.</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>Para guardar en tu carrete la foto o el vídeo que acabas de hacer.</string>
+	<key>LSRequiresIPhoneOS</key>
+	<true/>
+	<key>UIApplicationSceneManifest</key>
+	<dict>
+		<key>UIApplicationSupportsMultipleScenes</key>
+		<false/>
+		<key>UISceneConfigurations</key>
+		<dict>
+			<key>UIWindowSceneSessionRoleApplication</key>
+			<array>
+				<dict>
+					<key>UISceneClassName</key>
+					<string>UIWindowScene</string>
+					<key>UISceneConfigurationName</key>
+					<string>flutter</string>
+					<key>UISceneDelegateClassName</key>
+					<string>$(PRODUCT_MODULE_NAME).SceneDelegate</string>
+					<key>UISceneStoryboardFile</key>
+					<string>Main</string>
+				</dict>
+			</array>
+		</dict>
+	</dict>
+	<key>UIApplicationSupportsIndirectInputEvents</key>
+	<true/>
+	<key>UILaunchStoryboardName</key>
+	<string>LaunchScreen</string>
+	<key>UIMainStoryboardFile</key>
+	<string>Main</string>
+	<!-- Solo vertical, igual que el AndroidManifest. No es una limitación: se apoya el
+	     teléfono apuntando a la cama, y una cámara que gira sola mientras el padre se
+	     agacha es justo lo que estropea la toma. -->
+	<key>UISupportedInterfaceOrientations</key>
+	<array>
+		<string>UIInterfaceOrientationPortrait</string>
+	</array>
+	<key>UISupportedInterfaceOrientations~ipad</key>
+	<array>
+		<string>UIInterfaceOrientationPortrait</string>
+		<string>UIInterfaceOrientationPortraitUpsideDown</string>
+	</array>
+</dict>
+</plist>

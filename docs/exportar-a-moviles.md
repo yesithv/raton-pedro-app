@@ -159,20 +159,46 @@ comprobar que funciona.** Y en una app de cámara, eso es una parte muy grande d
 
 Cada fase es aprobable por separado. Las dos primeras no dependen de tener Mac ni cuenta.
 
-**Fase 1 — Android hasta la tienda.** Firma, `.aab`, icono, nombre, versión y el workflow
-de release. Es lo que convierte «compila un APK de depuración» en «hay algo que se puede
-instalar y publicar». *No necesita nada que no tengamos, salvo los 25 $ de Google Play
-cuando toque publicar de verdad.*
+**Fase 1 — Android hasta la tienda. ✅ HECHA.** Firma de release desde `key.properties`
+o desde variables de entorno, con caída a la clave de depuración para que el CI siga
+compilando sin acceso a la clave de verdad; workflow `Release Android` que produce el
+`.aab` y comprueba con `apksigner` que no salió firmado con la de depuración; icono
+adaptativo propio; y `docs/publicar-android.md` con lo que no es código. Falta solo lo que
+el repositorio no puede hacer: la cuenta de 25 $, la política de privacidad y probarlo en
+un teléfono.
 
-**Fase 2 — El esqueleto de iOS, verificado en CI.** Generar `app/ios/`, el `Info.plist`
-con los permisos, el registro del plugin, y un job de GitHub Actions en macOS que compile
-sin firma. Al final de esta fase el repositorio **demuestra** que el proyecto iOS es
-válido, aunque la app todavía no haga nada en iPhone. *Necesita añadir un workflow, que
-según la regla nueva se pregunta antes.*
+**Fase 2 — El esqueleto de iOS, verificado en CI. ✅ HECHA.** `app/ios/` generado con el
+mismo Flutter 3.47.3 que fija el CI, con el identificador `com.ironcoding.perezar` y el
+objetivo en iOS 15.0, que es el que ya decía `arquitectura.md`. El `Info.plist` lleva los
+tres permisos —cámara, micrófono y guardar en el carrete—, el nombre visible «Ratón Pérez»
+y solo orientación vertical, igual que el manifest de Android. Y un workflow `CI iOS` que
+compila sin firmar en un runner macOS: **es lo que permite desarrollar iOS sin tener un
+Mac**.
 
-**Fase 3 — La decisión del shader.** Montar la traducción GLSL → MSL (o decidir la copia
-con su prueba de equivalencia). Va antes que el Swift de verdad porque condiciona cómo se
-escribe el compositor.
+> Un detalle que habría costado una tarde: `app/ios/` estaba **entero en `.gitignore`**.
+> Todo lo generado se habría quedado fuera del repositorio sin que nadie viera un error.
+> Ahora lo ignorado es solo lo efímero, con el `.gitignore` que trae el propio proyecto.
+
+**Fase 3 — La decisión del shader. ✅ HECHA, y por la opción buena.** Se montó la
+traducción, no la copia a mano: `tools/shader_a_msl.py` lleva
+`shaders/composite.frag` → SPIR-V → Metal con las herramientas de Khronos
+(`glslangValidator` y `spirv-cross`), y el resultado va versionado en
+`app/ios/Runner/Shaders/composite.metal`.
+
+El archivo generado **sí** entra en el repositorio, al revés que el de Android —allí lo
+copia una tarea de Gradle en cada build—, porque en iOS no hay un paso equivalente y
+pedirle a quien compile que instale dos herramientas de Khronos es una barrera que no
+aporta nada. Lo que impide que se quede atrás es el CI: regenera y compara. La
+comprobación es **semántica**: compara el Metal producido, así que un comentario nuevo en
+el `.frag` no la hace saltar y un cambio en la matemática sí.
+
+Las cuatro transformaciones están explicadas una a una en el propio script, y ninguna
+cambia la matemática: la extensión y el sampler externo son de Android, el `#ifdef` se
+resuelve por la misma rama que en web, la versión sube a `310 es` porque es el mínimo del
+que glslang genera SPIR-V, y los `layout(location)` se asignan por orden de aparición.
+
+Con esto **el shader sigue teniendo una sola fuente de verdad en las tres plataformas**,
+que era lo que esta fase estaba en riesgo de perder.
 
 **Fase 4 — La capa iOS, por orden de riesgo.** Cámara (AVFoundation) → compositor (Metal)
 → decodificador del overlay → grabación (AVAssetWriter) → galería (PhotoKit) → ARKit al
@@ -181,6 +207,19 @@ iPhone**: sin dispositivo, esto se escribe a ciegas.
 
 **Fase 5 — Paridad de funciones.** La carta en Dart, para que las dos apps de tienda
 tengan lo mismo que la web.
+
+**Lo que queda pendiente y necesita un Mac.** Apuntado aquí para que no se pierda:
+
+- **Los permisos, traducidos.** Hoy las tres frases del `Info.plist` están solo en
+  castellano. La app habla tres idiomas, y traducirlas exige registrar un
+  `InfoPlist.strings` por idioma en el proyecto de Xcode, que no se puede hacer a ciegas.
+  Mientras tanto nadie ve una clave sin traducir: ve una frase en el idioma de origen.
+- **El icono de iOS.** Sigue siendo el de la plantilla de Flutter. El de Android ya es el
+  busto del personaje; llevarlo al `AppIcon.appiconset` es mecánico, pero conviene mirarlo
+  en un dispositivo antes de darlo por bueno.
+- **Registrar el `.metal` en el target de Xcode.** Hoy el CI lo compila aparte con `xcrun
+  metal` para demostrar que es Metal válido; entrará en el proyecto cuando exista el
+  compositor que lo use.
 
 **Sobre el tamaño:** las fases 1 y 2 son días. La 4 son semanas, y son semanas que no se
 pueden cerrar sin un iPhone en la mano. Conviene saberlo antes de empezar, no a mitad.
