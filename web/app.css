@@ -181,13 +181,35 @@ button:disabled { opacity: 0.5; cursor: default; }
 .ic.grande { width: 27px; height: 27px; }
 
 /* La convención, en un sitio: IZQUIERDA se vuelve, DERECHA se cierra. Siempre a la misma
-   altura, para no tener que buscarlo en cada pantalla. */
-.esquina-cerrar, .esquina-atras {
+   altura, para no tener que buscarlo en cada pantalla.
+   Esta versión es para lo que se enseña SOBRE algo -el vídeo y la foto ya hechos-, donde
+   el botón tiene que flotar encima. Lo que es una pantalla con su contenido usa la barra
+   de aquí abajo. */
+.esquina-cerrar {
   position: absolute; z-index: 2;
   top: max(10px, env(safe-area-inset-top));
+  right: 14px;
 }
-.esquina-atras { left: 14px; }
-.esquina-cerrar { right: 14px; }
+
+/* --- La barra de navegación de las pantallas propias ---
+   La misma convención que las esquinas sueltas, pero como FILA de la pantalla en vez de
+   como algo superpuesto. Es lo que hay que usar cuando debajo va contenido que se
+   desplaza: superpuesta habría que reservarle hueco a mano con un padding, y ese número
+   se descuadra en cuanto la barra cambia de alto.
+
+   Los dos botones están SIEMPRE: una esquina que unas veces tiene botón y otras no obliga
+   a mirar antes de tocar, y el título se descentra al aparecer y desaparecer el hueco. */
+.barra-nav {
+  display: flex; align-items: center; gap: 10px;
+  padding: max(10px, env(safe-area-inset-top)) 12px 6px;
+}
+.barra-nav-titulo {
+  flex: 1; min-width: 0; text-align: center;
+  font-weight: 700; letter-spacing: 0.14em; font-size: 13px;
+  text-transform: uppercase;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.barra-nav .icon { flex: none; }
 
 /* --- Arranque ---
    El personaje primero y el permiso al final: quien abre esto de noche necesita saber en
@@ -709,13 +731,46 @@ button:disabled { opacity: 0.5; cursor: default; }
 #cert {
   position: fixed; inset: 0; z-index: 42;
   background: var(--bg);
-  display: grid; grid-template-rows: 1fr auto;
-  min-height: 0;
+  /* Tres filas: la barra de navegación, lo que se desplaza y los botones. La barra ocupa
+     su propia fila en vez de flotar encima, así el formulario empieza donde acaba ella sin
+     que nadie tenga que cuadrar un padding a mano. */
+  display: grid; grid-template-rows: auto 1fr auto;
+  /* Las dos dimensiones acotadas. `min-width: 0` es lo que impide que una fila más ancha
+     que la pantalla -un control nativo que no sabe encogerse, por ejemplo- estire la
+     rejilla entera: sin él, las filas de `auto` crecen hasta el tamaño mínimo del
+     contenido y la pantalla se convierte en un lienzo que se arrastra de lado. */
+  min-height: 0; min-width: 0;
+  max-width: 100vw; overflow: hidden;
 }
 #cert-scroll {
-  overflow-y: auto; -webkit-overflow-scrolling: touch;
-  padding: calc(max(16px, env(safe-area-inset-top)) + 44px) 16px 8px;
+  /* Se desplaza EN VERTICAL y solo en vertical.
+     Este formulario se movía de lado: con un solo eje en `auto`, el otro se vuelve `auto`
+     también, y bastaba con que un campo se pasara un píxel de ancho para que la pantalla
+     entera se arrastrara con el dedo y el texto se saliera por la izquierda. Ahora el eje
+     horizontal está cerrado por los dos lados -`hidden` para el desbordamiento y
+     `touch-action` para el gesto-, así que no hay nada que arrastrar.
+     Lo de abajo, además, ataca la CAUSA: nada puede ser más ancho que la columna. */
+  overflow-y: auto; overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+  min-width: 0;
+  /* Márgenes proporcionales, no un número fijo: 5% del ancho, con un suelo para que en un
+     teléfono estrecho el texto no bese el borde y un techo para que en una tableta no se
+     abra una zanja. El ancho de la COLUMNA lo pone `.cert-columna`. */
+  padding: 8px clamp(16px, 5vw, 28px) 8px;
 }
+/* El formulario, la carta y los botones comparten columna y van centrados: en un móvil
+   ocupan todo el ancho disponible y en una pantalla grande se quedan en una medida que se
+   puede leer, en vez de estirarse de lado a lado. */
+.cert-columna {
+  width: 100%; max-width: 34rem;
+  margin-inline: auto;
+  min-width: 0;
+}
+/* Mientras se RELLENA no hay nada que ampliar, y el gesto de dos dedos solo servía para
+   sacar el formulario de la pantalla. Con la carta ya escrita sí se deja: ahí hay un
+   documento que alguien va a querer mirar de cerca antes de imprimirlo. */
+#cert[data-paso="datos"] #cert-scroll { touch-action: pan-y; }
 /* Dos pasos: primero los datos, y el documento al final.
    El certificado NO se enseña mientras se rellena. Compitiendo por la pantalla, el
    formulario se veía a medias y el documento también; separados, cada uno ocupa lo que
@@ -723,8 +778,6 @@ button:disabled { opacity: 0.5; cursor: default; }
 #cert[data-paso="datos"] #cert-doc,
 #cert[data-paso="datos"] #cert-share,
 #cert[data-paso="datos"] #cert-acciones-doc,
-/* En el primer paso no hay a dónde volver: la flecha aparece con la carta ya escrita. */
-#cert[data-paso="datos"] #cert-volver,
 #cert[data-paso="documento"] #cert-datos,
 #cert[data-paso="documento"] #cert-generar { display: none; }
 
@@ -744,8 +797,18 @@ button:disabled { opacity: 0.5; cursor: default; }
   box-shadow: 0 14px 34px var(--sombra);
 }
 
-#cert-form { display: grid; gap: 14px; padding-bottom: 8px; }
-.field { display: grid; gap: 7px; }
+/* `minmax(0, 1fr)` y no el `1fr` de siempre: en una rejilla, el mínimo de una columna
+   `auto` es el TAMAÑO MÍNIMO DEL CONTENIDO, así que un campo que no sabe encogerse -un
+   control nativo, una palabra sin espacios- ensancha la columna y con ella el formulario
+   entero. Con el mínimo en cero manda la pantalla, que es lo que tiene que mandar. */
+#cert-form { display: grid; grid-template-columns: minmax(0, 1fr); gap: 14px; padding-bottom: 8px; }
+.field { display: grid; grid-template-columns: minmax(0, 1fr); gap: 7px; }
+.field > * { min-width: 0; max-width: 100%; }
+/* Una caja acotada no basta si el TEXTO de dentro no cabe: una palabra sin espacios que no
+   quepa en la columna la desborda igual, y vuelve la pantalla que se arrastra de lado.
+   Que parta por donde sea es más feo que partir por sílabas, y pasa casi nunca; lo otro
+   rompe la pantalla, y eso se ve siempre. */
+.field > span, .texto-hoja { overflow-wrap: anywhere; }
 .field > span { font-size: 13px; font-weight: 600; color: var(--dim); }
 .field i { font-style: normal; font-weight: 400; opacity: 0.65; }
 .field input {
@@ -786,7 +849,24 @@ button:disabled { opacity: 0.5; cursor: default; }
 /* El motivo por el que el botón no deja pasar. Un botón apagado y mudo se lee como una
    app rota, y el usuario se queda mirando sin saber qué le falta. */
 .field > span.aviso { color: var(--accent); font-weight: 600; }
-/* El selector de fecha nativo de iOS se pinta claro si no se le dice lo contrario */
+
+/* --- El selector de fecha ---
+   El `input[type=date]` de iOS no es una caja de texto: es un control nativo con ancho
+   propio, y ese ancho NO baja de lo que ocupa su contenido por mucho `width: 100%` que se
+   le ponga. Era el campo que sacaba el formulario de la pantalla: se pasaba unos píxeles
+   de la columna, la rejilla crecía para darle sitio y el resultado era una pantalla que se
+   arrastraba de lado con el dedo.
+
+   `min-width: 0` le quita el suelo, `max-width: 100%` le pone el techo, y la alineación a
+   la izquierda del valor es de paso lo que hace que la fecha se lea como los demás campos:
+   iOS la centra dentro de la caja, y una fecha centrada entre un nombre y un premio
+   alineados a la izquierda parecía otro tipo de control. */
+.field input[type="date"] {
+  min-width: 0; max-width: 100%;
+  display: block;
+  text-align: left;
+}
+.field input[type="date"]::-webkit-date-and-time-value { text-align: left; }
 
 
 .chips { display: flex; flex-wrap: wrap; gap: 8px; }
@@ -802,10 +882,13 @@ button:disabled { opacity: 0.5; cursor: default; }
 .chip[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); border-color: transparent; }
 
 #cert-actions {
-  padding: 12px 16px max(12px, env(safe-area-inset-bottom));
+  /* El mismo margen lateral que `#cert-scroll`, para que el botón y los campos compartan
+     borde en vez de quedar cada uno a su aire. */
+  padding: 12px clamp(16px, 5vw, 28px) max(12px, env(safe-area-inset-bottom));
   background: linear-gradient(to top, var(--bg) 72%, transparent);
-  display: grid; gap: 8px;
+  min-width: 0;
 }
+#cert-actions .cert-columna { display: grid; gap: 8px; }
 
 /* Impresión: solo el certificado, a página completa y sin la interfaz alrededor. */
 @page { size: A4 portrait; margin: 8mm; }
@@ -813,6 +896,9 @@ button:disabled { opacity: 0.5; cursor: default; }
   body > * { display: none !important; }
   #cert { display: block !important; position: static; background: #fff; }
   #cert-scroll { overflow: visible; padding: 0; }
+  /* En papel no hay a dónde volver ni qué cerrar: la barra se queda fuera junto al resto
+     de la interfaz. Antes eran dos botones sueltos y se colaban en la impresión. */
+  #cert .barra-nav,
   #cert-form, #cert-actions { display: none !important; }
   #cert-preview { position: static; padding: 0; margin: 0; background: none; }
   /* En papel manda la HOJA, y por los dos lados: solo con width:100% el certificado

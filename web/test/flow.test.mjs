@@ -70,28 +70,41 @@ await page.goto(`${BASE}/web/index.html`, { waitUntil: 'networkidle' });
 // IZQUIERDA se vuelve, DERECHA se cierra, en todas las pantallas y siempre a la misma
 // altura. Y dibujados en SVG, no escritos con caracteres (✕ ← ⌂): un carácter lo dibuja
 // la fuente del sistema, se ve distinto en cada teléfono y no siempre existe.
+// Hay DOS formas de ponerlos, y las dos tienen que cumplir la convención: el botón suelto
+// de esquina para lo que se enseña SOBRE algo -el vídeo y la foto ya hechos-, y la barra
+// de navegación para las pantallas con contenido propio debajo.
 const nav = await page.evaluate(() => {
+  const icono = (e) => e?.querySelector('use')?.getAttribute('href') ?? null;
   const lados = (sel) => [...document.querySelectorAll(sel)].map((e) => {
     const c = getComputedStyle(e);
-    return { izq: c.left !== 'auto', der: c.right !== 'auto',
-             icono: e.querySelector('use')?.getAttribute('href') ?? null };
+    return { izq: c.left !== 'auto', der: c.right !== 'auto', icono: icono(e) };
   });
-  // Los botones de navegación de toda la app: los de esquina y los de las cabeceras.
+  // Los botones de navegación de toda la app: los de esquina, los de las barras y los de
+  // las cabeceras de las hojas.
   const todos = [...document.querySelectorAll(
-    '.esquina-cerrar, .esquina-atras, .hoja-head button, #chrome button, #foto-salir')];
+    '.esquina-cerrar, .barra-nav button, .hoja-head button, #chrome button, #foto-salir')];
   return {
-    atras: lados('.esquina-atras'),
     cerrar: lados('.esquina-cerrar'),
-    iconos: todos.map((e) => e.querySelector('use')?.getAttribute('href') ?? e.textContent.trim()),
+    // Se mira el ORDEN en el documento y no la posición medida, porque estas barras viven
+    // en pantallas que arrancan ocultas y una pantalla oculta no tiene geometría.
+    barras: [...document.querySelectorAll('.barra-nav')].map((b) => ({
+      primero: icono(b.firstElementChild),
+      ultimo: icono(b.lastElementChild),
+    })),
+    iconos: todos.map((e) => icono(e) ?? e.textContent.trim()),
     // El cromo del asistente: volver a la izquierda, cerrar a la derecha.
     chrome: [...document.querySelectorAll('#chrome > *')].map((e) => e.id || e.tagName),
   };
 });
 
 check('volver va siempre a la izquierda y cerrar siempre a la derecha', () => {
-  assert(nav.atras.length > 0 && nav.cerrar.length > 0, 'no hay botones de esquina');
-  for (const b of nav.atras) assert(b.izq && !b.der, 'un "volver" no está a la izquierda');
+  assert(nav.cerrar.length > 0, 'no hay botones de esquina');
   for (const b of nav.cerrar) assert(b.der && !b.izq, 'un "cerrar" no está a la derecha');
+  assert(nav.barras.length > 0, 'no hay barras de navegación');
+  for (const b of nav.barras) {
+    assert.equal(b.primero, '#ic-atras', 'una barra no empieza por el botón de volver');
+    assert.equal(b.ultimo, '#ic-cerrar', 'una barra no acaba en el botón de cerrar');
+  }
 });
 check('el cromo del asistente sigue la convención', () =>
   assert.deepEqual(nav.chrome, ['back', 'step-title', 'home'],
@@ -680,6 +693,27 @@ const lienzoCert = () => page.evaluate(() => {
 });
 const paso = () => page.getAttribute('#cert', 'data-paso');
 
+/**
+ * La pantalla, medida: que quepa a lo ancho y que los dos botones estén puestos.
+ *
+ * El ancho es el que arregló el bug de verdad: el formulario se salía de la pantalla -un
+ * control nativo que no sabía encogerse ensanchaba la rejilla entera- y la carta se
+ * arrastraba de lado con el dedo como si fuera un lienzo, con el texto saliéndose por la
+ * izquierda. Se mide `scrollWidth` contra `clientWidth` porque es exactamente eso: cuánto
+ * hay de más para arrastrar.
+ */
+const pantallaCarta = () => page.evaluate(() => {
+  const s = document.getElementById('cert-scroll');
+  const caja = (id) => document.getElementById(id).getBoundingClientRect();
+  const v = caja('cert-volver');
+  const c = caja('cert-close');
+  return {
+    sobra: s.scrollWidth - s.clientWidth,
+    sobraDoc: document.documentElement.scrollWidth - document.documentElement.clientWidth,
+    volver: v.width > 0, cerrar: c.width > 0, enOrden: v.left < c.left,
+  };
+});
+
 // Se entra por los DATOS, no por el documento.
 const pasoInicial = await paso();
 const docOculto = !(await page.isVisible('#cert-doc'));
@@ -690,6 +724,17 @@ check('se entra por el formulario, con el documento aún sin generar', () => {
 });
 // Sin nombre no hay certificado: el botón no deja pasar.
 check('sin nombre no se puede generar', () => assert(generarApagado));
+
+const anchoDatos = await pantallaCarta();
+check('el formulario cabe a lo ancho de la pantalla', () => {
+  assert.equal(anchoDatos.sobra, 0, `sobran ${anchoDatos.sobra} px que se pueden arrastrar`);
+  assert.equal(anchoDatos.sobraDoc, 0, 'la página entera se desplaza de lado');
+});
+check('rellenando los datos ya están los dos botones de la barra', () => {
+  assert(anchoDatos.volver, 'falta el botón de volver');
+  assert(anchoDatos.cerrar, 'falta el botón de cerrar');
+  assert(anchoDatos.enOrden, 'volver no está a la izquierda de cerrar');
+});
 
 await page.fill('#cert-nombre', 'Lucía');
 await page.fill('#cert-premio', 'Una moneda');
@@ -705,6 +750,11 @@ const lleno = await lienzoCert();
 check('al generar se pasa al documento', () => assert.equal(pasoFinal, 'documento'));
 check('la carta es A4 a 150 ppp', () =>
   assert.equal(`${lleno.w}x${lleno.h}`, '1240x1754'));
+const anchoDoc = await pantallaCarta();
+check('la carta escrita también cabe a lo ancho, y con los dos botones', () => {
+  assert.equal(anchoDoc.sobra, 0, `sobran ${anchoDoc.sobra} px que se pueden arrastrar`);
+  assert(anchoDoc.volver && anchoDoc.cerrar && anchoDoc.enOrden);
+});
 await shot('10_certificado_documento');
 
 // El documento lleva lo que se escribió: con otro nombre tiene que salir otro dibujo.
@@ -858,7 +908,9 @@ const impreso = await page.evaluate(() => {
     return r.width > 0 && r.height > 0;
   };
   return { canvas: visible('#cert-canvas'), form: visible('#cert-form'),
-           acciones: visible('#cert-actions'), barra: visible('#bar') };
+           acciones: visible('#cert-actions'), barra: visible('#bar'),
+           // En papel no hay a dónde volver ni qué cerrar.
+           navegacion: visible('#cert .barra-nav') };
 });
 await page.emulateMedia({ media: 'screen' });
 check('al imprimir solo va la carta', () => {
@@ -877,6 +929,16 @@ check('la carta se cierra desde el documento', () => {
   assert(cerrarVisibleEnDoc, 'no hay forma de cerrar el documento');
   assert(certCerrado);
 });
+
+// Y arriba a la izquierda se VUELVE, también desde el primer paso: desde la carta, al
+// formulario; desde el formulario, al inicio, que es de donde se vino. Antes ese botón no
+// existía en los datos y la única salida era cerrar, que no es lo mismo aunque acabe en el
+// mismo sitio.
+await page.click('#go-cert');
+await page.waitForSelector('#cert:not([hidden])', { timeout: 10_000 });
+await page.click('#cert-volver');
+const vueltoAlInicio = !(await page.isVisible('#cert')) && await page.isVisible('#ui-inicio');
+check('desde los datos, volver sale al inicio', () => assert(vueltoAlInicio));
 
 await browser.close();
 
