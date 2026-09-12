@@ -192,8 +192,12 @@ button:disabled { opacity: 0.5; cursor: default; }
 /* --- Arranque ---
    El personaje primero y el permiso al final: quien abre esto de noche necesita saber en
    dos segundos qué va a pasar, no leer una declaración de intenciones. */
+/* El engranaje de los ajustes: arriba a la derecha, y el MISMO en el arranque y en el
+   INICIO. Va fijo y por encima de todo lo que pinta esas dos pantallas -#boot está en
+   30- porque ya no vive dentro de ninguna de las dos: si viviera dentro del arranque,
+   desaparecería con él en cuanto se enciende la cámara, que es justo lo que pasaba. */
 #ajustes-abrir {
-  position: absolute;
+  position: fixed; z-index: 31;
   top: max(12px, env(safe-area-inset-top)); right: 16px;
 }
 #ajustes-abrir svg { display: block; }
@@ -243,6 +247,10 @@ button:disabled { opacity: 0.5; cursor: default; }
 #inicio-head h2 {
   margin: 0;
   font-size: 26px; font-weight: 800; letter-spacing: -0.02em; line-height: 1.1;
+  /* Hueco para el engranaje, que cae justo encima de la primera línea. Va en el titular
+     y no en el contenedor para no estrechar también la frase de debajo, que empieza por
+     debajo del botón y tiene el ancho entero. */
+  padding-right: 52px;
 }
 #inicio-head p { margin: 6px 0 0; color: var(--dim); font-size: 15px; }
 

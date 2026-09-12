@@ -230,8 +230,44 @@ const catalog = await page.evaluate(() =>
   fetch('assets/catalog.json').then((r) => r.json()).then((d) => d.effects));
 check('el catálogo trae las tres animaciones', () => assert.equal(catalog.length, 3));
 
+// ---------------------------------------------------------------------------
+// Los ajustes siguen ahí después de encender la cámara
+// ---------------------------------------------------------------------------
+// Este es el bug que arregla esta pantalla: el engranaje vivía DENTRO de #boot, y #boot
+// se oculta entero al arrancar. A partir de ahí el tema y el idioma existían pero no
+// había forma de llegar a ellos. Y lo que NO tiene que seguir en INICIO es el botón de
+// las opciones de cámara: sin escena que mirar mientras se mueve un deslizador, ahí no
+// significan nada.
+const enInicio = await page.evaluate(() => ({
+  engranaje: !document.getElementById('ajustes-abrir').hidden,
+  camara: !document.getElementById('camopts-bar').hidden,
+}));
+check('el engranaje de ajustes sigue a la vista en INICIO', () =>
+  assert(enInicio.engranaje, 'el botón de ajustes desapareció al encender la cámara'));
+check('INICIO ya no lleva el botón de opciones de cámara', () =>
+  assert(!enInicio.camara, 'el botón "Cámara" sigue en la barra del inicio'));
+
+await page.click('#ajustes-abrir');
+await page.waitForSelector('#ajustes:not([hidden])', { timeout: 5_000 });
+const desdeInicio = await page.$$eval('#ajustes-scroll h3', (hs) => hs.map((h) => h.textContent));
+check('desde INICIO se llega al tema y al idioma', () =>
+  assert.deepEqual(desdeInicio, ['Tema', 'Idioma']));
+await shot('0b_ajustes_desde_inicio');
+await page.click('#ajustes-listo');
+
 console.log('asistente');
 await page.click('#go-video');
+
+// Dentro de la cámara se cambian las tornas: arriba a la derecha está CERRAR, así que el
+// engranaje se quita de en medio, y las opciones de cámara -que ahí sí sirven- aparecen.
+const enEscanear = await page.evaluate(() => ({
+  engranaje: !document.getElementById('ajustes-abrir').hidden,
+  camara: !document.getElementById('camopts-bar').hidden,
+}));
+check('en los pasos de la cámara el engranaje cede el sitio a CERRAR', () =>
+  assert(!enEscanear.engranaje, 'el engranaje se solapa con el botón de cerrar'));
+check('las opciones de cámara aparecen dentro de la cámara', () =>
+  assert(enEscanear.camara, 'no hay forma de abrir las opciones de cámara'));
 const reticleVisible = await page.isVisible('#reticle');
 check('ESCANEAR muestra el retículo', () => assert(reticleVisible));
 await page.mouse.click(206, 640);

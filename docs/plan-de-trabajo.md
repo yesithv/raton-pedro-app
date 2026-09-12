@@ -451,9 +451,11 @@ es donde la tiene el teléfono.
 
 La línea que las separa es **dónde estás cuando las abres**:
 
-- **Ajustes** (engranaje del arranque): tema e idioma. No hablan de la cámara.
-- **La cámara** (el `•••` de FOTO y *Cámara* en la barra del asistente): cuadrícula,
-  micrófono, ajuste fino y diagnóstico.
+- **Ajustes** (engranaje de arriba a la derecha, en el arranque y en INICIO): tema e
+  idioma. No hablan de la cámara. El botón vive fuera de `#boot` a propósito: dentro
+  desaparecía al encender la cámara y dejaba el tema y el idioma sin puerta.
+- **La cámara** (el `•••` de FOTO y *Cámara* en la barra del asistente, ya no en INICIO):
+  cuadrícula, micrófono, ajuste fino y diagnóstico.
 
 Empezó siendo una sola hoja con todo dentro, y ahí el tema de la app convivía con el grano
 del compositor. Además la hoja de cámara se queda al 62 % de la pantalla y no al 86 %:
